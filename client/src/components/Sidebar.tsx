@@ -1,7 +1,8 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2 } from "lucide-react";
+import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
@@ -166,11 +167,34 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="p-4 mt-auto border-t border-white/5">
-        <div className="text-[10px] text-sidebar-foreground/40 text-center">
-          Precedential CAFC opinions only
+      <div className="p-4 mt-auto border-t border-sidebar-border">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-sidebar-foreground/40">
+            Precedential only
+          </span>
+          <ThemeToggleButton />
         </div>
       </div>
     </div>
+  );
+}
+
+function ThemeToggleButton() {
+  const { resolvedTheme, setTheme } = useTheme();
+  
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      className="h-7 w-7 text-sidebar-foreground/50 hover:text-sidebar-foreground"
+      data-testid="button-theme-toggle"
+    >
+      {resolvedTheme === "dark" ? (
+        <Sun className="h-3.5 w-3.5" />
+      ) : (
+        <Moon className="h-3.5 w-3.5" />
+      )}
+    </Button>
   );
 }
