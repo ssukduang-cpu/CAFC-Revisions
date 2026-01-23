@@ -84,6 +84,19 @@ def init_db():
         """)
         
         # Add unique constraint for ON CONFLICT to work
+        # First remove any duplicate rows that would prevent constraint creation
+        cursor.execute("""
+            DELETE FROM document_chunks a USING (
+                SELECT document_id, chunk_index, MAX(id) as max_id
+                FROM document_chunks 
+                GROUP BY document_id, chunk_index 
+                HAVING COUNT(*) > 1
+            ) b
+            WHERE a.document_id = b.document_id 
+              AND a.chunk_index = b.chunk_index 
+              AND a.id < b.max_id
+        """)
+        
         cursor.execute("""
             DO $$ 
             BEGIN

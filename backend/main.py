@@ -386,6 +386,37 @@ async def admin_ingest_batch(limit: int = 50):
 async def admin_ingest_status():
     return db.get_ingestion_stats()
 
+@app.get("/api/admin/diagnostics")
+async def admin_diagnostics():
+    """Detailed diagnostics for troubleshooting production issues."""
+    import os
+    
+    # Check if COURTLISTENER_API_TOKEN is available
+    has_token = bool(os.environ.get('COURTLISTENER_API_TOKEN'))
+    
+    # Check database state
+    stats = db.get_ingestion_stats()
+    
+    # Check if constraint exists
+    constraint_exists = False
+    try:
+        with db.get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 1 FROM pg_constraint WHERE conname = 'document_chunks_document_id_chunk_index_key'
+            """)
+            constraint_exists = cursor.fetchone() is not None
+    except Exception as e:
+        constraint_exists = f"Error checking: {str(e)}"
+    
+    return {
+        "courtlistener_token_available": has_token,
+        "database_stats": stats,
+        "chunk_constraint_exists": constraint_exists,
+        "environment": os.environ.get('NODE_ENV', 'unknown'),
+        "database_url_set": bool(os.environ.get('DATABASE_URL'))
+    }
+
 @app.get("/api/conversations")
 async def list_conversations():
     convs = db.get_conversations()
