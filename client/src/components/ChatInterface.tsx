@@ -163,41 +163,50 @@ export function ChatInterface() {
   if (!currentConversationId && messages.length === 0) {
     return (
       <div className="flex flex-col h-full bg-background">
-        <div className="flex-1 flex items-center justify-center px-4">
-          <div className="text-center max-w-md">
-            <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-5">
-              <Scale className="h-7 w-7 text-primary" />
+        <div className="flex-1 flex items-center justify-center px-4 py-12">
+          <div className="text-center max-w-lg">
+            <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 text-xs font-medium bg-primary/10 text-primary rounded-full">
+              <Sparkles className="h-3 w-3" />
+              AI-Powered Research
             </div>
-            <h2 className="text-xl font-serif font-semibold mb-2 text-foreground">CAFC Copilot</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Ask questions about Federal Circuit patent law with citations from precedential opinions.
+            
+            <h1 className="text-3xl font-bold mb-3 text-foreground tracking-tight">
+              Federal Circuit AI
+            </h1>
+            <p className="text-base text-muted-foreground mb-6 leading-relaxed">
+              Research judicial precedent and CAFC case law efficiently. Get citation-backed answers from precedential opinions.
             </p>
             
             {status && (
               <button
                 onClick={() => setShowOpinionLibrary(true)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 text-xs bg-primary/5 hover:bg-primary/10 text-primary rounded-full border border-primary/20 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 mb-8 text-sm font-medium bg-card hover:bg-muted text-foreground rounded-lg border border-border shadow-sm transition-all hover:shadow-md"
                 data-testid="button-opinion-status"
               >
-                <Library className="h-3 w-3" />
-                {status.opinions.ingested} of {status.opinions.total} opinions indexed
-                <BookOpen className="h-3 w-3 opacity-50" />
+                <Library className="h-4 w-4 text-primary" />
+                <span>{status.opinions.ingested} of {status.opinions.total} opinions indexed</span>
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
               </button>
             )}
             
-            <div className="space-y-2 text-left">
+            <div className="grid gap-3">
               {[
-                "What is the enablement standard for antibody claims?",
-                "Explain the Fintiv factors for PTAB discretionary denial",
-                "What is the Alice/Mayo test for patent eligibility?"
-              ].map((q, i) => (
+                { q: "What is the enablement standard for antibody claims?", tag: "Claim Drafting" },
+                { q: "Explain the Fintiv factors for PTAB discretionary denial", tag: "IPR Strategy" },
+                { q: "What is the Alice/Mayo test for patent eligibility?", tag: "101 Analysis" }
+              ].map((item, i) => (
                 <button 
                   key={i}
-                  onClick={() => setInputValue(q)}
-                  className="w-full p-3 text-sm text-left bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 hover:border-border transition-colors"
+                  onClick={() => setInputValue(item.q)}
+                  className="group w-full p-4 text-left bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all"
                   data-testid={`button-example-${i}`}
                 >
-                  {q}
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-sm text-foreground font-medium leading-relaxed">{item.q}</span>
+                    <span className="shrink-0 text-[10px] font-medium px-2 py-1 rounded-full bg-primary/10 text-primary">
+                      {item.tag}
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>

@@ -54,14 +54,14 @@ export function Sidebar() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border/0">
-      <div className="p-4 pb-4 flex items-center gap-2.5">
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Scale className="h-4 w-4 text-primary" />
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
+      <div className="p-4 pb-4 flex items-center gap-3">
+        <div className="h-9 w-9 rounded-xl bg-sidebar-primary flex items-center justify-center shrink-0">
+          <Scale className="h-4.5 w-4.5 text-sidebar-primary-foreground" />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="font-semibold text-sm leading-tight truncate">CAFC Copilot</span>
-          <span className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wide">Precedential</span>
+          <span className="font-bold text-sm leading-tight truncate">Federal Circuit AI</span>
+          <span className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider font-medium">Appeals</span>
         </div>
       </div>
 
@@ -69,11 +69,11 @@ export function Sidebar() {
         <Button 
           onClick={handleNewConversation}
           disabled={createConversation.isPending}
-          className="w-full justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 border-0 transition-all h-9 text-sm font-medium"
+          className="w-full justify-center gap-2 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 border-0 transition-all h-10 text-sm font-semibold rounded-xl shadow-sm"
           data-testid="button-new-conversation"
         >
           <Plus className="h-4 w-4 shrink-0" />
-          <span className="truncate">New Conversation</span>
+          <span className="truncate">New Research</span>
         </Button>
       </div>
 
@@ -134,20 +134,20 @@ export function Sidebar() {
       </ScrollArea>
 
       <div className="p-3 space-y-2">
-        <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-medium">Resources</h3>
+        <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-2">Resources</h3>
         <div className="space-y-1">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={() => setShowOpinionLibrary(true)}
-            className="w-full justify-between h-8 px-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+            className="w-full justify-between h-9 px-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
             data-testid="button-opinion-library"
           >
-            <div className="flex items-center gap-2">
-              <Library className="h-3.5 w-3.5" />
-              <span className="text-xs">Opinion Library</span>
+            <div className="flex items-center gap-2.5">
+              <Library className="h-4 w-4" />
+              <span className="text-xs font-medium">Opinion Library</span>
             </div>
-            <span className="text-[10px] text-sidebar-foreground/40">
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sidebar-accent text-sidebar-foreground/60">
               {status ? `${status.opinions.ingested}/${status.opinions.total}` : "--"}
             </span>
           </Button>
@@ -156,12 +156,12 @@ export function Sidebar() {
             target="_blank" 
             rel="noopener noreferrer"
           >
-            <Button variant="ghost" size="sm" className="w-full justify-between h-8 px-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-transparent">
-              <div className="flex items-center gap-2">
-                <FileText className="h-3.5 w-3.5" />
-                <span className="text-xs">CAFC Website</span>
+            <Button variant="ghost" size="sm" className="w-full justify-between h-9 px-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg">
+              <div className="flex items-center gap-2.5">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-medium">CAFC Website</span>
               </div>
-              <ExternalLink className="h-3 w-3 opacity-30" />
+              <ExternalLink className="h-3.5 w-3.5 opacity-40" />
             </Button>
           </a>
         </div>
@@ -169,9 +169,10 @@ export function Sidebar() {
 
       <div className="p-4 mt-auto border-t border-sidebar-border">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-sidebar-foreground/40">
-            Precedential only
-          </span>
+          <div className="flex items-center gap-1.5 text-[10px] text-sidebar-foreground/40">
+            <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
+            Precedential Only
+          </div>
           <ThemeToggleButton />
         </div>
       </div>

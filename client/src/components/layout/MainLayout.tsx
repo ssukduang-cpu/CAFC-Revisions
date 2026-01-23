@@ -99,12 +99,12 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
         </div>
       )}
 
-      <header className="h-14 border-t bg-sidebar flex md:hidden items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="bg-primary/10 p-1.5 rounded-md">
-            <Scale className="h-4 w-4 text-primary" />
+      <header className="h-14 border-t border-sidebar-border bg-sidebar flex md:hidden items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-sidebar-primary p-1.5 rounded-lg">
+            <Scale className="h-4 w-4 text-sidebar-primary-foreground" />
           </div>
-          <span className="font-semibold text-sm text-sidebar-foreground">CAFC Copilot</span>
+          <span className="font-bold text-sm text-sidebar-foreground">Federal Circuit AI</span>
         </div>
         <div className="flex gap-1">
           <Button 

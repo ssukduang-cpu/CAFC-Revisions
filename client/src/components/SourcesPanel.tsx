@@ -48,13 +48,18 @@ export function SourcesPanel() {
 
   return (
     <div className="flex flex-col h-full bg-card">
-      <div className="p-4 border-b flex items-center justify-between bg-muted/10">
-        <div className="flex items-center gap-2 text-primary">
-          <BookOpen className="h-4 w-4" />
-          <h2 className="font-semibold text-sm tracking-tight">Cited Sources</h2>
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <BookOpen className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="font-bold text-sm tracking-tight text-foreground">Cited Sources</h2>
+            <p className="text-[10px] text-muted-foreground">Verified citations</p>
+          </div>
         </div>
-        <Badge variant="outline" className="font-mono text-[10px]">
-          {selectedCitations.length} Reference{selectedCitations.length !== 1 ? 's' : ''}
+        <Badge variant="secondary" className="font-mono text-[10px] font-semibold">
+          {selectedCitations.length}
         </Badge>
       </div>
 
@@ -63,30 +68,35 @@ export function SourcesPanel() {
           {selectedCitations.length > 0 ? selectedCitations.map((citation, index) => (
             <Card 
               key={index} 
-              className="shadow-sm border-l-4 border-l-primary/40 hover:border-l-primary transition-all group"
+              className="shadow-sm border border-border hover:border-primary/30 hover:shadow-md transition-all group overflow-hidden"
               data-testid={`source-card-${index}`}
             >
-              <CardHeader className="p-3 pb-2 space-y-0">
+              <CardHeader className="p-4 pb-3 space-y-0 bg-muted/30">
                 <div className="flex justify-between items-start gap-2">
-                  <CardTitle className="text-sm font-serif font-bold leading-tight text-primary">
-                    {citation.caseName}
-                  </CardTitle>
+                  <div className="space-y-1">
+                    <CardTitle className="text-sm font-bold leading-tight text-foreground">
+                      {citation.caseName}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
+                      <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">{citation.appealNo}</span>
+                      <span>{citation.releaseDate}</span>
+                      <span>•</span>
+                      <span>Page {citation.pageNumber}</span>
+                    </div>
+                  </div>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
                     onClick={() => handleCopy(citation.quote, index)}
                     data-testid={`button-copy-citation-${index}`}
                   >
                     {copiedIndex === index ? (
-                      <Check className="h-3 w-3 text-green-500" />
+                      <Check className="h-3.5 w-3.5 text-green-500" />
                     ) : (
-                      <Copy className="h-3 w-3 text-muted-foreground" />
+                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                     )}
                   </Button>
-                </div>
-                <div className="text-[11px] font-mono text-muted-foreground">
-                  {citation.appealNo} • {citation.releaseDate} • Page {citation.pageNumber}
                 </div>
               </CardHeader>
               <CardContent className="p-3 pt-2">
@@ -106,10 +116,11 @@ export function SourcesPanel() {
         </div>
       </ScrollArea>
       
-      <div className="p-4 border-t bg-muted/10 text-xs text-muted-foreground">
-        <p>
-          <strong>Note:</strong> All citations are extracted verbatim from official CAFC opinion documents.
-        </p>
+      <div className="p-4 border-t border-border">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
+          <p>All citations verified against official CAFC documents</p>
+        </div>
       </div>
     </div>
   );

@@ -66,19 +66,22 @@ export function OpinionLibrary() {
   return (
     <Dialog open={showOpinionLibrary} onOpenChange={setShowOpinionLibrary}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-0">
+        <DialogHeader className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-lg font-serif">Opinion Library</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground mt-1">
-                Manage CAFC precedential opinions for AI-powered research
-              </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <RefreshCw className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold">Opinion Library</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Manage CAFC precedential opinions for AI-powered research
+                </DialogDescription>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="font-mono text-xs">
-                {data?.ingested || 0} / {data?.total || 0} ingested
-              </Badge>
-            </div>
+            <Badge variant="secondary" className="font-mono text-xs font-semibold px-3 py-1.5">
+              {data?.ingested || 0} / {data?.total || 0}
+            </Badge>
           </div>
         </DialogHeader>
 
@@ -98,7 +101,7 @@ export function OpinionLibrary() {
               onClick={handleSync}
               disabled={syncOpinions.isPending}
               variant="outline"
-              className="gap-2"
+              className="gap-2 h-10 rounded-lg font-medium"
               data-testid="button-sync-opinions"
             >
               {syncOpinions.isPending ? (
@@ -111,7 +114,7 @@ export function OpinionLibrary() {
             <Button 
               onClick={handleIngestAll}
               disabled={ingestOpinion.isPending || opinions.filter(o => !o.isIngested).length === 0}
-              className="gap-2"
+              className="gap-2 h-10 rounded-lg font-semibold"
               data-testid="button-ingest-all"
             >
               <Download className="h-4 w-4" />
