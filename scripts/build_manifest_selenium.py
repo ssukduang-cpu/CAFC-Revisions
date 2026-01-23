@@ -160,8 +160,8 @@ def parse_table_rows(driver, seen_keys: Set[Tuple[str, str]]) -> Tuple[List[Dict
                     except:
                         pass
                 
-                # Deduplication check
-                unique_key = (appeal_number, pdf_url)
+                # Deduplication check using stable key: appeal_number + release_date + pdf_url
+                unique_key = (appeal_number, release_date, pdf_url)
                 if unique_key in seen_keys:
                     duplicates_on_page += 1
                     continue
@@ -187,18 +187,53 @@ def parse_table_rows(driver, seen_keys: Set[Tuple[str, str]]) -> Tuple[List[Dict
 def click_next_page(driver) -> bool:
     """Click the next page button. Returns False if no more pages."""
     from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
     
     try:
-        next_btn = driver.find_element(By.CSS_SELECTOR, '#table_1_next, .paginate_button.next')
-        class_attr = next_btn.get_attribute('class') or ''
-        if 'disabled' in class_attr:
+        # Try multiple selectors for the next button
+        selectors = [
+            '#table_1_next',
+            '.paginate_button.next',
+            'a.next',
+            '[data-dt-idx="next"]',
+            '.dataTables_paginate .next'
+        ]
+        
+        next_btn = None
+        for selector in selectors:
+            try:
+                btn = driver.find_element(By.CSS_SELECTOR, selector)
+                if btn and btn.is_displayed():
+                    next_btn = btn
+                    break
+            except:
+                continue
+        
+        if not next_btn:
+            print("    [DEBUG] Next button not found")
             return False
         
-        next_btn.click()
+        class_attr = next_btn.get_attribute('class') or ''
+        if 'disabled' in class_attr:
+            print("    [DEBUG] Next button is disabled - reached last page")
+            return False
+        
+        # Scroll into view and click
+        driver.execute_script("arguments[0].scrollIntoView(true);", next_btn)
+        time.sleep(0.5)
+        
+        try:
+            next_btn.click()
+        except:
+            # If regular click fails, try JavaScript click
+            driver.execute_script("arguments[0].click();", next_btn)
+        
         time.sleep(2)
         wait_for_table(driver)
         return True
-    except:
+    except Exception as e:
+        print(f"    [DEBUG] Error clicking next: {e}")
         return False
 
 def scrape_all_opinions(max_pages: Optional[int] = None) -> Tuple[List[Dict], int]:
@@ -242,13 +277,13 @@ def scrape_all_opinions(max_pages: Optional[int] = None) -> Tuple[List[Dict], in
     return all_opinions, total_duplicates
 
 def final_dedupe(opinions: List[Dict]) -> Tuple[List[Dict], int]:
-    """Run a final dedupe pass on the collected opinions."""
+    """Run a final dedupe pass using stable key: appeal_number + release_date + pdf_url."""
     unique_opinions = []
     seen = set()
     duplicates = 0
     
     for op in opinions:
-        key = (op['appeal_number'], op['pdf_url'])
+        key = (op['appeal_number'], op['release_date'], op['pdf_url'])
         if key in seen:
             duplicates += 1
             continue
@@ -260,11 +295,11 @@ def final_dedupe(opinions: List[Dict]) -> Tuple[List[Dict], int]:
 def main():
     parser = argparse.ArgumentParser(description="Scrape CAFC Precedential Opinions with Deduplication")
     parser.add_argument("--max-pages", type=int, help="Maximum pages to scrape")
-    parser.add_argument("--output", default="data/manifest.json", help="Output file path")
+    parser.add_argument("--output", default="data/manifest.ndjson", help="Output file path (NDJSON)")
     args = parser.parse_args()
     
     # Ensure directory exists
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
     
     # 1) Discard any partially generated manifest
     if os.path.exists(args.output):
@@ -275,29 +310,35 @@ def main():
     start_time = time.time()
     raw_opinions, scrape_duplicates = scrape_all_opinions(max_pages=args.max_pages)
     
-    # 3) Final dedupe pass
+    # 3) Final dedupe pass using stable key: appeal_number + release_date + pdf_url
     unique_opinions, final_duplicates = final_dedupe(raw_opinions)
     
-    # 4) Write ONLY unique rows to data/manifest.json
+    # 4) Write ONLY unique rows to data/manifest.ndjson (primary output)
     with open(args.output, 'w') as f:
-        json.dump(unique_opinions, f, indent=2)
-    
-    # Write NDJSON version too for ingestion script
-    ndjson_output = args.output.replace('.json', '.ndjson')
-    with open(ndjson_output, 'w') as f:
         for op in unique_opinions:
             f.write(json.dumps(op) + '\n')
+    
+    # Also write JSON version for convenience
+    json_output = args.output.replace('.ndjson', '.json')
+    with open(json_output, 'w') as f:
+        json.dump(unique_opinions, f, indent=2)
 
     duration = time.time() - start_time
-    total_collected = len(unique_opinions) + scrape_duplicates + final_duplicates
+    total_collected = len(raw_opinions) + scrape_duplicates
     
-    print("\n" + "="*40)
-    print("SCRAPE COMPLETE")
+    print("\n" + "="*60)
+    print("MANIFEST BUILD COMPLETE")
+    print("="*60)
     print(f"Duration: {duration:.1f}s")
+    print(f"Filters: Status=Precedential, DocumentType=OPINION")
+    print(f"Deduplication key: (appeal_number, release_date, pdf_url)")
+    print("-"*60)
     print(f"total_rows_collected:      {total_collected}")
     print(f"total_unique_after_dedupe: {len(unique_opinions)}")
     print(f"duplicates_removed:        {scrape_duplicates + final_duplicates}")
-    print("="*40)
+    print("-"*60)
+    print(f"Output: {args.output}")
+    print("="*60)
 
 if __name__ == "__main__":
     main()
