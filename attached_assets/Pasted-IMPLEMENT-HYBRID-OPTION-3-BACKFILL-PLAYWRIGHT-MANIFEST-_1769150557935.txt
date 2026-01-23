@@ -1,0 +1,129 @@
+IMPLEMENT HYBRID “OPTION 3” BACKFILL: PLAYWRIGHT MANIFEST + RESUMABLE PYTHON INGEST (ALL PRECEDENTIAL OPINIONS)
+
+Objective
+We need to ingest ALL CAFC precedential OPINION PDFs (≈4,000) into the PRODUCTION database so we can run queries across the entire precedential corpus. The CAFC table is wpDataTables with JS + server-side pagination, so we will:
+(1) Use Playwright ONCE to paginate/filter and extract a complete manifest of opinion metadata + PDF URLs.
+(2) Store the manifest in the database (idempotent, deduped).
+(3) Run a Python batch ingester that downloads PDFs, extracts per-page text incrementally, chunks/indexes, and can resume.
+
+NON-NEGOTIABLES
+- Corpus filter MUST be: Status == “Precedential” AND Document Type == “OPINION”.
+- No Node-based PDF parsing. Python ingestion only, per-page incremental storage (no giant in-memory strings).
+- Idempotent + resumable: safe to stop/restart without duplicating rows.
+- Respectful crawling: delays + retries + backoff.
+
+PART 1 — PLAYWRIGHT MANIFEST SCRAPER (ONE-TIME BACKFILL TOOL)
+A) Add a script: scripts/build_manifest.py (or .ts), using Playwright headless chromium.
+B) Behavior:
+  1) Open https://www.cafc.uscourts.gov/home/case-information/opinions-orders/
+  2) Apply filters:
+     - Status: “Precedential”
+     - Document Type: “OPINION”
+  3) Paginate through ALL pages until exhaustion.
+  4) For each row capture:
+     - release_date
+     - appeal_number
+     - origin
+     - document_type
+     - status
+     - case_name (text)
+     - pdf_url (absolute URL)
+     - file_path if present
+  5) Write manifest as NDJSON (one row per line) to data/manifest.ndjson AND also upsert into DB table `documents`.
+C) Robustness:
+  - Use stable selectors (table rows/cells) and wait-for-network-idle / wait-for-table-update.
+  - Add delay/jitter between pages (e.g., 250–750ms) to reduce rate-limit risk.
+  - Persist progress after each page: data/manifest_progress.json (page index, rows collected).
+  - Resume mode: if progress file exists, continue from last page.
+D) Validation:
+  - Print total rows collected and unique pdf_url count.
+  - Ensure all rows match Precedential+OPINION filters (assertion).
+
+PART 2 — PRODUCTION DATABASE (POSTGRES VIA DATABASE_URL)
+A) Replace SQLite persistence for metadata/pages/chunks with Postgres using DATABASE_URL.
+B) Provide Alembic migrations and these tables (minimum):
+  1) documents(
+      id uuid pk,
+      pdf_url text unique not null,
+      case_name text,
+      appeal_number text,
+      release_date date,
+      origin text,
+      document_type text,
+      status text,
+      file_path text,
+      ingested boolean default false,
+      pdf_sha256 text,
+      created_at timestamptz,
+      updated_at timestamptz,
+      last_error text
+    )
+  2) document_pages(
+      id bigserial pk,
+      document_id uuid fk,
+      page_number int,
+      text text,
+      unique(document_id, page_number)
+    )
+  3) document_chunks(
+      id bigserial pk,
+      document_id uuid fk,
+      chunk_index int,
+      page_start int,
+      page_end int,
+      text text
+    )
+  4) Full-text search:
+     - Create tsvector column on document_chunks.text (or pages) and GIN index.
+C) Ensure dev/prod DB selection is via DATABASE_URL only (no code changes per environment).
+
+PART 3 — PYTHON INGESTER (RESUMABLE, BATCHED)
+A) Add CLI: python -m backend.ingest.run
+Flags:
+  --mode manifest|sync
+  --limit N
+  --concurrency 1..4 (default 1)
+  --resume true
+  --only-not-ingested
+B) For each document:
+  1) Download PDF by streaming to disk (data/pdfs/{document_id}.pdf) OR to object storage (optional).
+  2) Compute sha256; if unchanged and already ingested, skip.
+  3) Extract per-page text (pypdf preferred; fallback pdfminer.six) and INSERT each page immediately into document_pages.
+  4) Chunk (e.g., 1–2 pages per chunk) and insert into document_chunks; update FTS index.
+  5) Mark documents.ingested=true.
+C) Error handling:
+  - Retry downloads with backoff (e.g., 3 attempts).
+  - If parse fails, store documents.last_error and continue.
+  - Never crash the whole run because of one bad PDF.
+D) Rate limiting:
+  - Add per-PDF delay/jitter and cap concurrency to avoid blocking.
+
+PART 4 — API / ADMIN CONTROLS
+A) Add admin endpoints:
+  - POST /api/admin/build_manifest  (kicks off Playwright run OR instructs how to run it)
+  - POST /api/admin/ingest_batch?limit=50  (ingests next N non-ingested docs)
+  - GET  /api/admin/ingest_status (counts: total docs, ingested docs, failures)
+B) User-facing endpoints remain unchanged (search/chat), but must query across ALL ingested precedential opinions.
+
+PART 5 — SEARCH ACROSS ALL PRECEDENTIAL OPINIONS
+A) Add GET /api/search?q=...&filters...
+- Use Postgres FTS over document_chunks (or pages).
+- Return snippets with (case, appeal, release_date, page range) + links (pdf_url/viewer_url).
+
+PART 6 — OPERATIONAL PLAN (DOCUMENT IN README)
+A) Backfill steps:
+  1) Run Playwright manifest builder until it collects all rows.
+  2) Run ingestion in batches (e.g., 50–200 per run) until complete.
+B) Ongoing updates:
+  - Implement a lightweight daily sync that checks newest rows and upserts new documents (no Playwright needed for daily).
+C) Provide recommended Replit Scheduled Deployment commands:
+  - Daily sync job
+  - Batch ingest job (runs hourly until ingested_count==total)
+
+ACCEPTANCE TESTS
+1) Manifest builder collects thousands of unique pdf_url rows and matches filters.
+2) Ingest batch of 5 completes without memory growth; per-page rows stored.
+3) Search returns hits across multiple opinions.
+4) Chat remains strictly grounded (verified quotes only); no verified citations => NOT FOUND.
+
+Implement all code + migrations + README. Do not ask me for external API keys. Keep secrets server-side. 
