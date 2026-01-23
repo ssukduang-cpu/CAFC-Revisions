@@ -13,7 +13,7 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
-  const [isSourcesOpen, setIsSourcesOpen] = useState(true);
+  const [isSourcesOpen, setIsSourcesOpen] = useState(false); // Default closed in this layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
@@ -22,8 +22,8 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
       {/* Mobile Header (Only visible on small screens) */}
       <header className="h-14 border-b bg-sidebar flex md:hidden items-center justify-between px-4 shrink-0 z-10 text-sidebar-foreground">
         <div className="flex items-center gap-2">
-          <div className="bg-primary/20 p-1 rounded-md">
-            <Scale className="h-4 w-4 text-primary" />
+          <div className="bg-white/10 p-1 rounded-md">
+            <Scale className="h-4 w-4 text-foreground" />
           </div>
           <span className="font-semibold text-sm">CAFC Assistant</span>
         </div>
@@ -38,52 +38,40 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
           {/* Left Sidebar */}
           {isSidebarOpen && (
             <>
-              <ResizablePanel defaultSize={20} minSize={15} maxSize={25} className="bg-sidebar border-r hidden md:block">
+              <ResizablePanel defaultSize={20} minSize={15} maxSize={25} className="bg-sidebar border-r border-white/5 hidden md:block">
                 {sidebar}
               </ResizablePanel>
-              <ResizableHandle className="hidden md:flex bg-border/50" />
+              <ResizableHandle className="hidden md:flex bg-background border-r border-white/5" />
             </>
           )}
 
           {/* Main Chat Area */}
-          <ResizablePanel defaultSize={55} minSize={30}>
-             <div className="h-full flex flex-col">
-                {/* Desktop Header/Toolbar */}
-                <header className="h-14 border-b bg-background flex items-center justify-between px-4 shrink-0 z-10">
-                    <div className="flex items-center gap-2">
+          <ResizablePanel defaultSize={80} minSize={30}>
+             <div className="h-full flex flex-col bg-background">
+                {/* Desktop Toolbar - Minimalist */}
+                <header className="h-12 flex items-center justify-between px-4 shrink-0 z-10 absolute top-0 left-0 right-0 pointer-events-none">
+                    <div className="flex items-center gap-2 pointer-events-auto mt-2">
                       <Button 
                         variant="ghost" 
                         size="icon" 
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="text-muted-foreground hover:text-foreground hidden md:flex h-8 w-8"
+                        className="text-muted-foreground hover:text-foreground h-8 w-8 hover:bg-white/5"
                       >
                         {isSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
                       </Button>
-                      <span className="font-semibold text-sm text-foreground/80">Enablement of antibody claims</span>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => setIsSourcesOpen(!isSourcesOpen)}
-                        className={cn(
-                          "text-muted-foreground hover:text-foreground hidden md:flex transition-colors",
-                          isSourcesOpen && "bg-muted/50 text-foreground"
-                        )}
-                      >
-                        {isSourcesOpen ? <PanelRightClose className="h-4 w-4 mr-2" /> : <PanelRightOpen className="h-4 w-4 mr-2" />}
-                        Sources
-                      </Button>
+                    <div className="flex items-center gap-2 pointer-events-auto mt-2">
+                      {/* Optional Top Right Actions */}
                     </div>
                 </header>
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 overflow-hidden pt-8">
                    {chat}
                 </div>
              </div>
           </ResizablePanel>
 
-          {/* Right Sources Panel */}
+          {/* Right Sources Panel (Hidden by default in this view, maybe overlays or pushes) */}
           {isSourcesOpen && (
             <>
               <ResizableHandle className="bg-border/50" />

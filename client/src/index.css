@@ -43,94 +43,62 @@
 }
 
 /* 
-  Theme: "Modern Federal SaaS"
-  Palette: Cool Greys, Crisp White, USPTO Blue
+  Theme: "Warm Charcoal Legal" (Matches MPEP Copilot Dark Mode)
 */
 :root {
-  /* Crisp White Background */
-  --background: 210 20% 98%; 
-  --foreground: 222 47% 11%; /* Deep Navy Text */
+  /* Main Background: Very Dark Warm Grey */
+  --background: 30 5% 10%; 
+  --foreground: 35 15% 90%; 
 
-  /* Pure White Cards */
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
+  /* Cards/Bubbles */
+  --card: 30 5% 14%;
+  --card-foreground: 35 15% 90%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
+  --popover: 30 5% 14%;
+  --popover-foreground: 35 15% 90%;
 
-  /* Primary: USPTO/Federal Blue */
-  --primary: 221 83% 53%; /* Bright Professional Blue */
-  --primary-foreground: 210 40% 98%;
+  /* Primary: Cream/White (Action Buttons) */
+  --primary: 35 20% 92%; 
+  --primary-foreground: 30 5% 10%;
 
-  /* Secondary: Cool Grey */
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222 47% 11.2%;
+  /* Secondary: Darker Grey */
+  --secondary: 30 5% 18%;
+  --secondary-foreground: 35 15% 90%;
 
-  /* Muted: Soft Cool Grey */
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215 16% 47%;
+  /* Muted: Subtle Text */
+  --muted: 30 5% 18%;
+  --muted-foreground: 35 5% 60%;
 
-  /* Accent: Subtle Blue Tint */
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222 47% 11.2%;
-
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 221 83% 53%;
-
-  --radius: 0.5rem; 
-
-  /* Sidebar: Dark Navy for contrast (Standard SaaS look) */
-  --sidebar: 222 47% 11%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 221 83% 53%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 217 33% 17%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 217 33% 17%;
-  --sidebar-ring: 221 83% 53%;
-}
-
-.dark {
-  --background: 222 47% 11%;
-  --foreground: 210 40% 98%;
-
-  --card: 222 47% 11%;
-  --card-foreground: 210 40% 98%;
-
-  --popover: 222 47% 11%;
-  --popover-foreground: 210 40% 98%;
-
-  --primary: 217 91% 60%;
-  --primary-foreground: 222 47% 11%;
-
-  --secondary: 217 33% 17%;
-  --secondary-foreground: 210 40% 98%;
-
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
-
-  --accent: 217 33% 17%;
-  --accent-foreground: 210 40% 98%;
+  /* Accent: Hover states */
+  --accent: 30 5% 20%;
+  --accent-foreground: 35 15% 95%;
 
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 224 76% 48%;
-  
-  --sidebar: 222 47% 11%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 221 83% 53%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 217 33% 17%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 217 33% 17%;
-  --sidebar-ring: 221 83% 53%;
+  --border: 30 5% 18%;
+  --input: 30 5% 18%;
+  --ring: 35 20% 92%;
+
+  --radius: 0.5rem; 
+
+  /* Sidebar: Slightly Lighter Charcoal than Main */
+  --sidebar: 30 5% 13%;
+  --sidebar-foreground: 35 15% 85%;
+  --sidebar-primary: 35 20% 92%;
+  --sidebar-primary-foreground: 30 5% 10%;
+  --sidebar-accent: 30 5% 18%;
+  --sidebar-accent-foreground: 35 15% 95%;
+  --sidebar-border: 30 5% 18%;
+  --sidebar-ring: 35 20% 92%;
+}
+
+/* Ensure dark mode class just reinforces the root variables or handles light mode if we flip later */
+.dark {
+  /* Same as root for now since we are forcing this look */
+  --background: 30 5% 10%; 
+  --foreground: 35 15% 90%; 
+  /* ... (rest inherited from root if not overridden) */
 }
 
 @layer base {
