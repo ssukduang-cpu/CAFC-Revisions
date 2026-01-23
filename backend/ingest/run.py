@@ -39,7 +39,7 @@ async def download_pdf_with_retry(
     
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=120.0, follow_redirects=True, verify=False) as client:
                 response = await client.get(url)
                 response.raise_for_status()
                 
