@@ -56,6 +56,12 @@ Preferred communication style: Simple, everyday language.
 - Fixed conversation endpoint to include messages array for frontend rendering
 - Added proxy timeout (120s) for AI-powered chat responses
 - Fixed useSendMessage hook to pass conversationId as parameter
+- **Citation Hardening (Latest):**
+  - Citations now include opinion_id, case_name, appeal_no, release_date, page_number, quote, verified
+  - Server-side quote verification using fuzzy word matching (60% threshold)
+  - Response JSON uses claims array with verified citations and support_audit
+  - UI renders claims with citations showing release_date and verified indicators (green/amber)
+  - Unverified quotes are preserved with verified: false flag
 
 ## External Dependencies
 

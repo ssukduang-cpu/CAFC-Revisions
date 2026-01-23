@@ -1,12 +1,12 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Quote, Scale, Sparkles, Loader2 } from "lucide-react";
+import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { useConversation, useSendMessage, useCreateConversation, parseCitations } from "@/hooks/useConversations";
-import type { Citation } from "@/lib/api";
+import { useConversation, useSendMessage, useCreateConversation, parseCitations, parseClaims, parseSupportAudit } from "@/hooks/useConversations";
+import type { Citation, Claim, SupportAudit } from "@/lib/api";
 import type { Message } from "@shared/schema";
 
 export function ChatInterface() {
@@ -54,6 +54,22 @@ export function ChatInterface() {
 
   const getCitations = (message: Message): Citation[] => {
     return parseCitations(message);
+  };
+
+  const getClaims = (message: Message): Claim[] => {
+    return parseClaims(message);
+  };
+
+  const getAudit = (message: Message): SupportAudit | null => {
+    return parseSupportAudit(message);
+  };
+
+  const formatCitationText = (cit: Citation) => {
+    const parts = [cit.caseName];
+    if (cit.appealNo) parts.push(`Appeal No. ${cit.appealNo}`);
+    if (cit.releaseDate) parts.push(cit.releaseDate);
+    parts.push(`Page ${cit.pageNumber}`);
+    return `(${parts.join(", ")})`;
   };
 
   if (!currentConversationId && messages.length === 0) {
@@ -143,7 +159,10 @@ export function ChatInterface() {
             </div>
           ) : (
             messages.map((msg) => {
+              const claims = getClaims(msg);
               const citations = getCitations(msg);
+              const audit = getAudit(msg);
+              const hasClaims = claims.length > 0;
               
               return (
                 <div 
@@ -164,43 +183,104 @@ export function ChatInterface() {
                     "flex flex-col max-w-[85%]",
                     msg.role === "user" ? "items-end" : "items-start"
                   )}>
-                    <div className={cn(
-                      "text-sm leading-relaxed",
-                      msg.role === "user" 
-                        ? "bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-md" 
-                        : "text-foreground"
-                    )}>
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
-                    </div>
-
-                    {citations.length > 0 && (
-                      <div className="mt-3 space-y-2 w-full">
-                        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Sources</div>
-                        <div className="space-y-1.5">
-                          {citations.map((cit, idx) => (
-                            <button 
-                              key={idx}
-                              onClick={() => handleCitationClick([cit])}
-                              className="w-full bg-muted/30 border border-border/50 rounded-lg p-2.5 hover:bg-muted/50 transition-colors text-left group"
-                              data-testid={`citation-${msg.id}-${idx}`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <Quote className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                                <div className="min-w-0 space-y-0.5">
-                                  <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                                    {cit.caseName}
-                                  </div>
-                                  <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
-                                    "{cit.quote}"
-                                  </div>
-                                  <div className="text-[10px] font-mono text-muted-foreground/60">
-                                    {cit.appealNo} • p.{cit.pageNumber}
-                                  </div>
+                    {msg.role === "user" ? (
+                      <div className="bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-md text-sm leading-relaxed">
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      </div>
+                    ) : hasClaims ? (
+                      <div className="space-y-4 w-full">
+                        {claims.map((claim) => (
+                          <div key={claim.id} className="space-y-2" data-testid={`claim-${msg.id}-${claim.id}`}>
+                            <div className="text-sm leading-relaxed text-foreground">
+                              <span className="font-medium text-primary">[Claim {claim.id}]</span>{" "}
+                              {claim.text}
+                            </div>
+                            
+                            {claim.citations.length > 0 ? (
+                              <div className="space-y-1.5 pl-3 border-l-2 border-primary/30">
+                                {claim.citations.map((cit, idx) => (
+                                  <button 
+                                    key={idx}
+                                    onClick={() => handleCitationClick([cit])}
+                                    className="w-full bg-muted/30 border border-border/50 rounded-lg p-2.5 hover:bg-muted/50 transition-colors text-left group"
+                                    data-testid={`citation-${msg.id}-${claim.id}-${idx}`}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      {cit.verified !== false ? (
+                                        <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
+                                      ) : (
+                                        <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                      )}
+                                      <div className="min-w-0 space-y-0.5">
+                                        <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                                          {cit.caseName}
+                                        </div>
+                                        <div className="text-[11px] text-muted-foreground line-clamp-2 italic">
+                                          "{cit.quote}"
+                                        </div>
+                                        <div className="text-[10px] font-mono text-muted-foreground/60">
+                                          {cit.appealNo} {cit.releaseDate && `• ${cit.releaseDate}`} • p.{cit.pageNumber}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="pl-3 border-l-2 border-amber-500/50">
+                                <div className="text-xs text-amber-600 flex items-center gap-1">
+                                  <AlertCircle className="h-3 w-3" />
+                                  No verified citations
                                 </div>
                               </div>
-                            </button>
-                          ))}
-                        </div>
+                            )}
+                          </div>
+                        ))}
+                        
+                        {audit && (
+                          <div className="mt-3 pt-3 border-t border-border/30 flex items-center gap-4 text-[10px] text-muted-foreground">
+                            <span>{audit.total_claims} claims</span>
+                            <span className="text-green-600">{audit.supported_claims} supported</span>
+                            {audit.unsupported_claims > 0 && (
+                              <span className="text-amber-600">{audit.unsupported_claims} unsupported</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-sm leading-relaxed text-foreground">
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                        
+                        {citations.length > 0 && (
+                          <div className="mt-3 space-y-2 w-full">
+                            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Sources</div>
+                            <div className="space-y-1.5">
+                              {citations.map((cit, idx) => (
+                                <button 
+                                  key={idx}
+                                  onClick={() => handleCitationClick([cit])}
+                                  className="w-full bg-muted/30 border border-border/50 rounded-lg p-2.5 hover:bg-muted/50 transition-colors text-left group"
+                                  data-testid={`citation-${msg.id}-${idx}`}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <Quote className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                                    <div className="min-w-0 space-y-0.5">
+                                      <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                                        {cit.caseName}
+                                      </div>
+                                      <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
+                                        "{cit.quote}"
+                                      </div>
+                                      <div className="text-[10px] font-mono text-muted-foreground/60">
+                                        {cit.appealNo} {cit.releaseDate && `• ${cit.releaseDate}`} • p.{cit.pageNumber}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

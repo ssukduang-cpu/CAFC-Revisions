@@ -8,10 +8,25 @@ export interface Citation {
   releaseDate: string;
   pageNumber: number;
   quote: string;
+  verified?: boolean;
+}
+
+export interface Claim {
+  id: number;
+  text: string;
+  citations: Citation[];
+}
+
+export interface SupportAudit {
+  total_claims: number;
+  supported_claims: number;
+  unsupported_claims: number;
 }
 
 export interface MessageWithCitations extends Message {
   parsedCitations?: Citation[];
+  claims?: Claim[];
+  supportAudit?: SupportAudit;
 }
 
 export interface ConversationWithMessages extends Conversation {

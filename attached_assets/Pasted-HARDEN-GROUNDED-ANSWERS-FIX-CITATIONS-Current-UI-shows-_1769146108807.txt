@@ -1,0 +1,41 @@
+HARDEN GROUNDED ANSWERS + FIX CITATIONS
+
+Current UI shows claim-by-claim answers with quotes and citations, but citations are missing release_date and hallucination-prevention is not structurally enforced. Implement the following:
+
+1) Citation schema upgrade (backend)
+- Ensure each citation object ALWAYS includes:
+  { opinion_id, case_name, appeal_no, release_date, page_number, quote }
+- release_date must come from the opinions table for that opinion_id.
+- Update /api/chat response shape accordingly.
+
+2) Server-side quote verification (mandatory)
+- After retrieval selects passages (opinion_id + page_number + text), and after the assistant drafts claims:
+  For each claim, require >=1 citation whose quote is VERIFIED:
+    - The quote string must be an exact substring of the stored opinion_pages.text for that opinion_id AND page_number.
+- If a claim has no verified citations, replace that claim text with:
+  "NOT FOUND IN PROVIDED OPINIONS."
+  and include an empty citations list for that claim.
+- Never output an unsupported claim.
+
+3) Support Audit in response JSON
+- Return:
+  {
+    answer: "...",
+    claims: [
+      { id: 1, text: "...", citations: [ ...verified citations... ] },
+      ...
+    ],
+    support_audit: { total_claims, supported_claims, unsupported_claims }
+  }
+- The UI should render the claims list (not a single blob) and show citations under each claim.
+
+4) UI updates
+- In the message render, show citations as:
+  (CASE NAME, Appeal No. X, Release Date YYYY-MM-DD, Page N)
+- Update the Sources panel cards to display release_date too.
+
+5) Regression tests
+- Add a test that asks an unrelated question (e.g., "Explain Alice/Mayo") when only CONKLIN is ingested and verify the response contains ONLY "NOT FOUND IN PROVIDED OPINIONS" for unsupported claims.
+- Add a test that asks the standard-of-review question and verifies citations include release_date and that quotes are substrings of stored page text.
+
+Implement these changes in the existing FastAPI backend and the React UI. Ensure the preview still works end-to-end.

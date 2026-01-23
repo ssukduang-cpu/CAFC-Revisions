@@ -149,11 +149,17 @@ async def send_message(conversation_id: str, request: MessageRequest):
         conversation_id=conversation_id
     )
     
+    citation_data = {
+        "claims": result.get("claims", []),
+        "citations": result.get("citations", []),
+        "support_audit": result.get("support_audit", {})
+    }
+    
     assistant_msg_id = db.add_message(
         conversation_id, 
         "assistant", 
         result["answer"],
-        json.dumps(result.get("citations", []))
+        json.dumps(citation_data)
     )
     
     messages = db.get_messages(conversation_id)
