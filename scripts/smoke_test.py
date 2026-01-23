@@ -20,7 +20,7 @@ import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from scripts.build_manifest_courtlistener import build_manifest, DATA_DIR
+from build_manifest_courtlistener import build_manifest, DATA_DIR
 
 API_BASE = "http://localhost:8000/api"
 
