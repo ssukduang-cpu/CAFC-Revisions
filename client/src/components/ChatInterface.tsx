@@ -113,12 +113,12 @@ export function ChatInterface() {
   };
 
   const renderMarkdownWithSources = (markdown: string, sources: Source[]) => {
-    const parts = markdown.split(/(\[S\d+\])/g);
+    const parts = markdown.split(/(\[\d+\])/g);
     return parts.map((part, idx) => {
-      const match = part.match(/\[S(\d+)\]/);
+      const match = part.match(/\[(\d+)\]/);
       if (match) {
-        const sourceNum = parseInt(match[1]);
-        const source = sources.find(s => s.sid === `S${sourceNum}`);
+        const sourceNum = match[1];
+        const source = sources.find(s => s.sid === sourceNum);
         if (source) {
           return (
             <button
