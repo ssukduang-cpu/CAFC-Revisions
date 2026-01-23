@@ -83,6 +83,19 @@ def init_db():
             ON document_chunks USING GIN(text_search_vector)
         """)
         
+        # Add unique constraint for ON CONFLICT to work
+        cursor.execute("""
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'document_chunks_document_id_chunk_index_key'
+                ) THEN
+                    ALTER TABLE document_chunks ADD CONSTRAINT document_chunks_document_id_chunk_index_key 
+                    UNIQUE (document_id, chunk_index);
+                END IF;
+            END $$;
+        """)
+        
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_documents_ingested 
             ON documents(ingested)
