@@ -289,3 +289,38 @@ def get_messages(conv_id: str) -> List[Dict]:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at", (conv_id,))
         return [dict_from_row(row) for row in cursor.fetchall()]
+
+def get_pages_for_opinion(opinion_id: str) -> List[Dict]:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM opinion_pages WHERE opinion_id = ? ORDER BY page_number",
+            (opinion_id,)
+        )
+        return [dict_from_row(row) for row in cursor.fetchall()]
+
+def check_fts_health() -> Dict[str, Any]:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT COUNT(*) as count FROM opinion_pages")
+            pages_count = cursor.fetchone()["count"]
+            
+            cursor.execute("SELECT COUNT(*) as count FROM opinion_pages_fts")
+            fts_count = cursor.fetchone()["count"]
+            
+            cursor.execute("INSERT INTO opinion_pages_fts(opinion_pages_fts) VALUES('integrity-check')")
+            
+            return {
+                "healthy": pages_count == fts_count,
+                "pages_count": pages_count,
+                "fts_count": fts_count,
+                "synchronized": pages_count == fts_count,
+                "message": "FTS5 index is healthy" if pages_count == fts_count else f"FTS index mismatch: {pages_count} pages vs {fts_count} FTS entries"
+            }
+        except Exception as e:
+            return {
+                "healthy": False,
+                "error": str(e),
+                "message": f"FTS5 health check failed: {e}"
+            }

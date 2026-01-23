@@ -10,7 +10,7 @@ import re
 
 from backend import database as db
 from backend.scraper import scrape_opinions
-from backend.ingestion import ingest_opinion
+from backend.ingestion import ingest_opinion, batch_ingest_opinions, get_ingestion_status
 from backend.chat import generate_chat_response
 
 app = FastAPI(title="CAFC Precedential Copilot")
@@ -110,7 +110,84 @@ async def ingest_opinion_endpoint(opinion_id: str):
         "message": result.get("message", "Opinion ingested successfully"),
         "numPages": result.get("num_pages", 0),
         "chunksCreated": result.get("inserted_pages", 0),
-        "textLength": len(result.get("page1_preview", ""))
+        "textLength": len(result.get("page1_preview", "")),
+        "status": result.get("status", "completed"),
+        "validation": result.get("validation", {}),
+        "downloadAttempts": result.get("download_attempts", 1)
+    }
+
+class BatchIngestRequest(BaseModel):
+    opinion_ids: Optional[List[str]] = None
+    batch_size: int = 5
+    skip_ingested: bool = True
+
+@app.post("/api/opinions/batch-ingest")
+async def batch_ingest_endpoint(request: BatchIngestRequest):
+    result = await batch_ingest_opinions(
+        opinion_ids=request.opinion_ids,
+        batch_size=request.batch_size,
+        skip_ingested=request.skip_ingested
+    )
+    return {
+        "success": result.get("success", False),
+        "message": result.get("message", ""),
+        "processed": result.get("processed", 0),
+        "succeeded": result.get("succeeded", 0),
+        "failed": result.get("failed", 0),
+        "results": result.get("results", [])
+    }
+
+@app.get("/api/ingestion/status")
+async def ingestion_status_endpoint():
+    return get_ingestion_status()
+
+@app.get("/api/integrity/check")
+async def integrity_check_endpoint():
+    opinions = db.get_opinions()
+    ingested_opinions = [o for o in opinions if o.get("ingested")]
+    
+    issues = []
+    stats = {
+        "total_opinions": len(opinions),
+        "ingested_opinions": len(ingested_opinions),
+        "opinions_with_issues": 0,
+        "total_pages": 0,
+        "empty_pages": 0
+    }
+    
+    for opinion in ingested_opinions:
+        opinion_id = opinion["id"]
+        pages = db.get_pages_for_opinion(opinion_id)
+        
+        if not pages:
+            issues.append({
+                "opinion_id": opinion_id,
+                "case_name": opinion["case_name"],
+                "issue": "No pages found for ingested opinion"
+            })
+            stats["opinions_with_issues"] += 1
+            continue
+        
+        stats["total_pages"] += len(pages)
+        
+        empty_count = sum(1 for p in pages if len(p.get("text", "").strip()) < 100)
+        stats["empty_pages"] += empty_count
+        
+        if empty_count == len(pages):
+            issues.append({
+                "opinion_id": opinion_id,
+                "case_name": opinion["case_name"],
+                "issue": f"All {len(pages)} pages are empty"
+            })
+            stats["opinions_with_issues"] += 1
+    
+    fts_health = db.check_fts_health()
+    
+    return {
+        "healthy": len(issues) == 0 and fts_health.get("healthy", False),
+        "stats": stats,
+        "issues": issues[:20],
+        "fts_health": fts_health
     }
 
 @app.get("/api/conversations")
