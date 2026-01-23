@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Build CAFC precedential opinions manifest using Selenium with headless Chromium.
-This scrapes the CAFC website's wpDataTables directly.
+This scrapes the CAFC website's wpDataTables directly with in-memory deduplication.
 """
 
 import os
@@ -10,7 +10,7 @@ import json
 import time
 import argparse
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set, Tuple
 
 def setup_driver():
     """Set up headless Chrome driver."""
@@ -44,7 +44,7 @@ def wait_for_table(driver, timeout=30):
     wait.until(EC.presence_of_element_located((By.ID, 'table_1')))
     time.sleep(2)
     
-    for _ in range(10):
+    for _ in range(15):
         try:
             processing = driver.find_element(By.ID, 'table_1_processing')
             if processing.get_attribute('style') and 'none' in processing.get_attribute('style'):
@@ -72,6 +72,7 @@ def set_filters(driver, status='Precedential', doc_type='OPINION'):
             status_filter.select_by_visible_text(status)
             print(f"  Selected Status: {status}")
             time.sleep(2)
+            wait_for_table(driver)
     except Exception as e:
         print(f"  Error setting status filter: {e}")
     
@@ -87,6 +88,7 @@ def set_filters(driver, status='Precedential', doc_type='OPINION'):
             doc_type_filter.select_by_visible_text(doc_type)
             print(f"  Selected Document Type: {doc_type}")
             time.sleep(2)
+            wait_for_table(driver)
     except Exception as e:
         print(f"  Error setting doc type filter: {e}")
     
@@ -107,23 +109,21 @@ def get_total_records(driver) -> int:
         pass
     return 0
 
-def parse_table_rows(driver) -> List[Dict]:
-    """Parse current page of table rows."""
+def parse_table_rows(driver, seen_keys: Set[Tuple[str, str]]) -> Tuple[List[Dict], int]:
+    """Parse current page of table rows with deduplication."""
     from selenium.webdriver.common.by import By
     
     opinions = []
+    duplicates_on_page = 0
     
     try:
         table = driver.find_element(By.ID, 'table_1')
         tbody = table.find_element(By.TAG_NAME, 'tbody')
         rows = tbody.find_elements(By.TAG_NAME, 'tr')
         
-        print(f"  Found {len(rows)} rows in table")
-        
-        for i, row in enumerate(rows):
+        for row in rows:
             try:
                 cells = row.find_elements(By.TAG_NAME, 'td')
-                
                 if len(cells) < 5:
                     continue
                 
@@ -160,6 +160,13 @@ def parse_table_rows(driver) -> List[Dict]:
                     except:
                         pass
                 
+                # Deduplication check
+                unique_key = (appeal_number, pdf_url)
+                if unique_key in seen_keys:
+                    duplicates_on_page += 1
+                    continue
+                
+                seen_keys.add(unique_key)
                 opinions.append({
                     'case_name': case_name,
                     'appeal_number': appeal_number,
@@ -171,20 +178,15 @@ def parse_table_rows(driver) -> List[Dict]:
                     'file_path': file_path
                 })
             except Exception as e:
-                print(f"  Error parsing row: {e}")
                 continue
     except Exception as e:
         print(f"  Error finding table: {e}")
-        driver.save_screenshot('/tmp/debug_screenshot.png')
-        print("  Screenshot saved to /tmp/debug_screenshot.png")
     
-    return opinions
+    return opinions, duplicates_on_page
 
 def click_next_page(driver) -> bool:
     """Click the next page button. Returns False if no more pages."""
     from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
     
     try:
         next_btn = driver.find_element(By.CSS_SELECTOR, '#table_1_next, .paginate_button.next')
@@ -196,132 +198,106 @@ def click_next_page(driver) -> bool:
         time.sleep(2)
         wait_for_table(driver)
         return True
-    except Exception as e:
-        print(f"  Pagination error: {e}")
-        
-        try:
-            paginate_btns = driver.find_elements(By.CSS_SELECTOR, '.paginate_button:not(.previous):not(.next):not(.disabled)')
-            current = driver.find_element(By.CSS_SELECTOR, '.paginate_button.current')
-            current_page = int(current.text)
-            
-            for btn in paginate_btns:
-                try:
-                    page_num = int(btn.text)
-                    if page_num == current_page + 1:
-                        btn.click()
-                        time.sleep(2)
-                        wait_for_table(driver)
-                        return True
-                except:
-                    continue
-        except:
-            pass
-        
+    except:
         return False
 
-def set_page_length(driver, length=100):
-    """Set the number of entries per page."""
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import Select
-    
-    try:
-        length_select = driver.find_element(By.NAME, 'table_1_length')
-        select = Select(length_select)
-        select.select_by_value(str(length))
-        print(f"  Set page length to {length}")
-        time.sleep(2)
-        wait_for_table(driver)
-    except Exception as e:
-        print(f"  Could not set page length: {e}")
-
-def scrape_all_opinions(max_pages: Optional[int] = None, page_length: int = 100) -> List[Dict]:
-    """Scrape all precedential CAFC opinions."""
+def scrape_all_opinions(max_pages: Optional[int] = None) -> Tuple[List[Dict], int]:
+    """Scrape all precedential CAFC opinions with in-memory deduplication."""
     print("Setting up Selenium driver...")
     driver = setup_driver()
     all_opinions = []
+    seen_keys = set()
+    total_duplicates = 0
     
     try:
         print("Loading CAFC opinions page...")
         driver.get("https://www.cafc.uscourts.gov/home/case-information/opinions-orders/")
         wait_for_table(driver)
         
-        print("Setting filters...")
+        print("Setting filters (Precedential + OPINION)...")
         set_filters(driver, status='Precedential', doc_type='OPINION')
         
-        try:
-            set_page_length(driver, page_length)
-        except:
-            pass
-        
-        total = get_total_records(driver)
-        print(f"Total precedential opinions: {total}")
+        total_expected = get_total_records(driver)
+        print(f"Total precedential opinions expected: {total_expected}")
         
         page = 1
         while True:
-            print(f"Scraping page {page}...")
-            opinions = parse_table_rows(driver)
-            
-            if not opinions:
-                print("  No opinions found on this page")
-                break
-            
+            opinions, page_duplicates = parse_table_rows(driver, seen_keys)
             all_opinions.extend(opinions)
-            print(f"  Found {len(opinions)} opinions (total: {len(all_opinions)})")
+            total_duplicates += page_duplicates
+            
+            print(f"  Page {page}: Found {len(opinions)} new unique opinions ({page_duplicates} duplicates skipped). Total: {len(all_opinions)}")
             
             if max_pages and page >= max_pages:
-                print(f"Reached max pages limit ({max_pages})")
-                break
-            
-            if len(all_opinions) >= total:
-                print("All opinions collected")
                 break
             
             if not click_next_page(driver):
-                print("No more pages")
                 break
             
             page += 1
-            time.sleep(0.5)
-        
+            
     finally:
         driver.quit()
     
-    return all_opinions
+    return all_opinions, total_duplicates
 
-def save_manifest(opinions: List[Dict], output_dir: str = "data"):
-    """Save opinions to manifest files."""
-    os.makedirs(output_dir, exist_ok=True)
+def final_dedupe(opinions: List[Dict]) -> Tuple[List[Dict], int]:
+    """Run a final dedupe pass on the collected opinions."""
+    unique_opinions = []
+    seen = set()
+    duplicates = 0
     
-    json_path = os.path.join(output_dir, "manifest.json")
-    with open(json_path, 'w') as f:
-        json.dump(opinions, f, indent=2)
-    print(f"Saved {len(opinions)} opinions to {json_path}")
-    
-    ndjson_path = os.path.join(output_dir, "manifest.ndjson")
-    with open(ndjson_path, 'w') as f:
-        for opinion in opinions:
-            f.write(json.dumps(opinion) + '\n')
-    print(f"Saved {len(opinions)} opinions to {ndjson_path}")
-    
-    return json_path, ndjson_path
+    for op in opinions:
+        key = (op['appeal_number'], op['pdf_url'])
+        if key in seen:
+            duplicates += 1
+            continue
+        seen.add(key)
+        unique_opinions.append(op)
+        
+    return unique_opinions, duplicates
 
 def main():
-    parser = argparse.ArgumentParser(description="Scrape CAFC Precedential Opinions with Selenium")
+    parser = argparse.ArgumentParser(description="Scrape CAFC Precedential Opinions with Deduplication")
     parser.add_argument("--max-pages", type=int, help="Maximum pages to scrape")
-    parser.add_argument("--page-length", type=int, default=100, help="Entries per page")
-    parser.add_argument("--output", default="data", help="Output directory")
+    parser.add_argument("--output", default="data/manifest.json", help="Output file path")
     args = parser.parse_args()
     
-    opinions = scrape_all_opinions(
-        max_pages=args.max_pages,
-        page_length=args.page_length
-    )
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
     
-    if opinions:
-        save_manifest(opinions, args.output)
-        print(f"\nComplete! Scraped {len(opinions)} precedential opinions from CAFC website.")
-    else:
-        print("No opinions found.")
+    # 1) Discard any partially generated manifest
+    if os.path.exists(args.output):
+        os.remove(args.output)
+        print(f"Clean start: removed existing {args.output}")
+
+    # 2) Re-run the scrape from the beginning
+    start_time = time.time()
+    raw_opinions, scrape_duplicates = scrape_all_opinions(max_pages=args.max_pages)
+    
+    # 3) Final dedupe pass
+    unique_opinions, final_duplicates = final_dedupe(raw_opinions)
+    
+    # 4) Write ONLY unique rows to data/manifest.json
+    with open(args.output, 'w') as f:
+        json.dump(unique_opinions, f, indent=2)
+    
+    # Write NDJSON version too for ingestion script
+    ndjson_output = args.output.replace('.json', '.ndjson')
+    with open(ndjson_output, 'w') as f:
+        for op in unique_opinions:
+            f.write(json.dumps(op) + '\n')
+
+    duration = time.time() - start_time
+    total_collected = len(unique_opinions) + scrape_duplicates + final_duplicates
+    
+    print("\n" + "="*40)
+    print("SCRAPE COMPLETE")
+    print(f"Duration: {duration:.1f}s")
+    print(f"total_rows_collected:      {total_collected}")
+    print(f"total_unique_after_dedupe: {len(unique_opinions)}")
+    print(f"duplicates_removed:        {scrape_duplicates + final_duplicates}")
+    print("="*40)
 
 if __name__ == "__main__":
     main()

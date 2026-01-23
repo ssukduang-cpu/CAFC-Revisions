@@ -1,0 +1,51 @@
+STOP the CAFC wpDataTables scraper approach. We are switching to CourtListener as the source of truth for the full backfill.
+
+Goal: Build a complete manifest of ALL Federal Circuit PRECEDENTIAL OPINIONS from CourtListener, then import and batch-ingest.
+
+1) Replace any CAFC-site scraping scripts with a CourtListener manifest builder.
+
+2) Implement scripts/build_manifest_courtlistener.py that:
+   - Calls CourtListener’s RECAP / opinions endpoint(s) to list Federal Circuit opinions (use the official REST API).
+   - Filters strictly to:
+       court = Federal Circuit (CAFC)
+       precedential only
+       document type = OPINION (not orders)
+   - For each item, output a record with:
+       case_name
+       appeal_number (if missing, derive from docket_number or leave null)
+       release_date (MM/DD/YYYY)
+       origin (if available; else null)
+       status = "Precedential"
+       document_type = "OPINION"
+       pdf_url (a direct PDF URL usable for download)
+       courtlistener_cluster_id
+       courtlistener_url
+   - Write output as data/manifest.ndjson (one JSON object per line).
+   - Add deterministic deduplication:
+       unique key = (courtlistener_cluster_id) OR (appeal_number, pdf_url) if cluster_id missing.
+       Ensure NO duplicates are written even if pagination repeats.
+   - Log:
+       total_rows_fetched
+       total_unique_written
+       duplicates_skipped
+
+3) Add a FastAPI admin endpoint:
+   POST /api/admin/import_manifest
+   - Accept either:
+       a) NDJSON text body, OR
+       b) uploaded file data/manifest.ndjson
+   - Insert into SQLite with a UNIQUE constraint using the same dedupe key.
+   - Return counts: inserted, skipped_duplicates.
+
+4) Add batch ingestion endpoints (if not already present):
+   POST /api/admin/ingest_batch?limit=50
+   GET  /api/admin/ingest_status
+   - Ingestion downloads PDF, extracts per-page text, and stores pages incrementally (no large in-memory strings).
+
+5) Add a small “smoke test” command:
+   - build manifest for limit=100
+   - import it
+   - ingest 5
+   - report status counts (opinions_total, opinions_ingested, pages_total)
+
+Do NOT require Playwright/Selenium. Do NOT scrape cafc.uscourts.gov to discover the full list.
