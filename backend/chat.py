@@ -342,6 +342,47 @@ async def generate_chat_response(
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     search_terms = message.split()
     
+    # For party-only searches, return a list of matching cases without AI generation
+    if party_only and pages:
+        # Group by unique cases
+        seen_cases = {}
+        for page in pages:
+            case_key = page.get('opinion_id')
+            if case_key not in seen_cases:
+                seen_cases[case_key] = page
+        
+        # Build sources from matching cases
+        sources = []
+        for i, (case_id, page) in enumerate(seen_cases.items(), 1):
+            sources.append({
+                "sid": f"S{i}",
+                "opinionId": case_id,
+                "caseName": page.get("case_name", ""),
+                "appealNo": page.get("appeal_no", ""),
+                "releaseDate": page.get("release_date", ""),
+                "pageNumber": page.get("page_number", 1),
+                "quote": extract_exact_quote_from_page(page.get("text", ""), min_len=50, max_len=200),
+                "viewerUrl": f"/opinions/{case_id}?page={page.get('page_number', 1)}",
+                "pdfUrl": page.get("pdf_url", "")
+            })
+        
+        # Build a summary response listing the matching cases
+        case_list = "\n".join([
+            f"- **{s['caseName']}** ({s['appealNo']}, {s['releaseDate']})" 
+            for s in sources
+        ])
+        answer = f"Found {len(sources)} case(s) where \"{message}\" appears as a party:\n\n{case_list}"
+        
+        return {
+            "answer_markdown": answer,
+            "sources": sources,
+            "debug": {
+                "claims": [],
+                "support_audit": {"total_claims": 0, "supported_claims": len(sources), "unsupported_claims": 0},
+                "search_mode": "party_only"
+            }
+        }
+    
     if not pages:
         return {
             "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo relevant excerpts were found. Try different search terms or ingest additional opinions.",
