@@ -44,9 +44,18 @@ Preferred communication style: Simple, everyday language.
 ### Key Design Decisions
 
 1. **Strict Citation Requirement:** The LLM must cite verbatim quotes from opinion text - no training data assertions allowed
-2. **Chunk-Based Retrieval:** PDFs are split into ~1500 character chunks with overlap for search
+2. **Page-Based Retrieval:** PDFs are stored per-page with FTS5 full-text search
 3. **Precedential Only:** System filters for CAFC precedential opinions (status="Precedential", documentType="OPINION")
-4. **Session Storage:** PostgreSQL stores conversation history for multi-turn chat
+4. **Session Storage:** SQLite stores conversation history for multi-turn chat
+5. **Memory Efficient:** Python FastAPI + SQLite uses ~76MB vs Node.js 2GB+ for PDF processing
+
+### Recent Changes (Jan 2026)
+
+- Migrated from Node.js/PostgreSQL to Python FastAPI/SQLite for memory efficiency
+- Fixed FTS5 query escaping to handle special characters (?, ., +, etc.)
+- Fixed conversation endpoint to include messages array for frontend rendering
+- Added proxy timeout (120s) for AI-powered chat responses
+- Fixed useSendMessage hook to pass conversationId as parameter
 
 ## External Dependencies
 

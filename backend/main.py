@@ -127,7 +127,10 @@ async def get_conversation_endpoint(conversation_id: str):
     conv = db.get_conversation(conversation_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return convert_keys_to_camel(conv)
+    messages = db.get_messages(conversation_id)
+    result = convert_keys_to_camel(conv)
+    result["messages"] = convert_keys_to_camel(messages)
+    return result
 
 @app.get("/api/conversations/{conversation_id}/messages")
 async def get_messages(conversation_id: str):
