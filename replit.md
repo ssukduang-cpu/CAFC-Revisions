@@ -116,6 +116,9 @@ The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct C
 - `GET /api/admin/ingest_status` - Total/ingested/pending/failed counts
 - `GET /api/search?q=...` - Full-text search across all ingested opinions
 
+### Pending Integrations
+- **Email Notifications:** Resend integration was declined. To add email alerts for ingestion errors/completion in the future, either set up the Resend connector or provide a RESEND_API_KEY secret manually.
+
 ### Recent Changes (Jan 2026)
 
 - **CourtListener Integration:** Switched from CAFC website scraping to CourtListener API as the source of truth
