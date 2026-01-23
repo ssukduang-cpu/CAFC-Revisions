@@ -151,7 +151,7 @@ export function ChatInterface() {
       if (line.startsWith('## ')) {
         const heading = line.slice(3);
         return (
-          <h2 key={lineIdx} className="text-lg font-bold text-foreground mt-6 mb-3 first:mt-0 border-b border-border/30 pb-2">
+          <h2 key={lineIdx} className="text-base font-bold text-foreground mt-3 mb-1 first:mt-0">
             {renderInlineMarkdown(heading, sources)}
           </h2>
         );
@@ -160,7 +160,7 @@ export function ChatInterface() {
       if (line.startsWith('### ')) {
         const heading = line.slice(4);
         return (
-          <h3 key={lineIdx} className="text-base font-semibold text-foreground mt-4 mb-2 first:mt-0">
+          <h3 key={lineIdx} className="text-sm font-semibold text-foreground mt-2 mb-1 first:mt-0">
             {renderInlineMarkdown(heading, sources)}
           </h3>
         );
@@ -169,20 +169,21 @@ export function ChatInterface() {
       if (line.startsWith('**') && line.endsWith('**') && !line.slice(2, -2).includes('**')) {
         const heading = line.slice(2, -2);
         return (
-          <h3 key={lineIdx} className="font-semibold text-foreground mt-4 mb-2 first:mt-0">
+          <h3 key={lineIdx} className="font-semibold text-foreground mt-2 mb-1 first:mt-0">
             {heading}
           </h3>
         );
       }
       // Handle horizontal rules
       if (line.trim() === '---' || line.trim() === '***') {
-        return <hr key={lineIdx} className="my-4 border-border/50" />;
+        return <hr key={lineIdx} className="my-2 border-border/50" />;
       }
+      // Skip empty lines to reduce spacing
       if (line.trim() === '') {
-        return <br key={lineIdx} />;
+        return null;
       }
       return (
-        <p key={lineIdx} className="mb-2 last:mb-0">
+        <p key={lineIdx} className="mb-1 last:mb-0">
           {renderMarkdownWithSources(line, sources)}
         </p>
       );
