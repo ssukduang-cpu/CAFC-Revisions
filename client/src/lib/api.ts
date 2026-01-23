@@ -11,6 +11,18 @@ export interface Citation {
   verified?: boolean;
 }
 
+export interface Source {
+  sid: string;
+  opinionId: string;
+  caseName: string;
+  appealNo: string;
+  releaseDate: string;
+  pageNumber: number;
+  quote: string;
+  viewerUrl: string;
+  pdfUrl: string;
+}
+
 export interface Claim {
   id: number;
   text: string;
@@ -27,6 +39,8 @@ export interface MessageWithCitations extends Message {
   parsedCitations?: Citation[];
   claims?: Claim[];
   supportAudit?: SupportAudit;
+  sources?: Source[];
+  answerMarkdown?: string;
 }
 
 export interface ConversationWithMessages extends Conversation {

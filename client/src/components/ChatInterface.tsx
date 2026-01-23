@@ -1,12 +1,12 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { useConversation, useSendMessage, useCreateConversation, parseCitations, parseClaims, parseSupportAudit } from "@/hooks/useConversations";
-import type { Citation, Claim, SupportAudit } from "@/lib/api";
+import { useConversation, useSendMessage, useCreateConversation, parseSources, parseAnswerMarkdown } from "@/hooks/useConversations";
+import type { Citation, Source } from "@/lib/api";
 import type { Message } from "@shared/schema";
 
 export function ChatInterface() {
@@ -48,28 +48,73 @@ export function ChatInterface() {
     }
   };
 
-  const handleCitationClick = (citations: Citation[]) => {
-    setSelectedCitations(citations);
+  const handleSourceClick = (source: Source) => {
+    const citation: Citation = {
+      opinionId: source.opinionId,
+      caseName: source.caseName,
+      appealNo: source.appealNo,
+      releaseDate: source.releaseDate,
+      pageNumber: source.pageNumber,
+      quote: source.quote,
+      verified: true
+    };
+    setSelectedCitations([citation]);
   };
 
-  const getCitations = (message: Message): Citation[] => {
-    return parseCitations(message);
+  const getSources = (message: Message): Source[] => {
+    return parseSources(message);
   };
 
-  const getClaims = (message: Message): Claim[] => {
-    return parseClaims(message);
+  const getAnswerMarkdown = (message: Message): string | null => {
+    return parseAnswerMarkdown(message);
   };
 
-  const getAudit = (message: Message): SupportAudit | null => {
-    return parseSupportAudit(message);
+  const renderMarkdownWithSources = (markdown: string, sources: Source[]) => {
+    const parts = markdown.split(/(\[S\d+\])/g);
+    return parts.map((part, idx) => {
+      const match = part.match(/\[S(\d+)\]/);
+      if (match) {
+        const sourceNum = parseInt(match[1]);
+        const source = sources.find(s => s.sid === `S${sourceNum}`);
+        if (source) {
+          return (
+            <button
+              key={idx}
+              onClick={() => handleSourceClick(source)}
+              className="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors"
+              title={`${source.caseName}, p.${source.pageNumber}`}
+              data-testid={`source-marker-${source.sid}`}
+            >
+              {source.sid}
+            </button>
+          );
+        }
+        return <span key={idx} className="text-muted-foreground">{part}</span>;
+      }
+      return <span key={idx}>{part}</span>;
+    });
   };
 
-  const formatCitationText = (cit: Citation) => {
-    const parts = [cit.caseName];
-    if (cit.appealNo) parts.push(`Appeal No. ${cit.appealNo}`);
-    if (cit.releaseDate) parts.push(cit.releaseDate);
-    parts.push(`Page ${cit.pageNumber}`);
-    return `(${parts.join(", ")})`;
+  const renderMarkdownText = (text: string, sources: Source[]) => {
+    const lines = text.split('\n');
+    return lines.map((line, lineIdx) => {
+      if (line.startsWith('**') && line.endsWith('**')) {
+        const heading = line.slice(2, -2);
+        return (
+          <h3 key={lineIdx} className="font-semibold text-foreground mt-4 mb-2 first:mt-0">
+            {heading}
+          </h3>
+        );
+      }
+      if (line.trim() === '') {
+        return <br key={lineIdx} />;
+      }
+      return (
+        <p key={lineIdx} className="mb-2 last:mb-0">
+          {renderMarkdownWithSources(line, sources)}
+        </p>
+      );
+    });
   };
 
   if (!currentConversationId && messages.length === 0) {
@@ -159,10 +204,9 @@ export function ChatInterface() {
             </div>
           ) : (
             messages.map((msg) => {
-              const claims = getClaims(msg);
-              const citations = getCitations(msg);
-              const audit = getAudit(msg);
-              const hasClaims = claims.length > 0;
+              const sources = getSources(msg);
+              const answerMarkdown = getAnswerMarkdown(msg);
+              const hasSources = sources.length > 0;
               
               return (
                 <div 
@@ -187,102 +231,72 @@ export function ChatInterface() {
                       <div className="bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-md text-sm leading-relaxed">
                         <div className="whitespace-pre-wrap">{msg.content}</div>
                       </div>
-                    ) : hasClaims ? (
+                    ) : answerMarkdown ? (
                       <div className="space-y-4 w-full">
-                        {claims.map((claim) => (
-                          <div key={claim.id} className="space-y-2" data-testid={`claim-${msg.id}-${claim.id}`}>
-                            <div className="text-sm leading-relaxed text-foreground">
-                              <span className="font-medium text-primary">[Claim {claim.id}]</span>{" "}
-                              {claim.text}
+                        <div className="text-sm leading-relaxed text-foreground">
+                          {renderMarkdownText(answerMarkdown, sources)}
+                        </div>
+                        
+                        {hasSources && (
+                          <div className="mt-4 pt-3 border-t border-border/30">
+                            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                              Sources
                             </div>
-                            
-                            {claim.citations.filter(c => c.verified !== false && c.pageNumber >= 1).length > 0 ? (
-                              <div className="space-y-1.5 pl-3 border-l-2 border-primary/30">
-                                {claim.citations.filter(c => c.verified !== false && c.pageNumber >= 1).map((cit, idx) => (
-                                  <button 
-                                    key={idx}
-                                    onClick={() => handleCitationClick([cit])}
-                                    className="w-full bg-muted/30 border border-border/50 rounded-lg p-2.5 hover:bg-muted/50 transition-colors text-left group"
-                                    data-testid={`citation-${msg.id}-${claim.id}-${idx}`}
-                                  >
-                                    <div className="flex items-start gap-2">
-                                      <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
-                                      <div className="min-w-0 space-y-0.5">
-                                        <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                                          {cit.caseName}
-                                        </div>
-                                        <div className="text-[11px] text-muted-foreground line-clamp-2 italic">
-                                          "{cit.quote}"
-                                        </div>
-                                        <div className="text-[10px] font-mono text-muted-foreground/60">
-                                          {cit.appealNo} {cit.releaseDate && `• ${cit.releaseDate}`} • p.{cit.pageNumber}
-                                        </div>
+                            <div className="space-y-1.5">
+                              {sources.map((source) => (
+                                <div 
+                                  key={source.sid}
+                                  className="bg-muted/30 border border-border/50 rounded-lg p-2.5"
+                                  data-testid={`source-panel-${source.sid}`}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <div className="flex items-center justify-center h-5 w-5 rounded bg-primary/10 text-primary text-[10px] font-medium shrink-0">
+                                      {source.sid}
+                                    </div>
+                                    <div className="min-w-0 space-y-1 flex-1">
+                                      <div className="flex items-center gap-1">
+                                        <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
+                                        <span className="text-xs font-medium text-foreground truncate">
+                                          {source.caseName}
+                                        </span>
+                                      </div>
+                                      <div className="text-[11px] text-muted-foreground line-clamp-2 italic">
+                                        "{source.quote}"
+                                      </div>
+                                      <div className="text-[10px] font-mono text-muted-foreground/60">
+                                        {source.appealNo} {source.releaseDate && `• ${source.releaseDate}`} • p.{source.pageNumber}
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <button
+                                          onClick={() => handleSourceClick(source)}
+                                          className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                                          data-testid={`source-view-${source.sid}`}
+                                        >
+                                          View in app
+                                        </button>
+                                        {source.pdfUrl && (
+                                          <a
+                                            href={source.pdfUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5"
+                                            data-testid={`source-cafc-${source.sid}`}
+                                          >
+                                            Open on CAFC <ExternalLink className="h-2.5 w-2.5" />
+                                          </a>
+                                        )}
                                       </div>
                                     </div>
-                                  </button>
-                                ))}
-                              </div>
-                            ) : claim.text.toUpperCase().includes("NOT FOUND") ? (
-                              <div className="pl-3 border-l-2 border-muted/50">
-                                <div className="text-xs text-muted-foreground italic">
-                                  Try ingesting additional relevant opinions or refining your search keywords.
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="pl-3 border-l-2 border-amber-500/50">
-                                <div className="text-xs text-amber-600 flex items-center gap-1">
-                                  <AlertCircle className="h-3 w-3" />
-                                  Unable to verify citation
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        
-                        {audit && (
-                          <div className="mt-3 pt-3 border-t border-border/30 flex items-center gap-4 text-[10px] text-muted-foreground">
-                            <span>{audit.total_claims} claims</span>
-                            <span className="text-green-600">{audit.supported_claims} supported</span>
-                            {audit.unsupported_claims > 0 && (
-                              <span className="text-amber-600">{audit.unsupported_claims} unsupported</span>
-                            )}
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
                     ) : (
                       <div className="text-sm leading-relaxed text-foreground">
                         <div className="whitespace-pre-wrap">{msg.content}</div>
-                        
-                        {citations.length > 0 && (
-                          <div className="mt-3 space-y-2 w-full">
-                            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Sources</div>
-                            <div className="space-y-1.5">
-                              {citations.map((cit, idx) => (
-                                <button 
-                                  key={idx}
-                                  onClick={() => handleCitationClick([cit])}
-                                  className="w-full bg-muted/30 border border-border/50 rounded-lg p-2.5 hover:bg-muted/50 transition-colors text-left group"
-                                  data-testid={`citation-${msg.id}-${idx}`}
-                                >
-                                  <div className="flex items-start gap-2">
-                                    <Quote className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                                    <div className="min-w-0 space-y-0.5">
-                                      <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                                        {cit.caseName}
-                                      </div>
-                                      <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
-                                        "{cit.quote}"
-                                      </div>
-                                      <div className="text-[10px] font-mono text-muted-foreground/60">
-                                        {cit.appealNo} {cit.releaseDate && `• ${cit.releaseDate}`} • p.{cit.pageNumber}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>

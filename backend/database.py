@@ -221,7 +221,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
             placeholders = ",".join("?" * len(opinion_ids))
             sql = f"""
                 SELECT op.opinion_id, op.page_number, op.text,
-                       o.case_name, o.appeal_no, o.release_date
+                       o.case_name, o.appeal_no, o.release_date, o.pdf_url
                 FROM opinion_pages_fts fts
                 JOIN opinion_pages op ON fts.rowid = op.id
                 JOIN opinions o ON op.opinion_id = o.id
@@ -234,7 +234,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         else:
             sql = """
                 SELECT op.opinion_id, op.page_number, op.text,
-                       o.case_name, o.appeal_no, o.release_date
+                       o.case_name, o.appeal_no, o.release_date, o.pdf_url
                 FROM opinion_pages_fts fts
                 JOIN opinion_pages op ON fts.rowid = op.id
                 JOIN opinions o ON op.opinion_id = o.id

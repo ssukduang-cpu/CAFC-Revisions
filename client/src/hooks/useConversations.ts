@@ -9,7 +9,8 @@ import {
   type MessageWithCitations,
   type Citation,
   type Claim,
-  type SupportAudit
+  type SupportAudit,
+  type Source
 } from "@/lib/api";
 import type { Conversation, Message } from "@shared/schema";
 
@@ -132,7 +133,55 @@ export function parseSupportAudit(message: Message): SupportAudit | null {
         unsupported_claims: data.support_audit.unsupported_claims || 0
       };
     }
+    if (data.debug?.support_audit) {
+      return {
+        total_claims: data.debug.support_audit.total_claims || 0,
+        supported_claims: data.debug.support_audit.supported_claims || 0,
+        unsupported_claims: data.debug.support_audit.unsupported_claims || 0
+      };
+    }
     return null;
+  } catch {
+    return null;
+  }
+}
+
+export function parseSources(message: Message): Source[] {
+  if (!message.citations) return [];
+  
+  try {
+    const data = typeof message.citations === 'string' 
+      ? JSON.parse(message.citations) 
+      : message.citations;
+    
+    if (data.sources && Array.isArray(data.sources)) {
+      return data.sources.map((s: any) => ({
+        sid: s.sid || '',
+        opinionId: s.opinion_id || s.opinionId || '',
+        caseName: s.case_name || s.caseName || '',
+        appealNo: s.appeal_no || s.appealNo || '',
+        releaseDate: s.release_date || s.releaseDate || '',
+        pageNumber: s.page_number || s.pageNumber || 0,
+        quote: s.quote || '',
+        viewerUrl: s.viewer_url || s.viewerUrl || '',
+        pdfUrl: s.pdf_url || s.pdfUrl || ''
+      }));
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export function parseAnswerMarkdown(message: Message): string | null {
+  if (!message.citations) return null;
+  
+  try {
+    const data = typeof message.citations === 'string' 
+      ? JSON.parse(message.citations) 
+      : message.citations;
+    
+    return data.answer_markdown || data.answerMarkdown || null;
   } catch {
     return null;
   }

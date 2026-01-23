@@ -1,0 +1,72 @@
+IMPLEMENT PATENT LITIGATOR PERSONA OUTPUT (NATURAL), WITH INLINE CITATION MARKERS + SOURCES PANEL LINKS ONLY
+
+Goal: Make responses read naturally (patent litigator / Federal Circuit practitioner style) while keeping strict anti-hallucination enforcement. No “Claim 1/2” labels in the user-facing text. Keep claim-level verification internally.
+
+RESPONSE STYLE REQUIREMENTS (USER-FACING)
+1) Output format (Patent Litigator voice)
+- Sections (include only those that have supported content):
+  A) Bottom line (1–2 sentences)
+  B) What the court held (short paragraphs)
+  C) Practice note (optional; include ONLY if directly supported by verified quotes)
+- Use short inline quotes inside sentences when helpful (no long block quotes).
+- No “Claim 1/Claim 2” numbering in the displayed answer.
+- If nothing is supported: show only
+  “NOT FOUND IN PROVIDED OPINIONS.” + one short next-step sentence.
+
+2) Inline citations
+- Use compact inline source markers like: [S1], [S2] (not hyperlinks).
+- Place markers at the end of the sentence/paragraph they support.
+- Only cite VERIFIED sources; never show unverified sources in the answer body.
+
+3) Sources panel (links ONLY here)
+- Provide a “Sources” section/panel listing S1, S2, ... with:
+  - case_name
+  - appeal_no
+  - release_date
+  - page_number
+  - short quote (verbatim, verified substring)
+  - Links:
+      a) View in app (PDF viewer deep link): /pdf/{opinion_id}?page={page_number}
+      b) Open on CAFC: pdf_url (official)
+- Body text must not contain hyperlinks.
+
+GROUNDING / SAFETY (MUST NOT WEAKEN)
+4) Keep strict verification internally
+- Maintain internal claim-level structure for enforcement (even if hidden).
+- For each supported sentence/paragraph, there must be at least one VERIFIED citation.
+- VERIFIED means the normalized quote is an exact substring of normalized stored page text for (opinion_id, page_number).
+- Remove fuzzy matching entirely for “verified=true”.
+- Drop citations with invalid page_number (e.g., 0) and do not display them.
+
+5) Enforcement rule
+- Any unit of content that cannot be supported by ≥1 verified citation must be removed or rewritten as “NOT FOUND IN PROVIDED OPINIONS.”
+- Never output substantive text with only unverified citations.
+
+IMPLEMENTATION TASKS
+A) Backend response shape
+- /api/chat should return:
+  {
+    answer_markdown: string,      // user-facing (natural)
+    sources: [
+      {
+        sid: "S1",
+        opinion_id,
+        case_name,
+        appeal_no,
+        release_date,
+        page_number,
+        quote,
+        viewer_url: "/pdf/{opinion_id}?page={page_number}",
+        pdf_url
+      }, ...
+    ],
+    debug: { claims: [...], support_audit: {...} }   // keep but UI should hide by default
+  }
+
+B) Citation assignment for markers
+- When building answer_markdown, insert markers [S1], [S2] based on the sources used.
+- Deduplicate sources: if multiple sentences use the same page/quote, reuse the same S#.
+
+C) UI rendering
+- Render answer_markdown as the primary assistant output.
+- Render a Sources panel beneath/adjacent that lists S1/S2... with the two lin

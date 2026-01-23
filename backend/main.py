@@ -150,15 +150,17 @@ async def send_message(conversation_id: str, request: MessageRequest):
     )
     
     citation_data = {
-        "claims": result.get("claims", []),
-        "citations": result.get("citations", []),
-        "support_audit": result.get("support_audit", {})
+        "answer_markdown": result.get("answer_markdown", ""),
+        "sources": result.get("sources", []),
+        "debug": result.get("debug", {})
     }
+    
+    answer_text = result.get("answer_markdown", "No response generated.")
     
     assistant_msg_id = db.add_message(
         conversation_id, 
         "assistant", 
-        result["answer"],
+        answer_text,
         json.dumps(citation_data)
     )
     
@@ -167,7 +169,6 @@ async def send_message(conversation_id: str, request: MessageRequest):
     assistant_msg = next((m for m in messages if m["id"] == assistant_msg_id), None)
     
     assistant_response = convert_keys_to_camel(assistant_msg) if assistant_msg else {}
-    assistant_response["citations"] = result.get("citations", [])
     
     return {
         "userMessage": convert_keys_to_camel(user_msg) if user_msg else {},
@@ -188,19 +189,24 @@ async def chat(request: ChatRequest):
         conversation_id=conv_id
     )
     
+    citation_data = {
+        "answer_markdown": result.get("answer_markdown", ""),
+        "sources": result.get("sources", []),
+        "debug": result.get("debug", {})
+    }
+    
     db.add_message(
         conv_id, 
         "assistant", 
-        result["answer"],
-        json.dumps(result.get("citations", []))
+        result.get("answer_markdown", ""),
+        json.dumps(citation_data)
     )
     
     return {
         "conversation_id": conv_id,
-        "answer": result["answer"],
-        "citations": result.get("citations", []),
-        "support_audit": result.get("support_audit", []),
-        "retrieval_only": result.get("retrieval_only", False)
+        "answer_markdown": result.get("answer_markdown", ""),
+        "sources": result.get("sources", []),
+        "debug": result.get("debug", {})
     }
 
 CLIENT_BUILD_DIR = os.path.join(os.path.dirname(__file__), "..", "client", "dist")

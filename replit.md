@@ -56,14 +56,16 @@ Preferred communication style: Simple, everyday language.
 - Fixed conversation endpoint to include messages array for frontend rendering
 - Added proxy timeout (120s) for AI-powered chat responses
 - Fixed useSendMessage hook to pass conversationId as parameter
-- **Citation Hardening (Latest):**
-  - Citations now include opinion_id, case_name, appeal_no, release_date, page_number, quote, verified
-  - STRICT quote verification: quotes must be exact substrings of stored page text (normalized with NFKC Unicode, whitespace collapsed)
-  - Claims with 0 verified citations are replaced with "NOT FOUND IN PROVIDED OPINIONS"
-  - All citations require valid page_number >= 1
-  - Quotes are stored as exact substrings without ellipses
-  - UI only shows verified citations (green checkmarks), no amber/unverified indicators
-  - NOT FOUND claims display hint: "Try ingesting additional relevant opinions"
+- **Patent Litigator Persona (Latest):**
+  - Natural language output styled as Federal Circuit practitioner briefing
+  - Sections: **Bottom Line**, **What the Court Held**, **Practice Note** (optional)
+  - No [Claim 1/2] labels in user-facing text - verification kept internal
+  - Inline [S1], [S2] markers replace verbose citation blocks
+  - Sources panel with: case_name, appeal_no, release_date, page_number, quote
+  - Two links per source: "View in app" (viewer_url) and "Open on CAFC" (pdf_url)
+  - Backend returns: answer_markdown, sources[], debug{claims, support_audit}
+  - STRICT quote verification: quotes must be exact substrings (NFKC normalized)
+  - NOT FOUND responses have no sources and no inline markers
 
 ## External Dependencies
 
