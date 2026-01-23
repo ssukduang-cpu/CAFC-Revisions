@@ -342,8 +342,16 @@ async def generate_chat_response(
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     search_terms = message.split()
     
-    # For party-only searches, return a list of matching cases without AI generation
-    if party_only and pages:
+    # Detect if the query looks like a question vs a simple party name lookup
+    question_indicators = ['what', 'how', 'why', 'when', 'where', 'which', 'who', 
+                           'holding', 'held', 'decide', 'rule', 'ruling', 'opinion',
+                           'mean', 'explain', 'describe', 'tell', 'does', 'did', 'is', 'are', 'was', 'were',
+                           'can', 'could', 'should', 'would', '?']
+    message_lower = message.lower()
+    is_question = any(word in message_lower for word in question_indicators) or len(message.split()) > 4
+    
+    # For party-only searches with a simple party name (not a question), list matching cases
+    if party_only and pages and not is_question:
         # Group by unique cases
         seen_cases = {}
         for page in pages:
@@ -371,7 +379,7 @@ async def generate_chat_response(
             f"- **{s['caseName']}** ({s['appealNo']}, {s['releaseDate']})" 
             for s in sources
         ])
-        answer = f"Found {len(sources)} case(s) where \"{message}\" appears as a party:\n\n{case_list}"
+        answer = f"Found {len(sources)} case(s) where \"{message}\" appears as a party:\n\n{case_list}\n\nAsk a specific question about these cases (e.g., \"What was the holding in the Google case?\") to get detailed analysis."
         
         return {
             "answer_markdown": answer,
@@ -379,9 +387,36 @@ async def generate_chat_response(
             "debug": {
                 "claims": [],
                 "support_audit": {"total_claims": 0, "supported_claims": len(sources), "unsupported_claims": 0},
-                "search_mode": "party_only"
+                "search_mode": "party_only_listing"
             }
         }
+    
+    # For party-only mode with a question, find cases by party name then search their content
+    if party_only and is_question:
+        # Extract potential party names from the question (proper nouns, capitalized words)
+        words = message.split()
+        potential_parties = [w.strip('?.,!') for w in words if w[0].isupper() and len(w) > 2 and w.lower() not in question_indicators]
+        
+        if potential_parties:
+            # Search for cases matching the party names
+            party_cases = []
+            for party in potential_parties:
+                party_pages = db.search_pages(party, None, limit=10, party_only=True)
+                for p in party_pages:
+                    if p.get('opinion_id') not in [c.get('opinion_id') for c in party_cases]:
+                        party_cases.append(p)
+            
+            if party_cases:
+                # Get the opinion IDs from matching party cases
+                party_opinion_ids = list(set(p.get('opinion_id') for p in party_cases))
+                # Now do a full-text search within those cases
+                pages = db.search_pages(message, party_opinion_ids, limit=15, party_only=False)
+                
+                if not pages:
+                    # If no full-text matches, search with just the question keywords
+                    non_party_words = [w for w in words if w not in potential_parties]
+                    if non_party_words:
+                        pages = db.search_pages(' '.join(non_party_words), party_opinion_ids, limit=15, party_only=False)
     
     if not pages:
         return {

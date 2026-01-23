@@ -392,7 +392,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     1.0 as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
-                WHERE d.id = ANY(%s)
+                WHERE d.id::text = ANY(%s)
                   AND d.case_name ILIKE '%%' || %s || '%%'
                 ORDER BY d.id, p.page_number
                 LIMIT %s
@@ -407,7 +407,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
-                WHERE d.id = ANY(%s)
+                WHERE d.id::text = ANY(%s)
                   AND to_tsvector('english', p.text) @@ plainto_tsquery('english', %s)
                 ORDER BY rank DESC
                 LIMIT %s
