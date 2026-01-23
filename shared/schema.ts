@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer, vector } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -21,14 +21,13 @@ export const opinions = pgTable("opinions", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Chunks table - stores vectorized chunks of opinions for RAG
+// Chunks table - stores text chunks for full-text search
 export const chunks = pgTable("chunks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   opinionId: varchar("opinion_id").notNull().references(() => opinions.id, { onDelete: "cascade" }),
   chunkText: text("chunk_text").notNull(),
   pageNumber: integer("page_number"),
   chunkIndex: integer("chunk_index").notNull(),
-  embedding: vector("embedding", { dimensions: 1536 }), // OpenAI embeddings dimension
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

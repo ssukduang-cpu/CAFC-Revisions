@@ -13,28 +13,30 @@ import {
   type InsertMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, cosineDistance } from "drizzle-orm";
+import { eq, desc, sql, ilike, or } from "drizzle-orm";
 
 export interface IStorage {
   // Opinion operations
   getOpinion(id: string): Promise<Opinion | undefined>;
   getOpinionByPdfUrl(pdfUrl: string): Promise<Opinion | undefined>;
-  listOpinions(filters?: { status?: string; limit?: number }): Promise<Opinion[]>;
+  listOpinions(filters?: { status?: string; limit?: number; isIngested?: boolean }): Promise<Opinion[]>;
   createOpinion(opinion: InsertOpinion): Promise<Opinion>;
   updateOpinion(id: string, opinion: Partial<InsertOpinion>): Promise<Opinion | undefined>;
   markOpinionIngested(id: string, pdfText: string): Promise<void>;
+  getOpinionCount(): Promise<{ total: number; ingested: number }>;
 
   // Chunk operations
   createChunk(chunk: InsertChunk): Promise<Chunk>;
   createChunks(chunks: InsertChunk[]): Promise<Chunk[]>;
   getChunksByOpinion(opinionId: string): Promise<Chunk[]>;
-  findSimilarChunks(embedding: number[], limit?: number): Promise<(Chunk & { opinion: Opinion, similarity: number })[]>;
+  searchChunks(query: string, limit?: number): Promise<(Chunk & { opinion: Opinion })[]>;
 
   // Conversation operations
   getConversation(id: string): Promise<Conversation | undefined>;
   listConversations(limit?: number): Promise<Conversation[]>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
   updateConversationTitle(id: string, title: string): Promise<void>;
+  deleteConversation(id: string): Promise<void>;
 
   // Message operations
   getMessage(id: string): Promise<Message | undefined>;
@@ -54,11 +56,19 @@ export class DatabaseStorage implements IStorage {
     return opinion || undefined;
   }
 
-  async listOpinions(filters?: { status?: string; limit?: number }): Promise<Opinion[]> {
+  async listOpinions(filters?: { status?: string; limit?: number; isIngested?: boolean }): Promise<Opinion[]> {
     let query = db.select().from(opinions).orderBy(desc(opinions.releaseDate));
 
+    const conditions = [];
     if (filters?.status) {
-      query = query.where(eq(opinions.status, filters.status)) as any;
+      conditions.push(eq(opinions.status, filters.status));
+    }
+    if (filters?.isIngested !== undefined) {
+      conditions.push(eq(opinions.isIngested, filters.isIngested));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(conditions.length === 1 ? conditions[0] : sql`${conditions[0]} AND ${conditions[1]}`) as any;
     }
 
     if (filters?.limit) {
@@ -92,6 +102,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(opinions.id, id));
   }
 
+  async getOpinionCount(): Promise<{ total: number; ingested: number }> {
+    const [totalResult] = await db.select({ count: sql<number>`count(*)` }).from(opinions);
+    const [ingestedResult] = await db.select({ count: sql<number>`count(*)` }).from(opinions).where(eq(opinions.isIngested, true));
+    return {
+      total: Number(totalResult?.count || 0),
+      ingested: Number(ingestedResult?.count || 0),
+    };
+  }
+
   // Chunk operations
   async createChunk(chunk: InsertChunk): Promise<Chunk> {
     const [newChunk] = await db
@@ -117,26 +136,44 @@ export class DatabaseStorage implements IStorage {
       .orderBy(chunks.chunkIndex);
   }
 
-  async findSimilarChunks(embedding: number[], limit: number = 10): Promise<(Chunk & { opinion: Opinion, similarity: number })[]> {
-    const embeddingString = `[${embedding.join(',')}]`;
+  // Full-text search using PostgreSQL ILIKE for simplicity
+  async searchChunks(query: string, limit: number = 20): Promise<(Chunk & { opinion: Opinion })[]> {
+    const searchTerms = query.split(/\s+/).filter(t => t.length > 2);
+    
+    if (searchTerms.length === 0) {
+      // Return recent chunks if no search terms
+      const results = await db
+        .select({
+          chunk: chunks,
+          opinion: opinions,
+        })
+        .from(chunks)
+        .innerJoin(opinions, eq(chunks.opinionId, opinions.id))
+        .where(eq(opinions.isIngested, true))
+        .limit(limit);
+      
+      return results.map(r => ({ ...r.chunk, opinion: r.opinion }));
+    }
+
+    // Build search conditions for each term
+    const searchPattern = `%${searchTerms.join('%')}%`;
     
     const results = await db
       .select({
         chunk: chunks,
         opinion: opinions,
-        similarity: sql<number>`1 - (${chunks.embedding} <=> ${embeddingString}::vector)`,
       })
       .from(chunks)
       .innerJoin(opinions, eq(chunks.opinionId, opinions.id))
-      .where(eq(opinions.isIngested, true))
-      .orderBy(sql`${chunks.embedding} <=> ${embeddingString}::vector`)
+      .where(
+        sql`${opinions.is_ingested} = true AND (
+          ${chunks.chunkText} ILIKE ${searchPattern} OR
+          ${opinions.caseName} ILIKE ${searchPattern}
+        )`
+      )
       .limit(limit);
 
-    return results.map(r => ({
-      ...r.chunk,
-      opinion: r.opinion,
-      similarity: r.similarity,
-    }));
+    return results.map(r => ({ ...r.chunk, opinion: r.opinion }));
   }
 
   // Conversation operations
@@ -169,6 +206,11 @@ export class DatabaseStorage implements IStorage {
       .update(conversations)
       .set({ title, updatedAt: new Date() })
       .where(eq(conversations.id, id));
+  }
+
+  async deleteConversation(id: string): Promise<void> {
+    await db.delete(messages).where(eq(messages.conversationId, id));
+    await db.delete(conversations).where(eq(conversations.id, id));
   }
 
   // Message operations

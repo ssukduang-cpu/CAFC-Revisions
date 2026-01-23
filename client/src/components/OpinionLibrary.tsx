@@ -1,80 +1,215 @@
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Download, CheckCircle, Plus } from "lucide-react";
-import { MOCK_OPINIONS } from "@/lib/mockData";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
+import { 
+  RefreshCw, 
+  Download, 
+  Search, 
+  CheckCircle2, 
+  Circle,
+  ExternalLink,
+  Loader2
+} from "lucide-react";
+import { useApp } from "@/context/AppContext";
+import { useOpinions, useSyncOpinions, useIngestOpinion } from "@/hooks/useOpinions";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 
 export function OpinionLibrary() {
+  const { showOpinionLibrary, setShowOpinionLibrary } = useApp();
   const [searchTerm, setSearchTerm] = useState("");
+  const [ingestingId, setIngestingId] = useState<string | null>(null);
+  
+  const { data, isLoading } = useOpinions();
+  const syncOpinions = useSyncOpinions();
+  const ingestOpinion = useIngestOpinion();
 
-  const filteredOpinions = MOCK_OPINIONS.filter(op => 
+  const opinions = data?.opinions || [];
+  const filteredOpinions = opinions.filter(op => 
     op.caseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    op.appealNo.includes(searchTerm)
+    op.appealNo.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleSync = async () => {
+    try {
+      await syncOpinions.mutateAsync();
+    } catch (error) {
+      console.error("Sync failed:", error);
+    }
+  };
+
+  const handleIngest = async (opinionId: string) => {
+    setIngestingId(opinionId);
+    try {
+      await ingestOpinion.mutateAsync(opinionId);
+    } catch (error) {
+      console.error("Ingest failed:", error);
+    } finally {
+      setIngestingId(null);
+    }
+  };
+
+  const handleIngestAll = async () => {
+    const notIngested = opinions.filter(op => !op.isIngested);
+    for (const op of notIngested.slice(0, 5)) {
+      await handleIngest(op.id);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full bg-sidebar/30">
-      <div className="p-4 border-b bg-sidebar/10 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Opinion Library</h2>
-          <Button variant="outline" size="icon" className="h-7 w-7">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search cases..." 
-            className="pl-9 h-9 bg-background/50 border-sidebar-border focus:bg-background transition-colors"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
-          {filteredOpinions.map((op) => (
-            <div 
-              key={op.id}
-              className={cn(
-                "group flex flex-col gap-1 p-3 rounded-md border border-transparent hover:bg-sidebar/10 hover:border-sidebar-border/50 transition-all cursor-pointer",
-                !op.isIngested && "opacity-70"
-              )}
-            >
-              <div className="flex items-start justify-between">
-                <div className="font-serif font-medium text-sm text-foreground leading-tight">
-                  {op.caseName}
-                </div>
-                {op.isIngested ? (
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                ) : (
-                  <Button variant="ghost" size="icon" className="h-5 w-5 -mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                <span>{op.appealNo}</span>
-                <span>•</span>
-                <span>{op.date}</span>
-              </div>
-
-              <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                {op.summary}
-              </p>
+    <Dialog open={showOpinionLibrary} onOpenChange={setShowOpinionLibrary}>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-lg font-serif">Opinion Library</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground mt-1">
+                Manage CAFC precedential opinions for AI-powered research
+              </DialogDescription>
             </div>
-          ))}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-mono text-xs">
+                {data?.ingested || 0} / {data?.total || 0} ingested
+              </Badge>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="p-6 space-y-4 flex-1 flex flex-col">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search opinions by case name or appeal number..." 
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                data-testid="input-search-opinions"
+              />
+            </div>
+            <Button 
+              onClick={handleSync}
+              disabled={syncOpinions.isPending}
+              variant="outline"
+              className="gap-2"
+              data-testid="button-sync-opinions"
+            >
+              {syncOpinions.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Sync from CAFC
+            </Button>
+            <Button 
+              onClick={handleIngestAll}
+              disabled={ingestOpinion.isPending || opinions.filter(o => !o.isIngested).length === 0}
+              className="gap-2"
+              data-testid="button-ingest-all"
+            >
+              <Download className="h-4 w-4" />
+              Ingest Next 5
+            </Button>
+          </div>
+
+          <ScrollArea className="flex-1 border rounded-lg">
+            <div className="divide-y">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredOpinions.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  {searchTerm ? (
+                    <p>No opinions match your search</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <p>No opinions synced yet</p>
+                      <Button onClick={handleSync} disabled={syncOpinions.isPending}>
+                        Sync opinions from CAFC website
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                filteredOpinions.map((opinion) => (
+                  <div 
+                    key={opinion.id}
+                    className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between gap-4"
+                    data-testid={`opinion-row-${opinion.id}`}
+                  >
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      {opinion.isIngested ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-muted-foreground/30 mt-0.5 shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm truncate">{opinion.caseName}</div>
+                        <div className="text-xs text-muted-foreground space-x-2">
+                          <span className="font-mono">{opinion.appealNo}</span>
+                          <span>•</span>
+                          <span>{opinion.releaseDate}</span>
+                          <span>•</span>
+                          <span>{opinion.origin}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge 
+                        variant={opinion.status === "Precedential" ? "default" : "secondary"}
+                        className="text-[10px]"
+                      >
+                        {opinion.status}
+                      </Badge>
+                      {!opinion.isIngested && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleIngest(opinion.id)}
+                          disabled={ingestingId === opinion.id}
+                          className="gap-1"
+                          data-testid={`button-ingest-${opinion.id}`}
+                        >
+                          {ingestingId === opinion.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Download className="h-3 w-3" />
+                          )}
+                          Ingest
+                        </Button>
+                      )}
+                      <a 
+                        href={opinion.pdfUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-2 hover:bg-muted rounded-md transition-colors"
+                        data-testid={`link-pdf-${opinion.id}`}
+                      >
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      </a>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="text-xs text-muted-foreground">
+            <p>
+              <strong>Sync:</strong> Fetches opinion metadata from the CAFC website. 
+              <strong className="ml-2">Ingest:</strong> Downloads the PDF, extracts text, and indexes it for search.
+            </p>
+          </div>
         </div>
-      </ScrollArea>
-      
-      <div className="p-3 border-t bg-sidebar/10 text-xs text-center text-muted-foreground">
-        {filteredOpinions.length} opinions found
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

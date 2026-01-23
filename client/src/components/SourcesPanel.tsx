@@ -2,13 +2,23 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Copy, BookOpen, Quote } from "lucide-react";
-import { MOCK_CHAT_HISTORY } from "@/lib/mockData";
+import { ExternalLink, BookOpen, Quote, Copy, Check } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+import { useState } from "react";
 
 export function SourcesPanel() {
-  // In a real app, this would come from a selected message context
-  const activeMessage = MOCK_CHAT_HISTORY.find(m => m.citations && m.citations.length > 0);
-  const citations = activeMessage?.citations || [];
+  const { selectedCitations } = useApp();
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const handleCopy = async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -17,35 +27,52 @@ export function SourcesPanel() {
           <BookOpen className="h-4 w-4" />
           <h2 className="font-semibold text-sm tracking-tight">Cited Sources</h2>
         </div>
-        <Badge variant="outline" className="font-mono text-[10px]">{citations.length} References</Badge>
+        <Badge variant="outline" className="font-mono text-[10px]">
+          {selectedCitations.length} Reference{selectedCitations.length !== 1 ? 's' : ''}
+        </Badge>
       </div>
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
-          {citations.length > 0 ? citations.map((citation, index) => (
-            <Card key={citation.id} className="shadow-sm border-l-4 border-l-primary/40 hover:border-l-primary transition-all group">
+          {selectedCitations.length > 0 ? selectedCitations.map((citation, index) => (
+            <Card 
+              key={index} 
+              className="shadow-sm border-l-4 border-l-primary/40 hover:border-l-primary transition-all group"
+              data-testid={`source-card-${index}`}
+            >
               <CardHeader className="p-3 pb-2 space-y-0">
                 <div className="flex justify-between items-start gap-2">
                   <CardTitle className="text-sm font-serif font-bold leading-tight text-primary">
                     {citation.caseName}
                   </CardTitle>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => handleCopy(citation.quote, index)}
+                    data-testid={`button-copy-citation-${index}`}
+                  >
+                    {copiedIndex === index ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3 text-muted-foreground" />
+                    )}
                   </Button>
                 </div>
                 <div className="text-[11px] font-mono text-muted-foreground">
-                  Page {citation.page} • Opinion ID: {citation.opinionId}
+                  {citation.appealNo} • {citation.releaseDate} • Page {citation.pageNumber}
                 </div>
               </CardHeader>
               <CardContent className="p-3 pt-2">
                 <div className="relative bg-muted/30 p-2.5 rounded text-sm text-foreground/80 leading-relaxed italic border border-muted/50">
                   <Quote className="absolute top-1 left-1 h-3 w-3 text-primary/20 transform -scale-x-100" />
-                  <span className="relative z-10">{citation.text}</span>
+                  <span className="relative z-10">{citation.quote}</span>
                 </div>
               </CardContent>
             </Card>
           )) : (
             <div className="text-center py-10 text-muted-foreground">
+              <BookOpen className="h-8 w-8 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No citations selected.</p>
               <p className="text-xs opacity-60 mt-1">Click a citation in the chat to view details.</p>
             </div>

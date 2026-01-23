@@ -1,5 +1,4 @@
 import axios from "axios";
-import pdfParse from "pdf-parse";
 import type { InsertChunk } from "@shared/schema";
 
 export interface ProcessedPDF {
@@ -17,7 +16,7 @@ export async function downloadPDF(pdfUrl: string): Promise<Buffer> {
   
   const response = await axios.get(pdfUrl, {
     responseType: 'arraybuffer',
-    timeout: 60000, // 60 second timeout
+    timeout: 60000,
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; CAFC-Copilot/1.0)',
     },
@@ -29,6 +28,8 @@ export async function downloadPDF(pdfUrl: string): Promise<Buffer> {
 export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<{ text: string; numPages: number }> {
   console.log('Extracting text from PDF...');
   
+  // Dynamic import for pdf-parse (CommonJS module)
+  const pdfParse = (await import('pdf-parse')).default;
   const data = await pdfParse(pdfBuffer);
   
   return {
@@ -37,30 +38,42 @@ export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<{ text: str
   };
 }
 
-export function chunkText(text: string, chunkSize: number = 1000, overlap: number = 200): Array<{
+export function chunkText(text: string, chunkSize: number = 1500, overlap: number = 300): Array<{
   text: string;
   pageNumber: number;
   chunkIndex: number;
 }> {
   const chunks: Array<{ text: string; pageNumber: number; chunkIndex: number }> = [];
   
-  // Simple chunking by character count with overlap
-  // In production, you might want smarter chunking (by sentence, paragraph, etc.)
+  // Clean up text - remove excessive whitespace
+  const cleanedText = text.replace(/\s+/g, ' ').trim();
+  
   let startIndex = 0;
   let chunkIndex = 0;
   
-  while (startIndex < text.length) {
-    const endIndex = Math.min(startIndex + chunkSize, text.length);
-    const chunkText = text.slice(startIndex, endIndex);
+  while (startIndex < cleanedText.length) {
+    const endIndex = Math.min(startIndex + chunkSize, cleanedText.length);
+    let chunkText = cleanedText.slice(startIndex, endIndex);
     
-    chunks.push({
-      text: chunkText,
-      pageNumber: 1, // PDF-parse doesn't provide easy page mapping, would need custom solution
-      chunkIndex,
-    });
+    // Try to end at a sentence boundary
+    if (endIndex < cleanedText.length) {
+      const lastPeriod = chunkText.lastIndexOf('. ');
+      if (lastPeriod > chunkSize / 2) {
+        chunkText = chunkText.slice(0, lastPeriod + 1);
+      }
+    }
     
-    startIndex += chunkSize - overlap;
-    chunkIndex++;
+    if (chunkText.trim().length > 50) { // Skip very short chunks
+      chunks.push({
+        text: chunkText.trim(),
+        pageNumber: 1, // PDF-parse doesn't provide page mapping easily
+        chunkIndex,
+      });
+      chunkIndex++;
+    }
+    
+    startIndex += chunkText.length - overlap;
+    if (startIndex < 0) startIndex = endIndex;
   }
   
   console.log(`Created ${chunks.length} chunks from text`);
@@ -81,14 +94,12 @@ export async function processPDF(pdfUrl: string): Promise<ProcessedPDF> {
 
 export function createChunkInserts(
   opinionId: string,
-  chunks: Array<{ text: string; pageNumber: number; chunkIndex: number }>,
-  embeddings: number[][]
+  chunks: Array<{ text: string; pageNumber: number; chunkIndex: number }>
 ): InsertChunk[] {
-  return chunks.map((chunk, index) => ({
+  return chunks.map((chunk) => ({
     opinionId,
     chunkText: chunk.text,
     pageNumber: chunk.pageNumber,
     chunkIndex: chunk.chunkIndex,
-    embedding: embeddings[index] || null,
   }));
 }

@@ -2,13 +2,17 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatInterface } from "@/components/ChatInterface";
 import { SourcesPanel } from "@/components/SourcesPanel";
+import { OpinionLibrary } from "@/components/OpinionLibrary";
 
 export default function Home() {
   return (
-    <MainLayout
-      sidebar={<Sidebar />}
-      chat={<ChatInterface />}
-      sources={<SourcesPanel />}
-    />
+    <>
+      <MainLayout
+        sidebar={<Sidebar />}
+        chat={<ChatInterface />}
+        sources={<SourcesPanel />}
+      />
+      <OpinionLibrary />
+    </>
   );
 }

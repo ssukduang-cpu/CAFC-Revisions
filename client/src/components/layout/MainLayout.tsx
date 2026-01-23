@@ -62,7 +62,14 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
                     </div>
                     
                     <div className="flex items-center gap-2 pointer-events-auto mt-2">
-                      {/* Optional Top Right Actions */}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setIsSourcesOpen(!isSourcesOpen)}
+                        className="text-muted-foreground hover:text-foreground h-8 w-8 hover:bg-white/5"
+                      >
+                        {isSourcesOpen ? <PanelRightClose className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+                      </Button>
                     </div>
                 </header>
                 <div className="flex-1 overflow-hidden pt-8">
