@@ -3,9 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import os
 import json
+import re
 
 from backend import database as db
 from backend.scraper import scrape_opinions
@@ -13,6 +14,17 @@ from backend.ingestion import ingest_opinion
 from backend.chat import generate_chat_response
 
 app = FastAPI(title="CAFC Precedential Copilot")
+
+def to_camel_case(snake_str: str) -> str:
+    components = snake_str.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])
+
+def convert_keys_to_camel(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {to_camel_case(k): convert_keys_to_camel(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_keys_to_camel(item) for item in data]
+    return data
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,7 +88,7 @@ async def list_opinions(
     ingested_count = sum(1 for o in opinions if o.get("ingested"))
     
     return {
-        "opinions": opinions,
+        "opinions": convert_keys_to_camel(opinions),
         "total": total,
         "ingested": ingested_count
     }
@@ -86,7 +98,7 @@ async def get_opinion(opinion_id: str):
     opinion = db.get_opinion(opinion_id)
     if not opinion:
         raise HTTPException(status_code=404, detail="Opinion not found")
-    return opinion
+    return convert_keys_to_camel(opinion)
 
 @app.post("/api/opinions/{opinion_id}/ingest")
 async def ingest_opinion_endpoint(opinion_id: str):
@@ -103,23 +115,55 @@ async def ingest_opinion_endpoint(opinion_id: str):
 
 @app.get("/api/conversations")
 async def list_conversations():
-    return db.get_conversations()
+    return convert_keys_to_camel(db.get_conversations())
 
 @app.post("/api/conversations")
 async def create_conversation():
     conv_id = db.create_conversation()
-    return db.get_conversation(conv_id)
+    return convert_keys_to_camel(db.get_conversation(conv_id))
 
 @app.get("/api/conversations/{conversation_id}")
-async def get_conversation(conversation_id: str):
+async def get_conversation_endpoint(conversation_id: str):
     conv = db.get_conversation(conversation_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return conv
+    return convert_keys_to_camel(conv)
 
 @app.get("/api/conversations/{conversation_id}/messages")
 async def get_messages(conversation_id: str):
-    return db.get_messages(conversation_id)
+    return convert_keys_to_camel(db.get_messages(conversation_id))
+
+class MessageRequest(BaseModel):
+    content: str
+
+@app.post("/api/conversations/{conversation_id}/messages")
+async def send_message(conversation_id: str, request: MessageRequest):
+    user_msg_id = db.add_message(conversation_id, "user", request.content)
+    
+    result = await generate_chat_response(
+        message=request.content,
+        opinion_ids=None,
+        conversation_id=conversation_id
+    )
+    
+    assistant_msg_id = db.add_message(
+        conversation_id, 
+        "assistant", 
+        result["answer"],
+        json.dumps(result.get("citations", []))
+    )
+    
+    messages = db.get_messages(conversation_id)
+    user_msg = next((m for m in messages if m["id"] == user_msg_id), None)
+    assistant_msg = next((m for m in messages if m["id"] == assistant_msg_id), None)
+    
+    assistant_response = convert_keys_to_camel(assistant_msg) if assistant_msg else {}
+    assistant_response["citations"] = result.get("citations", [])
+    
+    return {
+        "userMessage": convert_keys_to_camel(user_msg) if user_msg else {},
+        "assistantMessage": assistant_response
+    }
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
