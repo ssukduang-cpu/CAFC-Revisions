@@ -450,6 +450,71 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str]) -> Di
         }
     }
 
+def detect_option_reference(message: str) -> Optional[int]:
+    """Detect if message is a reference to a previous numbered option.
+    
+    Returns the option number (1-indexed) if detected, None otherwise.
+    """
+    msg_lower = message.lower().strip()
+    
+    # Direct number references: "1", "2", etc.
+    if msg_lower.isdigit() and 1 <= int(msg_lower) <= 10:
+        return int(msg_lower)
+    
+    # Ordinal references using word boundary regex to avoid false positives like "firstly", "seconding"
+    ordinal_patterns = [
+        (r'\bsecond\b', 2), (r'\b2nd\b', 2),
+        (r'\bthird\b', 3), (r'\b3rd\b', 3),
+        (r'\bfourth\b', 4), (r'\b4th\b', 4),
+        (r'\bfifth\b', 5), (r'\b5th\b', 5),
+        (r'\bfirst\b', 1), (r'\b1st\b', 1),
+        # Cardinal numbers with word boundaries
+        (r'\bone\b', 1),
+        (r'\btwo\b', 2),
+        (r'\bthree\b', 3),
+        (r'\bfour\b', 4),
+        (r'\bfive\b', 5),
+    ]
+    
+    # Check for ordinal/cardinal words with word boundaries
+    for pattern, num in ordinal_patterns:
+        if re.search(pattern, msg_lower):
+            return num
+    
+    # Check for "option X", "number X", "case X" patterns
+    patterns = [
+        r'option\s*(\d+)',
+        r'number\s*(\d+)',
+        r'case\s*(\d+)',
+        r'#\s*(\d+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, msg_lower)
+        if match:
+            return int(match.group(1))
+    
+    return None
+
+def get_previous_action_items(conversation_id: str) -> List[Dict]:
+    """Get action items from the most recent disambiguation response in the conversation."""
+    if not conversation_id:
+        return []
+    
+    try:
+        messages = db.get_messages(conversation_id)
+        # Look for the most recent assistant message with action_items
+        for msg in reversed(messages):
+            if msg.get('role') == 'assistant' and msg.get('citations'):
+                citations = msg.get('citations')
+                if isinstance(citations, str):
+                    citations = json.loads(citations)
+                action_items = citations.get('action_items', [])
+                if action_items:
+                    return action_items
+        return []
+    except Exception:
+        return []
+
 async def generate_chat_response(
     message: str,
     opinion_ids: Optional[List[str]] = None,
@@ -459,6 +524,35 @@ async def generate_chat_response(
     
     if opinion_ids and len(opinion_ids) == 0:
         opinion_ids = None
+    
+    # Check if message is a reference to a previous option (e.g., "1", "the first one", "option 2")
+    original_message = message
+    resolved_opinion_id = None  # Will be set if we resolve to a specific case
+    option_num = detect_option_reference(message)
+    if option_num and conversation_id:
+        action_items = get_previous_action_items(conversation_id)
+        if action_items and 1 <= option_num <= len(action_items):
+            # Replace the message with the action from the selected option
+            selected_action = action_items[option_num - 1]
+            message = selected_action.get('action', message)
+            
+            # Use opinion_id directly from action_item if available (added during disambiguation)
+            resolved_opinion_id = selected_action.get('opinion_id')
+            if resolved_opinion_id:
+                # Switch from party_only to full content search within this case
+                party_only = False
+            else:
+                # Fallback: Look up the case by name if opinion_id not stored
+                case_label = selected_action.get('label', '')
+                if case_label:
+                    case_pages = db.search_pages(case_label, None, limit=1, party_only=True)
+                    if case_pages:
+                        resolved_opinion_id = case_pages[0].get('opinion_id')
+                        party_only = False
+    
+    # If we resolved an option to a specific case, search within that case
+    if resolved_opinion_id:
+        opinion_ids = [str(resolved_opinion_id)]
     
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     search_terms = message.split()
@@ -634,11 +728,17 @@ async def generate_chat_response(
                 num = match.group(1)
                 case_name = match.group(2).strip()
                 appeal_info = match.group(3).strip()
+                
+                # Look up the opinion_id for this case to enable direct selection
+                case_lookup = db.search_pages(case_name, None, limit=1, party_only=True)
+                opinion_id = case_lookup[0].get('opinion_id') if case_lookup else None
+                
                 action_items.append({
                     "id": num,
                     "label": case_name,
                     "appeal_no": appeal_info.split(',')[0].strip() if ',' in appeal_info else appeal_info,
-                    "action": f"What is the holding in {case_name}?"
+                    "action": f"What is the holding in {case_name}?",
+                    "opinion_id": str(opinion_id) if opinion_id else None
                 })
             
             return {

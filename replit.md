@@ -155,6 +155,13 @@ The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct C
   - Solves problem of finding cases that merely cite a party vs cases where party is a litigant
   - Search mode toggle visible on both welcome screen and conversation views
   - API parameters: `search_mode` (frontend) / `party_only` (backend)
+- **Smart Disambiguation & Context Resolution (Jan 2026):**
+  - When multiple cases match a query, LLM returns AMBIGUOUS QUERY response with numbered options
+  - Frontend displays clickable action buttons for each case option
+  - Users can type "1", "the first one", "option 2", "second", etc. to select a case
+  - Backend resolves natural language references using word-boundary regex (avoids false positives like "firstly")
+  - Action items include opinion_id for direct case lookup without re-searching
+  - Helper functions: `detect_option_reference()`, `get_previous_action_items()` in backend/chat.py
 
 ## External Dependencies
 
