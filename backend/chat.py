@@ -624,10 +624,36 @@ async def generate_chat_response(
                 }
             }
         
+        # Handle AMBIGUOUS QUERY response - pass through the clarification message
+        if "AMBIGUOUS QUERY" in raw_answer.upper() or "MULTIPLE MATCHES FOUND" in raw_answer.upper():
+            return {
+                "answer_markdown": raw_answer,
+                "sources": [],
+                "debug": {
+                    "claims": [],
+                    "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},
+                    "raw_response": raw_answer,
+                    "response_type": "disambiguation"
+                }
+            }
+        
         markers = extract_cite_markers(raw_answer)
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
         
         if not sources:
+            # If no citations found, pass through the raw answer if it looks substantive
+            # (more than just a few words), otherwise fall back to excerpts
+            if len(raw_answer) > 200 and any(keyword in raw_answer.lower() for keyword in ['holding', 'court', 'affirm', 'reverse', 'conclude']):
+                return {
+                    "answer_markdown": raw_answer,
+                    "sources": [],
+                    "debug": {
+                        "claims": [],
+                        "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},
+                        "raw_response": raw_answer,
+                        "response_type": "passthrough"
+                    }
+                }
             fallback = generate_fallback_response(pages, search_terms)
             fallback["debug"]["raw_response"] = raw_answer
             return fallback
