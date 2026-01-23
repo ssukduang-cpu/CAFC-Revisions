@@ -22,7 +22,7 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
           
           {isSidebarOpen && (
             <>
-              <ResizablePanel defaultSize={18} minSize={15} maxSize={25} className="hidden md:block">
+              <ResizablePanel defaultSize={20} minSize={18} maxSize={30} className="hidden md:block">
                 <div className="h-full bg-sidebar">
                   {sidebar}
                 </div>

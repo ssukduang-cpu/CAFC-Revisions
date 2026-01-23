@@ -55,29 +55,29 @@ export function Sidebar() {
 
   return (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border/0">
-      <div className="p-5 pb-6 flex items-center gap-3">
-        <div className="h-8 w-8 rounded-lg bg-sidebar-foreground/10 flex items-center justify-center shrink-0 border border-white/10">
-          <Scale className="h-4 w-4 text-sidebar-foreground" />
+      <div className="p-4 pb-4 flex items-center gap-2.5">
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Scale className="h-4 w-4 text-primary" />
         </div>
-        <div className="flex flex-col">
-          <span className="font-serif font-bold text-base leading-tight">CAFC Copilot</span>
-          <span className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest font-medium">Precedential</span>
+        <div className="flex flex-col min-w-0">
+          <span className="font-semibold text-sm leading-tight truncate">CAFC Copilot</span>
+          <span className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wide">Precedential</span>
         </div>
       </div>
 
-      <div className="px-4 pb-2">
+      <div className="px-3 pb-2">
         <Button 
           onClick={handleNewConversation}
           disabled={createConversation.isPending}
-          className="w-full justify-start gap-2 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground border-0 transition-all h-10 font-medium"
+          className="w-full justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 border-0 transition-all h-9 text-sm font-medium"
           data-testid="button-new-conversation"
         >
-          <Plus className="h-4 w-4" />
-          New Conversation
+          <Plus className="h-4 w-4 shrink-0" />
+          <span className="truncate">New Conversation</span>
         </Button>
       </div>
 
-      <div className="px-4 py-3">
+      <div className="px-3 py-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-sidebar-foreground/40" />
           <Input 
@@ -90,8 +90,8 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="px-4 py-2">
-        <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-bold mb-3">History</h3>
+      <div className="px-3 py-2">
+        <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-medium">History</h3>
       </div>
       
       <ScrollArea className="flex-1 px-3">
@@ -133,8 +133,8 @@ export function Sidebar() {
         </div>
       </ScrollArea>
 
-      <div className="p-4 space-y-4">
-        <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-bold px-1">Resources</h3>
+      <div className="p-3 space-y-2">
+        <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-medium">Resources</h3>
         <div className="space-y-1">
           <Button 
             variant="ghost" 
