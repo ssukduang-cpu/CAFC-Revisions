@@ -25,6 +25,21 @@ export interface Message {
   timestamp: string;
 }
 
+export interface SearchSession {
+  id: string;
+  query: string;
+  date: string;
+  messageCount: number;
+}
+
+export const MOCK_SESSIONS: SearchSession[] = [
+  { id: "s-1", query: "Enablement of antibody claims", date: "Today", messageCount: 2 },
+  { id: "s-2", query: "Venue transfer under 1404(a)", date: "Yesterday", messageCount: 5 },
+  { id: "s-3", query: "PTAB discretionary denial Fintiv factors", date: "Jan 12", messageCount: 8 },
+  { id: "s-4", query: "Section 101 eligibility for diagnostics", date: "Jan 10", messageCount: 3 },
+  { id: "s-5", query: "Design patent infringement test", date: "Jan 05", messageCount: 6 },
+];
+
 export const MOCK_OPINIONS: Opinion[] = [
   {
     id: "op-1",
