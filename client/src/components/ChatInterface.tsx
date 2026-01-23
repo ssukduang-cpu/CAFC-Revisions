@@ -260,7 +260,32 @@ export function ChatInterface() {
         </div>
 
         <div className="p-4 border-t border-border/30">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">Search:</span>
+              <Button
+                variant={searchMode === "all" ? "default" : "outline"}
+                size="sm"
+                className="h-6 text-xs px-2 gap-1"
+                onClick={() => setSearchMode("all")}
+                title="Search all opinion text and case names"
+                data-testid="button-search-all"
+              >
+                <FileText className="h-3 w-3" />
+                All Text
+              </Button>
+              <Button
+                variant={searchMode === "parties" ? "default" : "outline"}
+                size="sm"
+                className="h-6 text-xs px-2 gap-1"
+                onClick={() => setSearchMode("parties")}
+                title="Search only case names (party names)"
+                data-testid="button-search-parties"
+              >
+                <Users className="h-3 w-3" />
+                Parties Only
+              </Button>
+            </div>
             <div className="relative rounded-xl bg-muted/40 border border-border/50 focus-within:border-primary/50 transition-colors">
               <Textarea 
                 value={inputValue}
@@ -271,7 +296,7 @@ export function ChatInterface() {
                     handleSend();
                   }
                 }}
-                placeholder="Ask about CAFC precedent..." 
+                placeholder={searchMode === "parties" ? "Enter a party name (e.g., Google, Apple, Samsung)..." : "Ask about CAFC precedent..."} 
                 className="min-h-[52px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3.5 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
                 rows={1}
                 data-testid="input-chat-message"

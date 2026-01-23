@@ -149,6 +149,12 @@ The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct C
   - Onboarding banner shows "X of Y opinions indexed" linking to Opinion Library
   - Mobile slide-out drawer for conversations
   - Expandable quotes with "Show more" for long citations (>200 chars)
+- **Party-Only Search (Jan 2026):**
+  - Toggle between "All Text" and "Parties Only" search modes
+  - "Parties Only" searches ONLY case names, not full opinion text
+  - Solves problem of finding cases that merely cite a party vs cases where party is a litigant
+  - Search mode toggle visible on both welcome screen and conversation views
+  - API parameters: `search_mode` (frontend) / `party_only` (backend)
 
 ## External Dependencies
 
