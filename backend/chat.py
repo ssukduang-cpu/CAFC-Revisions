@@ -102,17 +102,21 @@ async def generate_chat_response(
     
     try:
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            _executor,
-            lambda: client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT + "\n\nAVAILABLE OPINION EXCERPTS:\n" + context},
-                    {"role": "user", "content": message}
-                ],
-                temperature=0.2,
-                max_tokens=2000
-            )
+        response = await asyncio.wait_for(
+            loop.run_in_executor(
+                _executor,
+                lambda: client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT + "\n\nAVAILABLE OPINION EXCERPTS:\n" + context},
+                        {"role": "user", "content": message}
+                    ],
+                    temperature=0.2,
+                    max_tokens=2000,
+                    timeout=60.0
+                )
+            ),
+            timeout=90.0
         )
         
         answer = response.choices[0].message.content or "No response generated."
@@ -144,6 +148,15 @@ async def generate_chat_response(
             "retrieval_only": False
         }
         
+    except asyncio.TimeoutError:
+        return {
+            "answer": "Request timed out. The AI service is taking too long to respond. Please try again.\n\nHere are the relevant excerpts found:\n" + 
+                     "\n".join([f"- {c['case_name']}, Page {c['page_number']}: \"{c['quote'][:150]}...\"" for c in citations[:3]]),
+            "citations": citations[:5],
+            "support_audit": [],
+            "retrieval_only": True,
+            "error": "timeout"
+        }
     except Exception as e:
         return {
             "answer": f"Error generating response: {str(e)}\n\nFalling back to retrieval-only mode.",

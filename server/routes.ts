@@ -8,6 +8,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   const proxy = httpProxy.createProxyServer({
     target: `http://localhost:${PYTHON_PORT}`,
     changeOrigin: true,
+    proxyTimeout: 120000,
+    timeout: 120000,
+  });
+  
+  proxy.on("proxyReq", (proxyReq, req: any, res, options) => {
+    if (req.body && Object.keys(req.body).length > 0) {
+      const bodyData = JSON.stringify(req.body);
+      proxyReq.setHeader("Content-Type", "application/json");
+      proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
+      proxyReq.write(bodyData);
+    }
   });
   
   proxy.on("error", (err, req, res) => {
@@ -19,6 +30,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+    req.setTimeout(120000);
+    res.setTimeout(120000);
     proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api` });
   });
 }
