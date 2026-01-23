@@ -216,7 +216,7 @@ function ThemeToggleButton() {
           ) : (
             <Sun className="h-3.5 w-3.5" />
           )}
-          <span className="text-xs capitalize">{theme}</span>
+          <span className="text-xs capitalize">{theme === 'system' ? 'Auto' : theme}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-32">
@@ -230,7 +230,7 @@ function ThemeToggleButton() {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("system")} data-testid="menu-theme-system">
           <Monitor className="mr-2 h-4 w-4" />
-          System
+          Auto
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

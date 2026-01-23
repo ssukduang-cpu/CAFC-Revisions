@@ -103,19 +103,21 @@ export function OpinionLibrary() {
               variant="outline"
               className="gap-2 h-10 rounded-lg font-medium"
               data-testid="button-sync-opinions"
+              title="Fetch latest opinion list from CAFC website"
             >
               {syncOpinions.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              Sync from CAFC
+              Sync List
             </Button>
             <Button 
               onClick={handleIngestAll}
               disabled={ingestOpinion.isPending || opinions.filter(o => !o.isIngested).length === 0}
               className="gap-2 h-10 rounded-lg font-semibold"
               data-testid="button-ingest-all"
+              title="Download and process the next 5 opinions for AI search"
             >
               <Download className="h-4 w-4" />
               Ingest Next 5
@@ -180,6 +182,7 @@ export function OpinionLibrary() {
                           disabled={ingestingId === opinion.id}
                           className="gap-1"
                           data-testid={`button-ingest-${opinion.id}`}
+                          title="Download PDF and extract text for AI search"
                         >
                           {ingestingId === opinion.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -195,6 +198,7 @@ export function OpinionLibrary() {
                         rel="noopener noreferrer"
                         className="p-2 hover:bg-muted rounded-md transition-colors"
                         data-testid={`link-pdf-${opinion.id}`}
+                        title="Open original PDF on CAFC website"
                       >
                         <ExternalLink className="h-4 w-4 text-muted-foreground" />
                       </a>

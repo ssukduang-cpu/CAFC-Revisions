@@ -452,7 +452,11 @@ async def send_message(conversation_id: str, request: MessageRequest):
 async def chat(request: ChatRequest):
     conv_id = request.conversation_id
     if not conv_id:
-        conv_id = db.create_conversation()
+        # Create conversation with title based on first message (truncated to 60 chars)
+        title = request.message[:60].strip()
+        if len(request.message) > 60:
+            title += "..."
+        conv_id = db.create_conversation(title)
     
     db.add_message(conv_id, "user", request.message)
     

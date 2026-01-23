@@ -320,23 +320,31 @@ def get_pages_for_document(doc_id: str) -> List[Dict]:
         return [dict(row) for row in cursor.fetchall()]
 
 def search_chunks(query: str, limit: int = 20) -> List[Dict]:
+    """Search chunks with case name boosting - party names rank higher than content matches."""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT 
                 c.id, c.document_id, c.chunk_index, c.page_start, c.page_end, c.text,
                 d.case_name, d.appeal_number, d.release_date, d.pdf_url,
-                ts_rank(c.text_search_vector, plainto_tsquery('english', %s)) as rank
+                (
+                    ts_rank(c.text_search_vector, plainto_tsquery('english', %s)) +
+                    CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
+                ) as rank
             FROM document_chunks c
             JOIN documents d ON c.document_id = d.id
             WHERE d.ingested = TRUE 
-              AND c.text_search_vector @@ plainto_tsquery('english', %s)
+              AND (
+                c.text_search_vector @@ plainto_tsquery('english', %s)
+                OR d.case_name ILIKE '%%' || %s || '%%'
+              )
             ORDER BY rank DESC
             LIMIT %s
-        """, (query, query, limit))
+        """, (query, query, query, query, limit))
         return [dict(row) for row in cursor.fetchall()]
 
 def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20) -> List[Dict]:
+    """Search pages with case name boosting - party names rank higher than content matches."""
     with get_db() as conn:
         cursor = conn.cursor()
         
@@ -358,19 +366,26 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                 LIMIT %s
             """, (query, opinion_ids, query, limit))
         else:
+            # Search both case name and page text, with case name matches boosted 10x
             cursor.execute("""
                 SELECT 
                     p.document_id as opinion_id, p.page_number, p.text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
-                    ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) as rank
+                    (
+                        ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) +
+                        CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
+                    ) as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
                 WHERE d.ingested = TRUE 
-                  AND to_tsvector('english', p.text) @@ plainto_tsquery('english', %s)
+                  AND (
+                    to_tsvector('english', p.text) @@ plainto_tsquery('english', %s)
+                    OR d.case_name ILIKE '%%' || %s || '%%'
+                  )
                 ORDER BY rank DESC
                 LIMIT %s
-            """, (query, query, limit))
+            """, (query, query, query, query, limit))
         
         return [dict(row) for row in cursor.fetchall()]
 
@@ -406,6 +421,17 @@ def add_message(conv_id: str, role: str, content: str, citations: Optional[str] 
             (msg_id, conv_id, role, content, citations)
         )
         cursor.execute("UPDATE conversations SET updated_at = NOW() WHERE id = %s", (conv_id,))
+        
+        # Update conversation title if this is the first user message and title is still default
+        if role == "user":
+            cursor.execute("SELECT title FROM conversations WHERE id = %s", (conv_id,))
+            row = cursor.fetchone()
+            if row and row["title"] == "New Research":
+                title = content[:60].strip()
+                if len(content) > 60:
+                    title += "..."
+                cursor.execute("UPDATE conversations SET title = %s WHERE id = %s", (title, conv_id))
+        
         return msg_id
 
 def get_messages(conv_id: str) -> List[Dict]:
