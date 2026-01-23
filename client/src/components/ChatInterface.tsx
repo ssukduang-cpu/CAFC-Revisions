@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, BookOpen } from "lucide-react";
+import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, BookOpen, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
@@ -52,6 +52,7 @@ function LoadingStages() {
 
 export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
+  const [searchMode, setSearchMode] = useState<"all" | "parties">("all");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { currentConversationId, setCurrentConversationId, setSelectedCitations, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
   const { data: status } = useStatus();
@@ -83,7 +84,7 @@ export function ChatInterface() {
         setCurrentConversationId(convId);
       }
       
-      await sendMessage.mutateAsync({ conversationId: convId, content: messageContent });
+      await sendMessage.mutateAsync({ conversationId: convId, content: messageContent, searchMode });
     } catch (error) {
       console.error("Failed to send message:", error);
       setInputValue(messageContent);
@@ -437,7 +438,32 @@ export function ChatInterface() {
       </ScrollArea>
 
       <div className="p-4 border-t border-border/30">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-2">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Search:</span>
+            <Button
+              variant={searchMode === "all" ? "default" : "outline"}
+              size="sm"
+              className="h-6 text-xs px-2 gap-1"
+              onClick={() => setSearchMode("all")}
+              title="Search all opinion text and case names"
+              data-testid="button-search-all"
+            >
+              <FileText className="h-3 w-3" />
+              All Text
+            </Button>
+            <Button
+              variant={searchMode === "parties" ? "default" : "outline"}
+              size="sm"
+              className="h-6 text-xs px-2 gap-1"
+              onClick={() => setSearchMode("parties")}
+              title="Search only case names (party names)"
+              data-testid="button-search-parties"
+            >
+              <Users className="h-3 w-3" />
+              Parties Only
+            </Button>
+          </div>
           <div className="relative rounded-xl bg-muted/40 border border-border/50 focus-within:border-primary/50 transition-colors">
             <Textarea 
               value={inputValue}
@@ -448,7 +474,7 @@ export function ChatInterface() {
                   handleSend();
                 }
               }}
-              placeholder="Ask a follow-up question..." 
+              placeholder={searchMode === "parties" ? "Enter a party name (e.g., Google, Apple, Samsung)..." : "Ask a follow-up question..."} 
               className="min-h-[52px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3.5 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
               rows={1}
               data-testid="input-chat-message"

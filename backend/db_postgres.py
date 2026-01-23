@@ -319,32 +319,63 @@ def get_pages_for_document(doc_id: str) -> List[Dict]:
         """, (doc_id,))
         return [dict(row) for row in cursor.fetchall()]
 
-def search_chunks(query: str, limit: int = 20) -> List[Dict]:
-    """Search chunks with case name boosting - party names rank higher than content matches."""
+def search_chunks(query: str, limit: int = 20, party_only: bool = False) -> List[Dict]:
+    """Search chunks with case name boosting - party names rank higher than content matches.
+    
+    Args:
+        query: Search query
+        limit: Max results
+        party_only: If True, only search case names (not full text)
+    """
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                c.id, c.document_id, c.chunk_index, c.page_start, c.page_end, c.text,
-                d.case_name, d.appeal_number, d.release_date, d.pdf_url,
-                (
-                    ts_rank(c.text_search_vector, plainto_tsquery('english', %s)) +
-                    CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
-                ) as rank
-            FROM document_chunks c
-            JOIN documents d ON c.document_id = d.id
-            WHERE d.ingested = TRUE 
-              AND (
-                c.text_search_vector @@ plainto_tsquery('english', %s)
-                OR d.case_name ILIKE '%%' || %s || '%%'
-              )
-            ORDER BY rank DESC
-            LIMIT %s
-        """, (query, query, query, query, limit))
+        
+        if party_only:
+            # Party-only search: only match case names, not full opinion text
+            cursor.execute("""
+                SELECT DISTINCT ON (d.id)
+                    c.id, c.document_id, c.chunk_index, c.page_start, c.page_end, c.text,
+                    d.case_name, d.appeal_number, d.release_date, d.pdf_url,
+                    1.0 as rank
+                FROM document_chunks c
+                JOIN documents d ON c.document_id = d.id
+                WHERE d.ingested = TRUE 
+                  AND d.case_name ILIKE '%%' || %s || '%%'
+                ORDER BY d.id, c.chunk_index
+                LIMIT %s
+            """, (query, limit))
+        else:
+            # Full text search with case name boosting
+            cursor.execute("""
+                SELECT 
+                    c.id, c.document_id, c.chunk_index, c.page_start, c.page_end, c.text,
+                    d.case_name, d.appeal_number, d.release_date, d.pdf_url,
+                    (
+                        ts_rank(c.text_search_vector, plainto_tsquery('english', %s)) +
+                        CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
+                    ) as rank
+                FROM document_chunks c
+                JOIN documents d ON c.document_id = d.id
+                WHERE d.ingested = TRUE 
+                  AND (
+                    c.text_search_vector @@ plainto_tsquery('english', %s)
+                    OR d.case_name ILIKE '%%' || %s || '%%'
+                  )
+                ORDER BY rank DESC
+                LIMIT %s
+            """, (query, query, query, query, limit))
+        
         return [dict(row) for row in cursor.fetchall()]
 
-def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20) -> List[Dict]:
-    """Search pages with case name boosting - party names rank higher than content matches."""
+def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20, party_only: bool = False) -> List[Dict]:
+    """Search pages with case name boosting or party-only mode.
+    
+    Args:
+        query: Search query
+        opinion_ids: Optional list of specific opinion IDs to search within
+        limit: Max results
+        party_only: If True, only search case names (not full text)
+    """
     with get_db() as conn:
         cursor = conn.cursor()
         
@@ -365,6 +396,21 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                 ORDER BY rank DESC
                 LIMIT %s
             """, (query, opinion_ids, query, limit))
+        elif party_only:
+            # Party-only search: only match case names, not full opinion text
+            cursor.execute("""
+                SELECT DISTINCT ON (d.id)
+                    p.document_id as opinion_id, p.page_number, p.text,
+                    d.case_name, d.appeal_number as appeal_no, 
+                    to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    1.0 as rank
+                FROM document_pages p
+                JOIN documents d ON p.document_id = d.id
+                WHERE d.ingested = TRUE 
+                  AND d.case_name ILIKE '%%' || %s || '%%'
+                ORDER BY d.id, p.page_number
+                LIMIT %s
+            """, (query, limit))
         else:
             # Search both case name and page text, with case name matches boosted 10x
             cursor.execute("""

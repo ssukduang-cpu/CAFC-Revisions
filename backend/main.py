@@ -51,6 +51,7 @@ class ChatRequest(BaseModel):
     message: str
     selected_opinion_ids: Optional[List[str]] = None
     conversation_id: Optional[str] = None
+    search_mode: str = "all"  # "all" = full text + case names, "parties" = case names only
 
 @app.get("/api/status")
 async def get_status():
@@ -208,12 +209,14 @@ async def integrity_check_endpoint():
 @app.get("/api/search")
 async def search_endpoint(
     q: str,
-    limit: int = 20
+    limit: int = 20,
+    mode: str = "all"  # "all" = full text + case names, "parties" = case names only
 ):
     if not q or len(q.strip()) < 2:
-        return {"results": [], "query": q}
+        return {"results": [], "query": q, "mode": mode}
     
-    results = db.search_chunks(q, limit=limit)
+    party_only = mode == "parties"
+    results = db.search_chunks(q, limit=limit, party_only=party_only)
     results = serialize_for_json(results)
     
     formatted_results = []
@@ -411,15 +414,18 @@ async def get_messages(conversation_id: str):
 
 class MessageRequest(BaseModel):
     content: str
+    searchMode: str = "all"  # "all" = full text + case names, "parties" = case names only
 
 @app.post("/api/conversations/{conversation_id}/messages")
 async def send_message(conversation_id: str, request: MessageRequest):
     user_msg_id = db.add_message(conversation_id, "user", request.content)
     
+    party_only = request.searchMode == "parties"
     result = await generate_chat_response(
         message=request.content,
         opinion_ids=None,
-        conversation_id=conversation_id
+        conversation_id=conversation_id,
+        party_only=party_only
     )
     
     citation_data = {
@@ -460,10 +466,12 @@ async def chat(request: ChatRequest):
     
     db.add_message(conv_id, "user", request.message)
     
+    party_only = request.search_mode == "parties"
     result = await generate_chat_response(
         message=request.message,
         opinion_ids=request.selected_opinion_ids,
-        conversation_id=conv_id
+        conversation_id=conv_id,
+        party_only=party_only
     )
     
     citation_data = {

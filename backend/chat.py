@@ -332,13 +332,14 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str]) -> Di
 async def generate_chat_response(
     message: str,
     opinion_ids: Optional[List[str]] = None,
-    conversation_id: Optional[str] = None
+    conversation_id: Optional[str] = None,
+    party_only: bool = False
 ) -> Dict[str, Any]:
     
     if opinion_ids and len(opinion_ids) == 0:
         opinion_ids = None
     
-    pages = db.search_pages(message, opinion_ids, limit=15)
+    pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     search_terms = message.split()
     
     if not pages:

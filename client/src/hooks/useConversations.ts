@@ -56,9 +56,9 @@ export function useSendMessage() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) => {
+    mutationFn: ({ conversationId, content, searchMode = "all" }: { conversationId: string; content: string; searchMode?: string }) => {
       if (!conversationId) throw new Error("No conversation selected");
-      return sendMessage(conversationId, content);
+      return sendMessage(conversationId, content, searchMode);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["conversation", variables.conversationId] });
