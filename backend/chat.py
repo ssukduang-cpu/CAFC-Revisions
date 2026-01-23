@@ -1,9 +1,13 @@
 import os
 import json
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Optional
 from openai import OpenAI
 
 from backend import database as db
+
+_executor = ThreadPoolExecutor(max_workers=4)
 
 AI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
 AI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
@@ -97,14 +101,18 @@ async def generate_chat_response(
     context = build_context(pages)
     
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT + "\n\nAVAILABLE OPINION EXCERPTS:\n" + context},
-                {"role": "user", "content": message}
-            ],
-            temperature=0.2,
-            max_tokens=2000
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            _executor,
+            lambda: client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT + "\n\nAVAILABLE OPINION EXCERPTS:\n" + context},
+                    {"role": "user", "content": message}
+                ],
+                temperature=0.2,
+                max_tokens=2000
+            )
         )
         
         answer = response.choices[0].message.content or "No response generated."

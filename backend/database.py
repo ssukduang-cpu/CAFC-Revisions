@@ -201,11 +201,21 @@ def mark_opinion_ingested(opinion_id: str):
         cursor.execute("UPDATE opinions SET ingested = 1, updated_at = ? WHERE id = ?", (now, opinion_id))
         conn.commit()
 
+def escape_fts_query(text: str) -> str:
+    special_chars = ['?', '*', '+', '-', '(', ')', '{', '}', '[', ']', '^', '"', '~', ':', '\\']
+    for char in special_chars:
+        text = text.replace(char, ' ')
+    return text
+
 def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20) -> List[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()
         
-        fts_query = " OR ".join(query.split())
+        safe_query = escape_fts_query(query)
+        words = [w.strip() for w in safe_query.split() if w.strip()]
+        if not words:
+            return []
+        fts_query = " OR ".join(words)
         
         if opinion_ids:
             placeholders = ",".join("?" * len(opinion_ids))
