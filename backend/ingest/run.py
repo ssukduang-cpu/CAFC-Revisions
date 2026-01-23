@@ -29,6 +29,41 @@ def log(message: str):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}", file=sys.stderr)
 
+async def get_actual_pdf_url(cluster_id: str) -> Optional[str]:
+    """
+    Fetch the actual PDF download URL from CourtListener API.
+    The /pdf/ endpoint returns 202 for on-demand generation,
+    but the API provides the original download_url which works directly.
+    """
+    api_token = os.environ.get('COURTLISTENER_API_TOKEN')
+    if not api_token:
+        return None
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            headers = {
+                'Authorization': f'Token {api_token}',
+                'User-Agent': 'Federal-Circuit-AI-Research/1.0'
+            }
+            # Fetch opinions for this cluster
+            url = f"https://www.courtlistener.com/api/rest/v4/opinions/?cluster={cluster_id}"
+            response = await client.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('results'):
+                    opinion = data['results'][0]
+                    download_url = opinion.get('download_url')
+                    if download_url:
+                        return download_url
+                    local_path = opinion.get('local_path')
+                    if local_path:
+                        return f"https://storage.courtlistener.com/{local_path}"
+    except Exception as e:
+        log(f"Error fetching actual PDF URL for cluster {cluster_id}: {e}")
+    
+    return None
+
 async def download_pdf_with_retry(
     url: str,
     pdf_path: str,
@@ -36,11 +71,38 @@ async def download_pdf_with_retry(
     initial_backoff: float = INITIAL_BACKOFF
 ) -> Dict[str, Any]:
     last_error = None
+    actual_url = url
+    
+    # For CourtListener /pdf/ URLs, fetch the actual download URL from their API
+    # The /pdf/ endpoint returns 202 requiring on-demand generation
+    if 'courtlistener.com/pdf/' in url:
+        import re
+        match = re.search(r'/pdf/(\d+)/', url)
+        if match:
+            cluster_id = match.group(1)
+            real_url = await get_actual_pdf_url(cluster_id)
+            if real_url:
+                log(f"Using actual PDF URL: {real_url}")
+                actual_url = real_url
+    
+    # Add CourtListener authentication if downloading from their domain
+    headers = {
+        'User-Agent': 'Federal-Circuit-AI-Research/1.0 (legal research tool)',
+    }
+    if 'courtlistener.com' in actual_url:
+        api_token = os.environ.get('COURTLISTENER_API_TOKEN')
+        if api_token:
+            headers['Authorization'] = f'Token {api_token}'
     
     for attempt in range(max_retries):
         try:
             async with httpx.AsyncClient(timeout=120.0, follow_redirects=True, verify=False) as client:
-                response = await client.get(url)
+                response = await client.get(actual_url, headers=headers)
+                
+                # CourtListener returns 202 when PDF is being generated - retry with delay
+                if response.status_code == 202:
+                    raise ValueError("PDF generation in progress (202), retrying...")
+                
                 response.raise_for_status()
                 
                 content_length = len(response.content)
