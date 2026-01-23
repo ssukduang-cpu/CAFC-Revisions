@@ -113,11 +113,13 @@ export function ChatInterface() {
   };
 
   const renderMarkdownWithSources = (markdown: string, sources: Source[]) => {
-    const parts = markdown.split(/(\[\d+\])/g);
+    // Split by citations [1], [2] AND bold **text**
+    const parts = markdown.split(/(\[\d+\]|\*\*[^*]+\*\*)/g);
     return parts.map((part, idx) => {
-      const match = part.match(/\[(\d+)\]/);
-      if (match) {
-        const sourceNum = match[1];
+      // Handle citation markers
+      const citationMatch = part.match(/\[(\d+)\]/);
+      if (citationMatch) {
+        const sourceNum = citationMatch[1];
         const source = sources.find(s => s.sid === sourceNum);
         if (source) {
           return (
@@ -128,11 +130,15 @@ export function ChatInterface() {
               title={`${source.caseName}, p.${source.pageNumber}`}
               data-testid={`source-marker-${source.sid}`}
             >
-              {source.sid}
+              [{source.sid}]
             </button>
           );
         }
         return <span key={idx} className="text-muted-foreground">{part}</span>;
+      }
+      // Handle bold text
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={idx} className="font-semibold">{part.slice(2, -2)}</strong>;
       }
       return <span key={idx}>{part}</span>;
     });
@@ -141,13 +147,36 @@ export function ChatInterface() {
   const renderMarkdownText = (text: string, sources: Source[]) => {
     const lines = text.split('\n');
     return lines.map((line, lineIdx) => {
-      if (line.startsWith('**') && line.endsWith('**')) {
+      // Handle ## headings (h2)
+      if (line.startsWith('## ')) {
+        const heading = line.slice(3);
+        return (
+          <h2 key={lineIdx} className="text-lg font-bold text-foreground mt-6 mb-3 first:mt-0 border-b border-border/30 pb-2">
+            {renderInlineMarkdown(heading, sources)}
+          </h2>
+        );
+      }
+      // Handle ### headings (h3)
+      if (line.startsWith('### ')) {
+        const heading = line.slice(4);
+        return (
+          <h3 key={lineIdx} className="text-base font-semibold text-foreground mt-4 mb-2 first:mt-0">
+            {renderInlineMarkdown(heading, sources)}
+          </h3>
+        );
+      }
+      // Handle **bold heading** lines
+      if (line.startsWith('**') && line.endsWith('**') && !line.slice(2, -2).includes('**')) {
         const heading = line.slice(2, -2);
         return (
           <h3 key={lineIdx} className="font-semibold text-foreground mt-4 mb-2 first:mt-0">
             {heading}
           </h3>
         );
+      }
+      // Handle horizontal rules
+      if (line.trim() === '---' || line.trim() === '***') {
+        return <hr key={lineIdx} className="my-4 border-border/50" />;
       }
       if (line.trim() === '') {
         return <br key={lineIdx} />;
@@ -157,6 +186,17 @@ export function ChatInterface() {
           {renderMarkdownWithSources(line, sources)}
         </p>
       );
+    });
+  };
+
+  const renderInlineMarkdown = (text: string, sources: Source[]) => {
+    // Handle **bold** text within the line
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={idx}>{part.slice(2, -2)}</strong>;
+      }
+      return <span key={idx}>{part}</span>;
     });
   };
 
