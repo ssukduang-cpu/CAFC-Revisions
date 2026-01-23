@@ -113,8 +113,8 @@ export function ChatInterface() {
   };
 
   const renderMarkdownWithSources = (markdown: string, sources: Source[]) => {
-    // Split by citations [1], [2] AND bold **text**
-    const parts = markdown.split(/(\[\d+\]|\*\*[^*]+\*\*)/g);
+    // Split by citations [1], [2], bold **text**, and italics *text*
+    const parts = markdown.split(/(\[\d+\]|\*\*[^*]+\*\*|\*[^*]+\*)/g);
     return parts.map((part, idx) => {
       // Handle citation markers
       const citationMatch = part.match(/\[(\d+)\]/);
@@ -136,9 +136,13 @@ export function ChatInterface() {
         }
         return <span key={idx} className="text-muted-foreground">{part}</span>;
       }
-      // Handle bold text
+      // Handle bold text (must check before italics since ** contains *)
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={idx} className="font-semibold">{part.slice(2, -2)}</strong>;
+      }
+      // Handle italics (for case names)
+      if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+        return <em key={idx} className="italic">{part.slice(1, -1)}</em>;
       }
       return <span key={idx}>{part}</span>;
     });
