@@ -293,36 +293,37 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
     with get_db() as conn:
         cursor = conn.cursor()
         
-        words = [w.strip() for w in query.split() if w.strip()]
-        if not words:
+        if not query.strip():
             return []
-        
-        tsquery = " | ".join(words)
         
         if opinion_ids:
             cursor.execute("""
                 SELECT 
                     p.document_id as opinion_id, p.page_number, p.text,
                     d.case_name, d.appeal_number as appeal_no, 
-                    to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url
+                    to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
                 WHERE d.id = ANY(%s)
-                  AND to_tsvector('english', p.text) @@ to_tsquery('english', %s)
+                  AND to_tsvector('english', p.text) @@ plainto_tsquery('english', %s)
+                ORDER BY rank DESC
                 LIMIT %s
-            """, (opinion_ids, tsquery, limit))
+            """, (query, opinion_ids, query, limit))
         else:
             cursor.execute("""
                 SELECT 
                     p.document_id as opinion_id, p.page_number, p.text,
                     d.case_name, d.appeal_number as appeal_no, 
-                    to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url
+                    to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
                 WHERE d.ingested = TRUE 
-                  AND to_tsvector('english', p.text) @@ to_tsquery('english', %s)
+                  AND to_tsvector('english', p.text) @@ plainto_tsquery('english', %s)
+                ORDER BY rank DESC
                 LIMIT %s
-            """, (tsquery, limit))
+            """, (query, query, limit))
         
         return [dict(row) for row in cursor.fetchall()]
 
