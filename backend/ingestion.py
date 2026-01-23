@@ -39,10 +39,19 @@ async def download_pdf_with_retry(
 ) -> Dict[str, Any]:
     last_error = None
     
+    # Add CourtListener authentication if downloading from their domain
+    headers = {
+        'User-Agent': 'Federal-Circuit-AI-Research/1.0 (legal research tool)',
+    }
+    if 'courtlistener.com' in url:
+        api_token = os.environ.get('COURTLISTENER_API_TOKEN')
+        if api_token:
+            headers['Authorization'] = f'Token {api_token}'
+    
     for attempt in range(max_retries):
         try:
             async with httpx.AsyncClient(timeout=90.0, follow_redirects=True) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=headers)
                 response.raise_for_status()
                 
                 content_length = len(response.content)
