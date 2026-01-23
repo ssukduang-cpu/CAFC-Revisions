@@ -56,7 +56,7 @@ Preferred communication style: Simple, everyday language.
 - Fixed conversation endpoint to include messages array for frontend rendering
 - Added proxy timeout (120s) for AI-powered chat responses
 - Fixed useSendMessage hook to pass conversationId as parameter
-- **Patent Litigator Persona (Latest):**
+- **Patent Litigator Persona:**
   - Natural language output styled as Federal Circuit practitioner briefing
   - Sections: **Bottom Line**, **What the Court Held**, **Practice Note** (optional)
   - No [Claim 1/2] labels in user-facing text - verification kept internal
@@ -66,6 +66,12 @@ Preferred communication style: Simple, everyday language.
   - Backend returns: answer_markdown, sources[], debug{claims, support_audit}
   - STRICT quote verification: quotes must be exact substrings (NFKC normalized)
   - NOT FOUND responses have no sources and no inline markers
+- **UX Improvements (Latest):**
+  - Auto-open sources panel when clicking [S#] markers
+  - Multi-stage loading indicator: Finding precedent → Analyzing → Verifying → Preparing
+  - Onboarding banner shows "X of Y opinions indexed" linking to Opinion Library
+  - Mobile slide-out drawer for conversations
+  - Expandable quotes with "Show more" for long citations (>200 chars)
 
 ## External Dependencies
 
