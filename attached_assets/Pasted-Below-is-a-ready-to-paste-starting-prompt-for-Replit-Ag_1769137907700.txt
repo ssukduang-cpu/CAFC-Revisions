@@ -1,0 +1,77 @@
+Below is a **ready-to-paste starting prompt** for **Replit Agent** (Create App → “Create with Replit Agent”). It is written to **use Replit AI Integrations (OpenAI, Replit-managed)** so you do **not** need your own API key—Agent should wire credentials automatically when you mention OpenAI in the prompt. ([Replit Docs][1])
+
+```text
+Build a full-stack web app (React + FastAPI preferred) that lets a user have a natural-language conversation with ONLY precedential CAFC opinions obtained from:
+https://www.cafc.uscourts.gov/home/case-information/opinions-orders/
+
+CRITICAL REQUIREMENTS
+1) Corpus: CAFC precedential opinions only (Status == “Precedential” AND Document Type == “OPINION” from the Opinions & Orders table). Do not include nonprecedential opinions or orders unless I later enable them.
+2) Source of truth: The app must only use the downloaded CAFC PDF opinions as sources. Absolutely no external web browsing, no training-data-based assertions, and no invented citations.
+3) Hallucinations forbidden: Every factual or legal claim in the assistant’s answer must be supported by at least one verbatim quoted excerpt from the opinion PDFs, with a citation that includes: case name, appeal number, decision date (release date), and page number.
+   - If support is missing, the assistant must say “NOT FOUND IN PROVIDED OPINIONS” for that claim and ask what opinion(s) to add or what to search for.
+4) Persona: The assistant must write like an expert U.S. patent appellate practitioner (CAFC-focused). Clear, well-reasoned, neutral tone. No legal advice disclaimer is fine, but do not be verbose.
+5) UX: Provide a modern, simple UI: left sidebar for opinion library/search/filter; main chat panel with conversation history; a “Sources” panel that shows cited excerpts.
+
+ARCHITECTURE (IMPLEMENT)
+A) Backend: Python FastAPI
+   - Endpoints:
+     - GET /api/opinions/sync : Scrape the CAFC Opinions & Orders page and refresh the local index of opinion metadata (release date, appeal number, origin, document type, case name, status, pdf URL).
+     - GET /api/opinions : List stored opinions (filterable by date/origin/text search).
+     - POST /api/opinions/{id}/ingest : Download the PDF (if not already), extract text with page numbers, chunk it, and index it for retrieval.
+     - POST /api/chat : Accept {message, selectedOpinionIds or “all”, conversationId}. Perform retrieval and generate an answer with citations and verbatim quotes. Return structured JSON: {answer, citations:[{case, appealNo, date, page, quote}], support_audit:[...]}.
+   - Storage:
+     - Use SQLite for metadata + cached extracted text + chunks.
+     - Store downloaded PDFs under a local /data directory.
+   - Retrieval (RAG):
+     - Create embeddings for chunks and do vector similarity search. Use Chroma (local) or another embedded vector store.
+     - Ensure every chunk stores: opinion_id, case_name, appeal_no, date, pdf_url, page_number, chunk_text.
+   - Model access:
+     - Use OpenAI via Replit AI Integrations (Replit-managed). Do NOT require me to provide any API keys.
+     - Use one model for embeddings and one for chat. If the SDK requires env vars, set them up the Replit way (Replit-managed integration), but never expose secrets client-side.
+
+B) Frontend: React (Vite) + minimal UI framework (e.g., Tailwind)
+   - Pages/components:
+     - Opinion Library: list + search + filters + “Ingest” button per opinion + bulk ingest.
+     - Chat: conversation view; selector for “All ingested opinions” vs selected opinions; send message; show streaming or non-streaming responses.
+     - Sources drawer: for each assistant answer, show cited quotes grouped by opinion, with page number and a link to the PDF.
+   - Safety UI:
+     - If the system returns “NOT FOUND IN PROVIDED OPINIONS”, display it clearly and suggest ingesting additional opinions.
+
+GUARDRAILS (MUST IMPLEMENT)
+1) Strict-citation generation:
+   - The LLM must be prompted to output: (a) Answer, (b) Cited Excerpts, (c) Support Audit.
+   - Support Audit must enumerate each key conclusion and point to the quote(s) that support it.
+2) Post-processing validation:
+   - Backend must verify that every paragraph (or every numbered claim) includes at least one citation object.
+   - If validation fails, automatically re-ask the model to fix by either adding support quotes or changing text to “NOT FOUND IN PROVIDED OPINIONS”.
+3) No hidden sources:
+   - The model context must include only retrieved chunks (with page numbers) plus the user’s question and chat history.
+   - Do not include any general “background” content outside retrieved text.
+
+DATA INGESTION DETAILS
+- Scrape the CAFC Opinions & Orders page HTML table rows. Each row includes a relative PDF path like “opinions-orders/<file>.pdf”; convert to absolute by prefixing https://www.cafc.uscourts.gov/.
+- Handle pagination if the page uses it; if not easily available, at minimum ingest the most recent N (e.g., 200) and make N configurable.
+- Respect polite crawling: short delays, caching, and do not repeatedly download the same PDF.
+
+DELIVERABLES
+1) Working app in Replit with one-click Run.
+2) Seed workflow:
+   - On first launch, show a button “Sync Latest CAFC Precedential Opinions” then allow ingesting a few opinions and chatting.
+3) Include a README explaining:
+   - How sync/ingest works
+   - How citations are enforced
+   - How to deploy on Replit
+4) Include basic tests:
+   - Unit test for scraping/parsing one page
+   - Unit test that PDF extraction returns page-numbered text
+   - Unit test that citation validation rejects uncited output
+
+IMPORTANT
+- Do not execute any real network calls during build steps that would fail in your environment; just write the code and make it runnable.
+- Keep secrets server-side only.
+- If you need to choose a default OpenAI model, pick a cost-effective one, but make it configurable.
+```
+
+If you want a slimmer “v1” prompt (faster build, fewer guardrails) or a stricter one (e.g., *every sentence* must have a citation), tell me which direction and I’ll tailor the prompt accordingly.
+
+[1]: https://docs.replit.com/replitai/replit-ai-integrations?utm_source=chatgpt.com "Replit Docs"
