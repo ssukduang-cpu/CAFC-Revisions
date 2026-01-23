@@ -5,7 +5,7 @@ import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Libra
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { useConversation, useSendMessage, useCreateConversation, parseSources, parseAnswerMarkdown } from "@/hooks/useConversations";
+import { useConversation, useSendMessage, useCreateConversation, parseSources, parseAnswerMarkdown, parseActionItems } from "@/hooks/useConversations";
 import { useStatus } from "@/hooks/useOpinions";
 import type { Citation, Source } from "@/lib/api";
 import type { Message } from "@shared/schema";
@@ -107,6 +107,26 @@ export function ChatInterface() {
 
   const getSources = (message: Message): Source[] => {
     return parseSources(message);
+  };
+
+  const getActionItems = (message: Message) => {
+    return parseActionItems(message);
+  };
+
+  const handleActionClick = async (action: string) => {
+    setInputValue(action);
+    // Automatically send the action
+    if (currentConversationId) {
+      try {
+        await sendMessage.mutateAsync({
+          conversationId: currentConversationId,
+          content: action,
+          searchMode
+        });
+      } catch (error) {
+        console.error('Failed to send action:', error);
+      }
+    }
   };
 
   const getAnswerMarkdown = (message: Message): string | null => {
@@ -342,7 +362,9 @@ export function ChatInterface() {
             messages.map((msg) => {
               const sources = getSources(msg);
               const answerMarkdown = getAnswerMarkdown(msg);
+              const actionItems = getActionItems(msg);
               const hasSources = sources.length > 0;
+              const hasActionItems = actionItems.length > 0;
               
               return (
                 <div 
@@ -372,6 +394,30 @@ export function ChatInterface() {
                         <div className="text-sm leading-relaxed text-foreground">
                           {renderMarkdownText(answerMarkdown, sources)}
                         </div>
+                        
+                        {hasActionItems && (
+                          <div className="mt-3 pt-3 border-t border-border/30">
+                            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                              Select a case
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {actionItems.map((item) => (
+                                <Button
+                                  key={item.id}
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-auto py-2 px-3 text-left flex flex-col items-start gap-0.5 hover:bg-primary/10 hover:border-primary/50"
+                                  onClick={() => handleActionClick(item.action)}
+                                  disabled={sendMessage.isPending}
+                                  data-testid={`action-item-${item.id}`}
+                                >
+                                  <span className="text-xs font-medium">{item.label}</span>
+                                  <span className="text-[10px] text-muted-foreground">{item.appeal_no}</span>
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         
                         {hasSources && (
                           <div className="mt-4 pt-3 border-t border-border/30">

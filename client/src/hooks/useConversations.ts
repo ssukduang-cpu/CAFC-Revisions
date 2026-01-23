@@ -10,7 +10,8 @@ import {
   type Citation,
   type Claim,
   type SupportAudit,
-  type Source
+  type Source,
+  type ActionItem
 } from "@/lib/api";
 import type { Conversation, Message } from "@shared/schema";
 
@@ -184,5 +185,27 @@ export function parseAnswerMarkdown(message: Message): string | null {
     return data.answer_markdown || data.answerMarkdown || null;
   } catch {
     return null;
+  }
+}
+
+export function parseActionItems(message: Message): ActionItem[] {
+  if (!message.citations) return [];
+  
+  try {
+    const data = typeof message.citations === 'string' 
+      ? JSON.parse(message.citations) 
+      : message.citations;
+    
+    if (data.action_items && Array.isArray(data.action_items)) {
+      return data.action_items.map((item: any) => ({
+        id: item.id || '',
+        label: item.label || '',
+        appeal_no: item.appeal_no || '',
+        action: item.action || ''
+      }));
+    }
+    return [];
+  } catch {
+    return [];
   }
 }

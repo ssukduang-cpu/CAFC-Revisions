@@ -626,9 +626,25 @@ async def generate_chat_response(
         
         # Handle AMBIGUOUS QUERY response - pass through the clarification message
         if "AMBIGUOUS QUERY" in raw_answer.upper() or "MULTIPLE MATCHES FOUND" in raw_answer.upper():
+            # Extract candidate cases from the response for clickable action items
+            action_items = []
+            # Look for numbered cases like "1. **Case Name** (Appeal No. XX-XXXX)"
+            case_pattern = r'(\d+)\.\s+\*\*([^*]+)\*\*\s*\((?:Appeal\s*No\.?\s*)?([^)]+)\)'
+            for match in re.finditer(case_pattern, raw_answer):
+                num = match.group(1)
+                case_name = match.group(2).strip()
+                appeal_info = match.group(3).strip()
+                action_items.append({
+                    "id": num,
+                    "label": case_name,
+                    "appeal_no": appeal_info.split(',')[0].strip() if ',' in appeal_info else appeal_info,
+                    "action": f"What is the holding in {case_name}?"
+                })
+            
             return {
                 "answer_markdown": raw_answer,
                 "sources": [],
+                "action_items": action_items,
                 "debug": {
                     "claims": [],
                     "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},

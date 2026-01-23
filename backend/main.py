@@ -477,6 +477,7 @@ async def chat(request: ChatRequest):
     citation_data = {
         "answer_markdown": result.get("answer_markdown", ""),
         "sources": result.get("sources", []),
+        "action_items": result.get("action_items", []),
         "debug": result.get("debug", {})
     }
     
@@ -491,6 +492,7 @@ async def chat(request: ChatRequest):
         "conversation_id": conv_id,
         "answer_markdown": result.get("answer_markdown", ""),
         "sources": result.get("sources", []),
+        "action_items": result.get("action_items", []),
         "debug": result.get("debug", {})
     }
 

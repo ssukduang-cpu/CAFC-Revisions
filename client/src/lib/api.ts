@@ -35,12 +35,20 @@ export interface SupportAudit {
   unsupported_claims: number;
 }
 
+export interface ActionItem {
+  id: string;
+  label: string;
+  appeal_no: string;
+  action: string;
+}
+
 export interface MessageWithCitations extends Message {
   parsedCitations?: Citation[];
   claims?: Claim[];
   supportAudit?: SupportAudit;
   sources?: Source[];
   answerMarkdown?: string;
+  actionItems?: ActionItem[];
 }
 
 export interface ConversationWithMessages extends Conversation {
