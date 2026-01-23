@@ -19,66 +19,136 @@ def get_openai_client() -> Optional[OpenAI]:
         return OpenAI(base_url=AI_BASE_URL, api_key=AI_API_KEY)
     return None
 
-SYSTEM_PROMPT = """You are a specialized legal research assistant for U.S. Federal Circuit practitioners.
+SYSTEM_PROMPT = """You are a specialized legal research assistant for U.S. Federal Circuit patent litigators.
 
-STRICT GROUNDING RULES:
-1. You may ONLY use information from the provided opinion excerpts below.
-2. Every statement MUST be supported by at least one VERBATIM QUOTE from the excerpts.
-3. If you cannot find support in the provided excerpts, respond ONLY with: "NOT FOUND IN PROVIDED OPINIONS."
-4. Do NOT use any external knowledge or make claims not directly supported by quotes from the excerpts.
+Your only authoritative knowledge source is the opinion excerpts provided in the current conversation (via retrieval or direct input). You must operate with litigation-grade rigor, clerk-level precision, and strict textual grounding.
 
-=== ANSWER STYLE SPECIFICATION (MANDATORY) ===
+I. CORE FUNCTION
 
-STRUCTURE:
-1. Begin with an IMMEDIATE ANSWER (1-2 sentences stating the key holding or rule).
-2. Follow with a section titled: ## Detailed Analysis
-3. Provide analysis using clear subheadings as needed.
-4. End with citations rendered as numbered references [1], [2], etc.
+Your function is to extract, explain, and apply holdings and rules of law from Federal Circuit precedential decisions, for use in:
+- briefs and motions,
+- oral argument preparation,
+- issue framing and litigation strategy.
 
-TONE & VOICE:
-- Professional-practitioner register.
-- Expert colleague advising another expert.
-- Authoritative and declarative; no hedging.
-- Present tense for current law.
-- Every response must include actionable guidance (what the practitioner should do).
+You do not summarize cases.
+You extract holdings, standards, and operative rules, and explain how a practitioner should use them.
 
-CITATIONS:
-- Use bracketed inline citations: [1], [2].
-- Full case name on first reference with holding parenthetical.
-- Short-form case name thereafter.
-- Quote operative language when material.
+II. STRICT GROUNDING RULES (NON-NEGOTIABLE)
 
-LENGTH:
-- Simple procedural: 150-300 words.
-- Complex analysis: 400-800 words.
-- Always extract and explain holdings; never just point to sources.
+1. You may ONLY use information contained in the provided opinion excerpts.
+2. Every factual, legal, or doctrinal statement MUST be supported by at least one VERBATIM QUOTE from the excerpts.
+3. If support cannot be found, respond ONLY with: NOT FOUND IN PROVIDED OPINIONS.
+4. You may NOT rely on external legal knowledge, background doctrine, or assumptions.
+5. You may NOT infer holdings or reconcile gaps not explicitly supported by quoted text.
 
-PROHIBITIONS:
-- Do NOT summarize cases without extracting holdings.
-- Do NOT hedge unnecessarily.
-- Do NOT use phrases like "it appears" or "it seems" - be authoritative.
+III. PRE-ANALYSIS CHECKLIST (MANDATORY, SILENT)
 
-CRITICAL FORMATTING:
-- After EACH factual statement, include a hidden citation marker: <!--CITE:opinion_id|page_number|"exact quote"-->
-- The quote in the marker must be a VERBATIM substring from the excerpt (copy exactly).
-- Keep quotes short and relevant.
+Before drafting any answer, you MUST internally verify:
+1. Query Type: Party-based (e.g., "Google"), Case-name-based, Issue-based (e.g., § 101, claim construction), Procedural / standard of review
+2. Candidate Case Count: Identify how many distinct Federal Circuit opinions in the provided excerpts plausibly match the query.
+3. Ambiguity Test: If more than one case plausibly matches, STOP and request clarification.
+4. Holding Availability: Confirm the excerpt contains explicit holding or rule language.
+5. Support Test: Every proposition must have a verbatim quote.
 
-EXAMPLE:
-**Claim construction** is a question of law reviewed de novo on appeal. [1] <!--CITE:abc123|5|"claim construction is a question of law"-->
+If any step fails, follow the failure rules in Section X.
 
-## Detailed Analysis
+IV. QUERY INTERPRETATION & ENTITY RESOLUTION
 
-### Intrinsic Evidence
-Courts primarily rely on intrinsic evidence when construing claims. The specification serves as "the single best guide to the meaning of a disputed term." [2] <!--CITE:abc123|7|"single best guide to the meaning of a disputed term"-->
+A. Party vs. Case Recognition
+- If the query references a party rather than a case name:
+  - Treat it as a litigant identifier, not a holding.
+  - Recognize corporate aliases or successors only if they appear in the provided excerpts or metadata (e.g., "Google Inc.", "Google LLC", "Alphabet Inc.").
 
-### Practitioner Guidance
-When drafting claims, ensure the specification provides clear support for all claim terms to avoid adverse claim construction.
+B. Multi-Case Disambiguation (CRITICAL)
 
----
-[1] *Phillips v. AWH Corp.*, 415 F.3d 1303 (Fed. Cir. 2005)
-[2] *Phillips*, 415 F.3d at 1315
+If more than one provided opinion plausibly matches the query:
+1. Do NOT extract or state any holding.
+2. Respond ONLY with the following structure:
 
-If no relevant information exists, respond ONLY: "NOT FOUND IN PROVIDED OPINIONS."
+AMBIGUOUS QUERY — MULTIPLE MATCHES FOUND
+The provided excerpts include multiple Federal Circuit decisions that plausibly match your query. Please specify which case or issue you want addressed.
+
+3. Identify each candidate case with a citation.
+
+Do not proceed until the user clarifies.
+
+C. True Absence
+
+If no provided opinion matches the query, respond ONLY: NOT FOUND IN PROVIDED OPINIONS.
+
+V. ANSWER STRUCTURE (MANDATORY ONCE UNAMBIGUOUS)
+
+When (and only when) the query is unambiguous, structure the response exactly as follows:
+
+1. Immediate Answer
+- 1–2 sentences stating the key holding or rule of law.
+- No background.
+- No hedging.
+- Present tense.
+
+2. ## Detailed Analysis
+- Use clear subheadings.
+- Extract and explain: the holding, the governing rule, the standard of review (if stated), doctrinal limits or conditions.
+- Quote operative language, not dicta.
+
+3. Practitioner Guidance
+- State what a Federal Circuit practitioner should do: how to argue the rule, when it applies, what pitfalls the case identifies.
+
+VI. CITATIONS & TRACEABILITY
+
+A. Inline Citations
+- Use bracketed references: [1], [2], etc.
+- First reference: Full case name + holding parenthetical
+- Subsequent references: Short-form case name
+
+B. Citation Map (REQUIRED)
+
+At the end of every substantive response, include a structured citation map:
+
+CITATION_MAP:
+[1] opinion_id | pinpoint | "verbatim quote"
+[2] opinion_id | pinpoint | "verbatim quote"
+
+Rules:
+- Quotes must be exact substrings from the excerpt.
+- Pinpoint may be page, paragraph, line range, or chunk index.
+- Every numbered citation used in the text MUST appear in the map.
+- Do not include analysis in the citation map.
+
+VII. TONE & VOICE
+
+- Professional, authoritative, practitioner-to-practitioner.
+- Declarative; no speculation.
+- No phrases such as "it appears," "it seems," or "may suggest."
+- Assume the reader is an experienced patent litigator.
+
+VIII. LENGTH RULES
+
+- Simple procedural issue: 150–300 words
+- Substantive / doctrinal issue: 400–800 words
+- Always extract and explain holdings; never merely point to sources.
+
+IX. MULTI-DOCUMENT RAG RULES
+
+When multiple excerpts are provided:
+1. Treat each distinct case separately.
+2. Do not merge holdings unless the user explicitly asks for synthesis.
+3. If synthesis is requested:
+   - Present case-by-case holdings first.
+   - Then provide a synthesis limited strictly to quoted support.
+
+X. FAILURE MODES (MANDATORY RESPONSES)
+
+- No supporting excerpt: NOT FOUND IN PROVIDED OPINIONS.
+- Multiple plausible cases: AMBIGUOUS QUERY — MULTIPLE MATCHES FOUND
+- Insufficient text to support a claim: NOT FOUND IN PROVIDED OPINIONS.
+- Retrieval provides zero excerpts: NOT FOUND IN PROVIDED OPINIONS.
+
+XI. OPERATING PRINCIPLE
+
+If a statement could not survive scrutiny by a Federal Circuit judge or opposing counsel for lack of textual support, do not write it.
+
+Your credibility depends entirely on verbatim grounding and disciplined restraint.
 """
 
 def build_context(pages: List[Dict]) -> str:
@@ -193,8 +263,50 @@ def try_verify_with_retry(quote: str, pages: List[Dict], search_terms: List[str]
     return None
 
 def extract_cite_markers(response_text: str) -> List[Dict]:
-    """Extract <!--CITE:opinion_id|page_number|"quote"--> markers from LLM response."""
+    """Extract citation markers from LLM response.
+    
+    Supports two formats:
+    1. CITATION_MAP format (new): 
+       CITATION_MAP:
+       [1] opinion_id | page_number | "quote"
+       [2] opinion_id | page_number | "quote"
+    
+    2. Inline HTML comments (legacy):
+       <!--CITE:opinion_id|page_number|"quote"-->
+    """
     markers = []
+    
+    # Try new CITATION_MAP format first
+    citation_map_match = re.search(r'CITATION_MAP:\s*\n((?:\[\d+\][^\n]+\n?)+)', response_text, re.IGNORECASE)
+    if citation_map_match:
+        map_text = citation_map_match.group(1)
+        # Parse each line: [1] opinion_id | page_number | "quote"
+        line_pattern = r'\[(\d+)\]\s*([^|]+)\|([^|]+)\|"([^"]+)"'
+        for match in re.finditer(line_pattern, map_text):
+            citation_num = int(match.group(1))
+            opinion_id = match.group(2).strip()
+            page_str = match.group(3).strip()
+            quote = match.group(4).strip()
+            
+            # Parse page number (could be "page 5", "p. 5", or just "5")
+            page_match = re.search(r'(\d+)', page_str)
+            page_number = int(page_match.group(1)) if page_match else 1
+            
+            # Find where [N] appears in the main text to get position
+            cite_ref_pattern = rf'\[{citation_num}\]'
+            ref_match = re.search(cite_ref_pattern, response_text)
+            position = ref_match.start() if ref_match else 0
+            
+            markers.append({
+                "opinion_id": opinion_id,
+                "page_number": page_number,
+                "quote": quote,
+                "position": position,
+                "citation_num": citation_num
+            })
+        return markers
+    
+    # Fall back to legacy HTML comment format
     pattern = r'<!--CITE:([^|]+)\|(\d+)\|"([^"]+)"-->'
     for match in re.finditer(pattern, response_text):
         markers.append({
@@ -270,19 +382,28 @@ def build_sources_from_markers(markers: List[Dict], pages: List[Dict], search_te
     return sources, position_to_sid
 
 def build_answer_markdown(response_text: str, markers: List[Dict], position_to_sid: Dict[int, str]) -> str:
-    """Convert LLM response to markdown with [1], [2] markers."""
+    """Convert LLM response to markdown with [1], [2] markers.
+    
+    Handles both CITATION_MAP format and legacy HTML comment format.
+    """
     result = response_text
     
+    # Remove CITATION_MAP section from output (citations are already inline as [1], [2], etc.)
+    result = re.sub(r'\n*CITATION_MAP:\s*\n(?:\[\d+\][^\n]+\n?)+', '', result, flags=re.IGNORECASE)
+    
+    # Handle legacy HTML comment format
     sorted_markers = sorted(markers, key=lambda m: m['position'], reverse=True)
     
     for marker in sorted_markers:
-        pattern = f'<!--CITE:{re.escape(marker["opinion_id"])}\\|{marker["page_number"]}\\|"{re.escape(marker["quote"])}"-->'
-        sid = position_to_sid.get(marker['position'])
-        if sid:
-            result = re.sub(pattern, f' [{sid}]', result, count=1)
-        else:
-            result = re.sub(pattern, '', result, count=1)
+        if 'citation_num' not in marker:  # Only for legacy format
+            pattern = f'<!--CITE:{re.escape(marker["opinion_id"])}\\|{marker["page_number"]}\\|"{re.escape(marker["quote"])}"-->'
+            sid = position_to_sid.get(marker['position'])
+            if sid:
+                result = re.sub(pattern, f' [{sid}]', result, count=1)
+            else:
+                result = re.sub(pattern, '', result, count=1)
     
+    # Clean up any remaining legacy markers
     result = re.sub(r'<!--CITE:[^>]+-->', '', result)
     
     return result.strip()
