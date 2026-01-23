@@ -155,7 +155,7 @@ export function ChatInterface() {
       if (line.startsWith('## ')) {
         const heading = line.slice(3);
         return (
-          <h2 key={lineIdx} className="text-base font-bold text-foreground mt-3 mb-1 first:mt-0">
+          <h2 key={lineIdx} className="font-serif text-lg font-semibold text-foreground mt-3 mb-1 first:mt-0">
             {renderInlineMarkdown(heading, sources)}
           </h2>
         );
@@ -164,7 +164,7 @@ export function ChatInterface() {
       if (line.startsWith('### ')) {
         const heading = line.slice(4);
         return (
-          <h3 key={lineIdx} className="text-sm font-semibold text-foreground mt-2 mb-1 first:mt-0">
+          <h3 key={lineIdx} className="font-serif text-base font-medium text-foreground mt-2 mb-1 first:mt-0">
             {renderInlineMarkdown(heading, sources)}
           </h3>
         );
@@ -173,7 +173,7 @@ export function ChatInterface() {
       if (line.startsWith('**') && line.endsWith('**') && !line.slice(2, -2).includes('**')) {
         const heading = line.slice(2, -2);
         return (
-          <h3 key={lineIdx} className="font-semibold text-foreground mt-2 mb-1 first:mt-0">
+          <h3 key={lineIdx} className="font-serif font-medium text-foreground mt-2 mb-1 first:mt-0">
             {heading}
           </h3>
         );
@@ -215,7 +215,7 @@ export function ChatInterface() {
               AI-Powered Research
             </div>
             
-            <h1 className="text-3xl font-bold mb-3 text-foreground tracking-tight">
+            <h1 className="font-serif text-3xl font-bold mb-3 text-foreground tracking-tight">
               Federal Circuit AI
             </h1>
             <p className="text-base text-muted-foreground mb-6 leading-relaxed">
