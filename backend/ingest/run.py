@@ -135,22 +135,10 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
         num_pages = len(pages)
         log(f"Extracted {num_pages} pages")
         
-        for page_num, text in enumerate(pages, 1):
-            db.insert_page(doc_id, page_num, text)
-        
         chunks = create_chunks(pages)
         log(f"Created {len(chunks)} chunks")
         
-        for chunk in chunks:
-            db.insert_chunk(
-                doc_id,
-                chunk["chunk_index"],
-                chunk["page_start"],
-                chunk["page_end"],
-                chunk["text"]
-            )
-        
-        db.mark_document_ingested(doc_id, sha256)
+        db.ingest_document_atomic(doc_id, pages, chunks, sha256)
         
         log(f"Completed: {case_name[:50]} ({num_pages} pages, {len(chunks)} chunks)")
         

@@ -231,22 +231,69 @@ def document_exists_by_dedupe_key(cluster_id: Optional[int], appeal_number: Opti
                 return True
         return False
 
-def insert_page(doc_id: str, page_number: int, text: str):
-    with get_db() as conn:
-        cursor = conn.cursor()
+def insert_page(doc_id: str, page_number: int, text: str, cursor=None):
+    if cursor:
         cursor.execute("""
             INSERT INTO document_pages (document_id, page_number, text)
             VALUES (%s, %s, %s)
             ON CONFLICT (document_id, page_number) DO UPDATE SET text = EXCLUDED.text
         """, (doc_id, page_number, text))
+    else:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO document_pages (document_id, page_number, text)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (document_id, page_number) DO UPDATE SET text = EXCLUDED.text
+            """, (doc_id, page_number, text))
 
-def insert_chunk(doc_id: str, chunk_index: int, page_start: int, page_end: int, text: str):
-    with get_db() as conn:
-        cursor = conn.cursor()
+def insert_chunk(doc_id: str, chunk_index: int, page_start: int, page_end: int, text: str, cursor=None):
+    if cursor:
         cursor.execute("""
             INSERT INTO document_chunks (document_id, chunk_index, page_start, page_end, text, text_search_vector)
             VALUES (%s, %s, %s, %s, %s, to_tsvector('english', %s))
+            ON CONFLICT (document_id, chunk_index) DO UPDATE SET 
+                page_start = EXCLUDED.page_start, page_end = EXCLUDED.page_end, 
+                text = EXCLUDED.text, text_search_vector = EXCLUDED.text_search_vector
         """, (doc_id, chunk_index, page_start, page_end, text, text))
+    else:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO document_chunks (document_id, chunk_index, page_start, page_end, text, text_search_vector)
+                VALUES (%s, %s, %s, %s, %s, to_tsvector('english', %s))
+                ON CONFLICT (document_id, chunk_index) DO UPDATE SET 
+                    page_start = EXCLUDED.page_start, page_end = EXCLUDED.page_end, 
+                    text = EXCLUDED.text, text_search_vector = EXCLUDED.text_search_vector
+            """, (doc_id, chunk_index, page_start, page_end, text, text))
+
+def clear_document_content(doc_id: str, cursor=None):
+    if cursor:
+        cursor.execute("DELETE FROM document_pages WHERE document_id = %s", (doc_id,))
+        cursor.execute("DELETE FROM document_chunks WHERE document_id = %s", (doc_id,))
+    else:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM document_pages WHERE document_id = %s", (doc_id,))
+            cur.execute("DELETE FROM document_chunks WHERE document_id = %s", (doc_id,))
+
+def ingest_document_atomic(doc_id: str, pages: list, chunks: list, pdf_sha256: Optional[str] = None):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            clear_document_content(doc_id, cursor)
+            for page_num, text in enumerate(pages, 1):
+                insert_page(doc_id, page_num, text, cursor)
+            for chunk in chunks:
+                insert_chunk(doc_id, chunk["chunk_index"], chunk["page_start"], chunk["page_end"], chunk["text"], cursor)
+            cursor.execute("""
+                UPDATE documents SET ingested = TRUE, pdf_sha256 = %s, updated_at = NOW(), last_error = NULL
+                WHERE id = %s
+            """, (pdf_sha256, doc_id))
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise e
 
 def mark_document_ingested(doc_id: str, pdf_sha256: Optional[str] = None):
     with get_db() as conn:

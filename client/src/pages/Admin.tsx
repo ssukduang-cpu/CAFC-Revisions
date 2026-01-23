@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,25 +90,26 @@ export default function Admin() {
     }
   });
 
+  const isRunningRef = useRef(false);
+  const timeoutRef = useRef<number | null>(null);
+
   const handleStartBatch = async () => {
     addLog("info", `Starting batch ingestion (${batchSize} documents)...`);
     ingestMutation.mutate(batchSize);
   };
 
-  const handleContinuousIngest = async () => {
-    if (isRunning) {
-      setIsRunning(false);
-      addLog("info", "Stopping continuous ingestion...");
-      return;
+  const stopContinuous = useCallback(() => {
+    isRunningRef.current = false;
+    setIsRunning(false);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
-    
-    setIsRunning(true);
-    addLog("info", "Starting continuous ingestion...");
-    runContinuous();
-  };
+    addLog("info", "Stopping continuous ingestion...");
+  }, []);
 
-  const runContinuous = async () => {
-    if (!isRunning) return;
+  const runContinuous = useCallback(async () => {
+    if (!isRunningRef.current) return;
     
     try {
       const res = await fetch(`/api/admin/ingest_batch?limit=${batchSize}`, { method: "POST" });
@@ -118,10 +119,10 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/ingest_status"] });
       addLog("success", `Batch: ${data.succeeded} succeeded, ${data.failed} failed`);
       
-      if (data.processed > 0 && isRunning) {
-        setTimeout(runContinuous, 2000);
+      if (data.processed > 0 && isRunningRef.current) {
+        timeoutRef.current = window.setTimeout(runContinuous, 2000);
       } else {
-        setIsRunning(false);
+        stopContinuous();
         addLog("info", "Continuous ingestion complete - no more pending documents");
         toast({
           title: "Ingestion Complete",
@@ -129,9 +130,21 @@ export default function Admin() {
         });
       }
     } catch (error) {
-      setIsRunning(false);
+      stopContinuous();
       addLog("error", `Error: ${(error as Error).message}`);
     }
+  }, [batchSize, queryClient, stopContinuous, toast]);
+
+  const handleContinuousIngest = () => {
+    if (isRunning) {
+      stopContinuous();
+      return;
+    }
+    
+    isRunningRef.current = true;
+    setIsRunning(true);
+    addLog("info", "Starting continuous ingestion...");
+    runContinuous();
   };
 
   useEffect(() => {
