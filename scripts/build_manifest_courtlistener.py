@@ -1,217 +1,299 @@
 #!/usr/bin/env python3
 """
 Build CAFC precedential opinions manifest using CourtListener API.
-This approach doesn't require Playwright or browser automation.
+This is the primary data source for Federal Circuit opinions backfill.
+Does NOT require Playwright, Selenium, or browser automation.
 """
 
 import os
 import json
 import time
+import argparse
 import requests
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set, Tuple
 
 BASE_URL = "https://www.courtlistener.com/api/rest/v4"
-CAFC_BASE = "https://www.cafc.uscourts.gov"
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+MANIFEST_FILE = os.path.join(DATA_DIR, "manifest.ndjson")
 
-def get_session():
+class ManifestStats:
+    def __init__(self):
+        self.total_fetched = 0
+        self.total_unique_written = 0
+        self.duplicates_skipped = 0
+        self.errors = 0
+
+def get_session() -> requests.Session:
     session = requests.Session()
     session.headers.update({
-        'User-Agent': 'Federal-Circuit-AI-Research/1.0',
+        'User-Agent': 'Federal-Circuit-AI-Research/1.0 (legal research tool)',
         'Accept': 'application/json',
     })
     return session
 
-def search_cafc_opinions(session: requests.Session, page: int = 1, page_size: int = 100) -> Dict[str, Any]:
-    """Search for CAFC opinions using CourtListener API."""
+def get_dedupe_key(opinion: Dict[str, Any]) -> Tuple:
+    cluster_id = opinion.get('courtlistener_cluster_id')
+    if cluster_id:
+        return ('cluster', cluster_id)
+    appeal_number = opinion.get('appeal_number')
+    pdf_url = opinion.get('pdf_url')
+    if appeal_number and pdf_url:
+        return ('appeal_pdf', appeal_number, pdf_url)
+    if pdf_url:
+        return ('pdf', pdf_url)
+    return ('unknown', id(opinion))
+
+def fetch_cafc_opinions_page(
+    session: requests.Session, 
+    page: int = 1, 
+    page_size: int = 100
+) -> Dict[str, Any]:
+    """Fetch a page of CAFC opinions from CourtListener Search API."""
     params = {
         'type': 'o',
         'court': 'cafc',
+        'stat': 'Published',
         'order_by': 'dateFiled desc',
         'page': page,
         'page_size': min(page_size, 100),
     }
     
-    resp = session.get(f"{BASE_URL}/search/", params=params)
+    resp = session.get(f"{BASE_URL}/search/", params=params, timeout=60)
     resp.raise_for_status()
     return resp.json()
 
-def get_cluster_details(session: requests.Session, cluster_id: int) -> Optional[Dict[str, Any]]:
-    """Get details for a specific opinion cluster."""
+def get_opinion_details(session: requests.Session, opinion_id: int) -> Optional[Dict]:
+    """Get detailed opinion info including PDF download URL."""
     try:
-        resp = session.get(f"{BASE_URL}/clusters/{cluster_id}/")
+        resp = session.get(f"{BASE_URL}/opinions/{opinion_id}/", timeout=30)
         if resp.status_code == 200:
             return resp.json()
     except Exception as e:
-        print(f"  Error fetching cluster {cluster_id}: {e}")
+        print(f"  Warning: Could not fetch opinion {opinion_id}: {e}")
     return None
 
-def get_opinion_pdf_url(session: requests.Session, opinion_id: int) -> Optional[str]:
-    """Get the PDF URL for an opinion."""
-    try:
-        resp = session.get(f"{BASE_URL}/opinions/{opinion_id}/")
-        if resp.status_code == 200:
-            data = resp.json()
-            return data.get('download_url') or data.get('local_path')
-    except Exception as e:
-        pass
+def extract_pdf_url(result: Dict, opinion_details: Optional[Dict] = None) -> Optional[str]:
+    """Extract the best PDF URL for an opinion."""
+    if opinion_details:
+        download_url = opinion_details.get('download_url')
+        if download_url:
+            if download_url.startswith('/'):
+                return f"https://www.courtlistener.com{download_url}"
+            return download_url
+        
+        local_path = opinion_details.get('local_path')
+        if local_path:
+            return f"https://storage.courtlistener.com/{local_path}"
+    
+    cluster_id = result.get('cluster_id')
+    if cluster_id:
+        return f"https://www.courtlistener.com/pdf/{cluster_id}/"
+    
     return None
 
-def map_to_manifest_format(result: Dict[str, Any], cluster: Optional[Dict] = None) -> Dict[str, Any]:
-    """Map CourtListener result to our manifest format."""
+def map_to_manifest_format(result: Dict, opinion_details: Optional[Dict] = None) -> Dict[str, Any]:
+    """Map CourtListener search result to our manifest format."""
     
-    case_name = result.get('caseName', '')
+    case_name = result.get('caseName', '') or result.get('case_name', '')
+    docket_number = result.get('docketNumber', '') or result.get('docket_number', '')
     
-    docket_number = result.get('docketNumber', '')
-    
-    date_filed = result.get('dateFiled', '')
+    date_filed = result.get('dateFiled', '') or result.get('date_filed', '')
+    release_date = ''
     if date_filed:
         try:
             dt = datetime.strptime(date_filed[:10], '%Y-%m-%d')
             release_date = dt.strftime('%m/%d/%Y')
         except:
             release_date = date_filed
-    else:
-        release_date = ''
     
-    is_precedential = result.get('status', '').lower() == 'published'
-    if cluster:
-        is_precedential = cluster.get('precedential_status', '').lower() == 'published'
+    status_raw = result.get('status', '').lower()
+    is_precedential = status_raw in ('published', 'precedential')
     
     cluster_id = result.get('cluster_id')
-    pdf_url = None
-    if cluster_id:
-        pdf_url = f"https://www.courtlistener.com/pdf/{cluster_id}/"
+    pdf_url = extract_pdf_url(result, opinion_details)
     
-    download_url = result.get('download_url', '')
-    if download_url:
-        pdf_url = download_url
+    absolute_url = result.get('absolute_url', '')
+    courtlistener_url = ''
+    if absolute_url:
+        courtlistener_url = f"https://www.courtlistener.com{absolute_url}"
+    elif cluster_id:
+        courtlistener_url = f"https://www.courtlistener.com/opinion/{cluster_id}/"
     
     return {
         'case_name': case_name,
-        'appeal_number': docket_number,
+        'appeal_number': docket_number or None,
         'release_date': release_date,
-        'origin': 'CAFC',
+        'origin': None,
         'status': 'Precedential' if is_precedential else 'Nonprecedential',
         'document_type': 'OPINION',
         'pdf_url': pdf_url,
         'courtlistener_cluster_id': cluster_id,
-        'courtlistener_url': f"https://www.courtlistener.com{result.get('absolute_url', '')}",
+        'courtlistener_url': courtlistener_url,
     }
 
-def fetch_all_precedential_opinions(max_results: Optional[int] = None, page_size: int = 100) -> List[Dict]:
-    """Fetch all precedential CAFC opinions from CourtListener."""
+def build_manifest(
+    max_results: Optional[int] = None,
+    page_size: int = 100,
+    fetch_details: bool = False,
+    output_dir: str = None
+) -> ManifestStats:
+    """
+    Build manifest of CAFC precedential opinions from CourtListener.
+    
+    Args:
+        max_results: Maximum number of opinions to fetch (None = all)
+        page_size: Results per API page (max 100)
+        fetch_details: Whether to fetch individual opinion details for better PDF URLs
+        output_dir: Output directory for manifest file
+    
+    Returns:
+        ManifestStats with counts
+    """
+    stats = ManifestStats()
     session = get_session()
-    all_opinions = []
+    seen_keys: Set[Tuple] = set()
+    
+    if output_dir is None:
+        output_dir = DATA_DIR
+    os.makedirs(output_dir, exist_ok=True)
+    manifest_path = os.path.join(output_dir, "manifest.ndjson")
+    
+    print("=" * 60)
+    print("Building CAFC Precedential Opinions Manifest")
+    print(f"Source: CourtListener API ({BASE_URL})")
+    print(f"Output: {manifest_path}")
+    print("=" * 60)
+    
     page = 1
     total_count = None
     
-    print("Fetching CAFC precedential opinions from CourtListener...")
-    
-    while True:
-        print(f"Fetching page {page}...")
-        
-        try:
-            data = search_cafc_opinions(session, page=page, page_size=page_size)
-        except Exception as e:
-            print(f"Error fetching page {page}: {e}")
-            break
-        
-        if total_count is None:
-            total_count = data.get('count', 0)
-            print(f"Total CAFC opinions: {total_count}")
-        
-        results = data.get('results', [])
-        if not results:
-            print("No more results")
-            break
-        
-        for result in results:
-            status = result.get('status', '').lower()
-            if status == 'published':
-                opinion = map_to_manifest_format(result)
-                all_opinions.append(opinion)
-        
-        print(f"  Page {page}: {len(results)} opinions, {len(all_opinions)} precedential so far")
-        
-        if max_results and len(all_opinions) >= max_results:
-            print(f"Reached max results limit ({max_results})")
-            all_opinions = all_opinions[:max_results]
-            break
-        
-        if not data.get('next'):
-            print("No more pages")
-            break
-        
-        page += 1
-        time.sleep(0.3)
-    
-    return all_opinions
-
-def enrich_with_cafc_urls(opinions: List[Dict]) -> List[Dict]:
-    """Try to find CAFC website PDF URLs for opinions."""
-    print("\nEnriching with CAFC website URLs...")
-    
-    for i, opinion in enumerate(opinions):
-        appeal_no = opinion.get('appeal_number', '')
-        release_date = opinion.get('release_date', '')
-        
-        if appeal_no and release_date:
+    with open(manifest_path, 'w') as f:
+        while True:
+            print(f"\nFetching page {page}...")
+            
             try:
-                dt = datetime.strptime(release_date, '%m/%d/%Y')
-                date_str = dt.strftime('%m-%d-%Y')
-                year = dt.year
+                data = fetch_cafc_opinions_page(session, page=page, page_size=page_size)
+            except requests.RequestException as e:
+                print(f"  ERROR fetching page {page}: {e}")
+                stats.errors += 1
+                break
+            
+            if total_count is None:
+                total_count = data.get('count', 0)
+                print(f"Total CAFC precedential opinions available: {total_count}")
+            
+            results = data.get('results', [])
+            if not results:
+                print("No more results")
+                break
+            
+            page_written = 0
+            page_skipped = 0
+            
+            for result in results:
+                stats.total_fetched += 1
                 
-                if int(appeal_no.split('-')[0]) >= 20:
-                    opinion['cafc_pdf_url'] = f"{CAFC_BASE}/opinions-orders/{appeal_no}.OPINION.{date_str}.pdf"
-            except:
-                pass
-        
-        if (i + 1) % 500 == 0:
-            print(f"  Processed {i + 1}/{len(opinions)}")
+                status = result.get('status', '').lower()
+                if status not in ('published', 'precedential'):
+                    continue
+                
+                opinion_details = None
+                if fetch_details:
+                    opinion_id = result.get('id')
+                    if opinion_id:
+                        opinion_details = get_opinion_details(session, opinion_id)
+                        time.sleep(0.1)
+                
+                opinion = map_to_manifest_format(result, opinion_details)
+                
+                if not opinion.get('pdf_url'):
+                    print(f"  Skipping opinion without PDF URL: {opinion.get('case_name', 'Unknown')[:50]}")
+                    continue
+                
+                dedupe_key = get_dedupe_key(opinion)
+                if dedupe_key in seen_keys:
+                    stats.duplicates_skipped += 1
+                    page_skipped += 1
+                    continue
+                
+                seen_keys.add(dedupe_key)
+                f.write(json.dumps(opinion) + '\n')
+                stats.total_unique_written += 1
+                page_written += 1
+            
+            print(f"  Page {page}: fetched {len(results)}, wrote {page_written}, skipped {page_skipped} dupes")
+            print(f"  Running totals: {stats.total_unique_written} unique, {stats.duplicates_skipped} duplicates")
+            
+            if max_results and stats.total_unique_written >= max_results:
+                print(f"\nReached max_results limit ({max_results})")
+                break
+            
+            if not data.get('next'):
+                print("\nNo more pages available")
+                break
+            
+            page += 1
+            time.sleep(0.3)
     
-    return opinions
-
-def save_manifest(opinions: List[Dict], output_dir: str = "data"):
-    """Save opinions to manifest files."""
-    os.makedirs(output_dir, exist_ok=True)
+    print("\n" + "=" * 60)
+    print("MANIFEST BUILD COMPLETE")
+    print("=" * 60)
+    print(f"Total rows fetched:    {stats.total_fetched}")
+    print(f"Total unique written:  {stats.total_unique_written}")
+    print(f"Duplicates skipped:    {stats.duplicates_skipped}")
+    print(f"Errors:                {stats.errors}")
+    print(f"Output file:           {manifest_path}")
+    print("=" * 60)
     
-    json_path = os.path.join(output_dir, "manifest.json")
-    with open(json_path, 'w') as f:
-        json.dump(opinions, f, indent=2)
-    print(f"Saved {len(opinions)} opinions to {json_path}")
-    
-    ndjson_path = os.path.join(output_dir, "manifest.ndjson")
-    with open(ndjson_path, 'w') as f:
-        for opinion in opinions:
-            f.write(json.dumps(opinion) + '\n')
-    print(f"Saved {len(opinions)} opinions to {ndjson_path}")
-    
-    return json_path, ndjson_path
+    return stats
 
 def main():
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Build CAFC manifest from CourtListener")
-    parser.add_argument("--max-results", type=int, help="Maximum opinions to fetch")
-    parser.add_argument("--page-size", type=int, default=100, help="Results per page")
-    parser.add_argument("--output", default="data", help="Output directory")
-    parser.add_argument("--enrich-cafc", action="store_true", help="Try to find CAFC website URLs")
+    parser = argparse.ArgumentParser(
+        description="Build CAFC precedential opinions manifest from CourtListener",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python build_manifest_courtlistener.py --max-results 100  # Fetch first 100
+  python build_manifest_courtlistener.py                    # Fetch all
+  python build_manifest_courtlistener.py --fetch-details    # Fetch with detailed PDF URLs
+"""
+    )
+    parser.add_argument(
+        "--max-results", "-n", 
+        type=int, 
+        help="Maximum number of opinions to fetch (default: all)"
+    )
+    parser.add_argument(
+        "--page-size", 
+        type=int, 
+        default=100, 
+        help="Results per API page (default: 100, max: 100)"
+    )
+    parser.add_argument(
+        "--output", "-o", 
+        default=DATA_DIR, 
+        help="Output directory (default: data/)"
+    )
+    parser.add_argument(
+        "--fetch-details",
+        action="store_true",
+        help="Fetch individual opinion details for better PDF URLs (slower)"
+    )
     args = parser.parse_args()
     
-    opinions = fetch_all_precedential_opinions(
+    stats = build_manifest(
         max_results=args.max_results,
-        page_size=args.page_size
+        page_size=args.page_size,
+        fetch_details=args.fetch_details,
+        output_dir=args.output
     )
     
-    if args.enrich_cafc and opinions:
-        opinions = enrich_with_cafc_urls(opinions)
+    if stats.total_unique_written == 0 and stats.errors > 0:
+        print("\nWARNING: No opinions written due to errors!")
+        return 1
     
-    if opinions:
-        save_manifest(opinions, args.output)
-        print(f"\nComplete! Fetched {len(opinions)} precedential CAFC opinions.")
-    else:
-        print("No opinions found.")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    exit(main())

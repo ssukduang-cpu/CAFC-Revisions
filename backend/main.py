@@ -58,42 +58,35 @@ async def get_status():
 
 @app.post("/api/opinions/sync")
 async def sync_opinions():
-    try:
-        opinions = await scrape_opinions()
-        added = 0
-        skipped = 0
-        
-        existing_docs = db.get_documents(limit=10000)
-        existing_urls = {doc["pdf_url"] for doc in existing_docs}
-        
-        for opinion_data in opinions:
-            if opinion_data["pdf_url"] in existing_urls:
-                skipped += 1
-            else:
-                db.upsert_document({
-                    "pdf_url": opinion_data["pdf_url"],
-                    "case_name": opinion_data["case_name"],
-                    "appeal_number": opinion_data["appeal_no"],
-                    "release_date": opinion_data["release_date"],
-                    "origin": opinion_data.get("origin"),
-                    "document_type": opinion_data.get("document_type"),
-                    "status": opinion_data.get("status")
-                })
-                added += 1
-        
-        stats = db.get_ingestion_stats()
-        
-        return {
-            "success": True,
-            "message": f"Synced {len(opinions)} opinions from CAFC",
-            "scraped": len(opinions),
-            "added": added,
-            "skipped": skipped,
-            "total": stats["total_documents"],
-            "ingested": stats["ingested"]
+    """
+    DEPRECATED: Legacy sync endpoint that scraped CAFC website.
+    
+    For a complete backfill, use:
+    1. python scripts/build_manifest_courtlistener.py
+    2. POST /api/admin/load_manifest_file
+    
+    This endpoint now returns instructions instead of scraping.
+    """
+    stats = db.get_ingestion_stats()
+    
+    return {
+        "success": True,
+        "message": "CAFC website scraping is deprecated. Use CourtListener-based manifest import instead.",
+        "deprecated": True,
+        "instructions": [
+            "For a complete backfill of all Federal Circuit precedential opinions:",
+            "1. Run: python scripts/build_manifest_courtlistener.py",
+            "2. Call: POST /api/admin/load_manifest_file",
+            "",
+            "Or use the batch ingest endpoint after importing:",
+            "  POST /api/admin/ingest_batch?limit=50"
+        ],
+        "current_status": {
+            "total_documents": stats["total_documents"],
+            "ingested": stats["ingested"],
+            "pending": stats["pending"]
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    }
 
 @app.get("/api/opinions")
 async def list_opinions(
@@ -275,6 +268,11 @@ class ManifestImportRequest(BaseModel):
 
 @app.post("/api/admin/import_manifest")
 async def import_manifest_endpoint(request: ManifestImportRequest):
+    """
+    Import opinions from manifest data.
+    Deduplication uses courtlistener_cluster_id as primary key,
+    or (appeal_number, pdf_url) as fallback.
+    """
     imported = 0
     skipped = 0
     
@@ -283,20 +281,25 @@ async def import_manifest_endpoint(request: ManifestImportRequest):
             skipped += 1
             continue
         
-        existing = db.get_document_by_url(opinion["pdf_url"])
-        if existing:
+        cluster_id = opinion.get("courtlistener_cluster_id")
+        appeal_number = opinion.get("appeal_number")
+        pdf_url = opinion.get("pdf_url")
+        
+        if db.document_exists_by_dedupe_key(cluster_id, appeal_number, pdf_url):
             skipped += 1
             continue
         
         db.upsert_document({
-            "pdf_url": opinion["pdf_url"],
+            "pdf_url": pdf_url,
             "case_name": opinion.get("case_name"),
-            "appeal_number": opinion.get("appeal_number"),
+            "appeal_number": appeal_number,
             "release_date": opinion.get("release_date"),
             "origin": opinion.get("origin"),
             "document_type": opinion.get("document_type"),
             "status": opinion.get("status"),
-            "file_path": opinion.get("file_path")
+            "file_path": opinion.get("file_path"),
+            "courtlistener_cluster_id": cluster_id,
+            "courtlistener_url": opinion.get("courtlistener_url")
         })
         imported += 1
     
@@ -305,17 +308,21 @@ async def import_manifest_endpoint(request: ManifestImportRequest):
     return {
         "success": True,
         "message": f"Imported {imported} documents, skipped {skipped} duplicates",
-        "imported": imported,
-        "skipped": skipped,
+        "inserted": imported,
+        "skipped_duplicates": skipped,
         "total_documents": stats["total_documents"]
     }
 
 @app.post("/api/admin/load_manifest_file")
 async def load_manifest_file_endpoint():
+    """
+    Load manifest from data/manifest.ndjson file.
+    Uses cluster_id-based deduplication.
+    """
     manifest_path = os.path.join(os.path.dirname(__file__), "..", "data", "manifest.ndjson")
     
     if not os.path.exists(manifest_path):
-        raise HTTPException(status_code=404, detail="Manifest file not found. Run build_manifest.py first or upload via /api/admin/import_manifest")
+        raise HTTPException(status_code=404, detail="Manifest file not found. Run scripts/build_manifest_courtlistener.py first or upload via /api/admin/import_manifest")
     
     imported = 0
     skipped = 0
@@ -334,20 +341,25 @@ async def load_manifest_file_endpoint():
                 skipped += 1
                 continue
             
-            existing = db.get_document_by_url(opinion["pdf_url"])
-            if existing:
+            cluster_id = opinion.get("courtlistener_cluster_id")
+            appeal_number = opinion.get("appeal_number")
+            pdf_url = opinion.get("pdf_url")
+            
+            if db.document_exists_by_dedupe_key(cluster_id, appeal_number, pdf_url):
                 skipped += 1
                 continue
             
             db.upsert_document({
-                "pdf_url": opinion["pdf_url"],
+                "pdf_url": pdf_url,
                 "case_name": opinion.get("case_name"),
-                "appeal_number": opinion.get("appeal_number"),
+                "appeal_number": appeal_number,
                 "release_date": opinion.get("release_date"),
                 "origin": opinion.get("origin"),
                 "document_type": opinion.get("document_type"),
                 "status": opinion.get("status"),
-                "file_path": opinion.get("file_path")
+                "file_path": opinion.get("file_path"),
+                "courtlistener_cluster_id": cluster_id,
+                "courtlistener_url": opinion.get("courtlistener_url")
             })
             imported += 1
     
@@ -356,8 +368,8 @@ async def load_manifest_file_endpoint():
     return {
         "success": True,
         "message": f"Loaded {imported} documents from manifest, skipped {skipped}",
-        "imported": imported,
-        "skipped": skipped,
+        "inserted": imported,
+        "skipped_duplicates": skipped,
         "total_documents": stats["total_documents"]
     }
 

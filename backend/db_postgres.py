@@ -45,8 +45,15 @@ def init_db():
                 pdf_sha256 TEXT,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
-                last_error TEXT
+                last_error TEXT,
+                courtlistener_cluster_id INTEGER,
+                courtlistener_url TEXT
             )
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_documents_cluster_id 
+            ON documents(courtlistener_cluster_id) WHERE courtlistener_cluster_id IS NOT NULL
         """)
         
         cursor.execute("""
@@ -138,9 +145,9 @@ def upsert_document(data: Dict) -> str:
         cursor.execute("""
             INSERT INTO documents (
                 id, pdf_url, case_name, appeal_number, release_date, 
-                origin, document_type, status, file_path
+                origin, document_type, status, file_path, courtlistener_cluster_id, courtlistener_url
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (pdf_url) DO UPDATE SET
                 case_name = EXCLUDED.case_name,
                 appeal_number = EXCLUDED.appeal_number,
@@ -149,12 +156,15 @@ def upsert_document(data: Dict) -> str:
                 document_type = EXCLUDED.document_type,
                 status = EXCLUDED.status,
                 file_path = EXCLUDED.file_path,
+                courtlistener_cluster_id = EXCLUDED.courtlistener_cluster_id,
+                courtlistener_url = EXCLUDED.courtlistener_url,
                 updated_at = NOW()
             RETURNING id
         """, (
             doc_id, data["pdf_url"], data.get("case_name"), data.get("appeal_number"),
             release_date, data.get("origin"), data.get("document_type"),
-            data.get("status"), data.get("file_path")
+            data.get("status"), data.get("file_path"), data.get("courtlistener_cluster_id"),
+            data.get("courtlistener_url")
         ))
         result = cursor.fetchone()
         return str(result["id"])
@@ -200,6 +210,26 @@ def get_document_by_url(pdf_url: str) -> Optional[Dict]:
         cursor.execute("SELECT * FROM documents WHERE pdf_url = %s", (pdf_url,))
         row = cursor.fetchone()
         return dict(row) if row else None
+
+def get_document_by_cluster_id(cluster_id: int) -> Optional[Dict]:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM documents WHERE courtlistener_cluster_id = %s", (cluster_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def document_exists_by_dedupe_key(cluster_id: Optional[int], appeal_number: Optional[str], pdf_url: Optional[str]) -> bool:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if cluster_id:
+            cursor.execute("SELECT 1 FROM documents WHERE courtlistener_cluster_id = %s LIMIT 1", (cluster_id,))
+            if cursor.fetchone():
+                return True
+        if appeal_number and pdf_url:
+            cursor.execute("SELECT 1 FROM documents WHERE appeal_number = %s AND pdf_url = %s LIMIT 1", (appeal_number, pdf_url))
+            if cursor.fetchone():
+                return True
+        return False
 
 def insert_page(doc_id: str, page_number: int, text: str):
     with get_db() as conn:

@@ -1,11 +1,27 @@
+"""
+DEPRECATED: CAFC website scraper.
+
+This module is DEPRECATED. The sync endpoint now uses CourtListener API.
+
+For full backfill, use:
+    python scripts/build_manifest_courtlistener.py
+
+Then import via:
+    POST /api/admin/load_manifest_file
+"""
 import httpx
 from bs4 import BeautifulSoup
 from typing import List, Dict
 import re
+import warnings
 
 CAFC_URL = "https://www.cafc.uscourts.gov/home/case-information/opinions-orders/"
 
 async def scrape_opinions() -> List[Dict]:
+    warnings.warn(
+        "scrape_opinions() is deprecated. Use CourtListener API via scripts/build_manifest_courtlistener.py",
+        DeprecationWarning
+    )
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
         response = await client.get(CAFC_URL)
         response.raise_for_status()

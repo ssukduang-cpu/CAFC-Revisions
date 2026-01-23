@@ -1,7 +1,19 @@
 #!/usr/bin/env python3
 """
-Playwright-based manifest builder for CAFC precedential opinions.
-Paginates through the CAFC website, applies filters, and extracts all opinion metadata.
+DEPRECATED: Playwright-based manifest builder for CAFC precedential opinions.
+
+This script is DEPRECATED. Use build_manifest_courtlistener.py instead.
+
+The CourtListener API approach is preferred because:
+1. No browser automation required (faster, more reliable)
+2. Access to complete historical data
+3. Stable API with good rate limiting
+4. Includes cluster IDs for deduplication
+
+To use the new approach:
+    python scripts/build_manifest_courtlistener.py --max-results 100
+
+This file is kept for historical reference only.
 """
 import asyncio
 import json

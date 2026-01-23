@@ -1,3 +1,14 @@
+/**
+ * DEPRECATED: CAFC website scraper.
+ * 
+ * This module is DEPRECATED. The sync endpoint now uses CourtListener API.
+ * 
+ * For full backfill, use:
+ *     python scripts/build_manifest_courtlistener.py
+ * 
+ * Then import via:
+ *     POST /api/admin/load_manifest_file
+ */
 import axios from "axios";
 import * as cheerio from "cheerio";
 import type { InsertOpinion } from "@shared/schema";
@@ -16,7 +27,11 @@ export interface ScrapedOpinion {
   summary: string;
 }
 
+/**
+ * @deprecated Use CourtListener API via scripts/build_manifest_courtlistener.py instead.
+ */
 export async function scrapeCAFCOpinions(maxPages: number = 1): Promise<ScrapedOpinion[]> {
+  console.warn('DEPRECATED: scrapeCAFCOpinions is deprecated. Use CourtListener API instead.');
   const opinions: ScrapedOpinion[] = [];
   
   try {

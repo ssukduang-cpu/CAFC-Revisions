@@ -67,17 +67,48 @@ Preferred communication style: Simple, everyday language.
 - **Batch Processing:** `POST /api/opinions/batch-ingest` with configurable batch size
 - **Integrity Checks:** FTS index health verification, page/chunk counts
 
-**Full Corpus Backfill Strategy (~4,000 opinions):**
-1. Run Playwright manifest builder to extract all opinion URLs:
-   - `python scripts/build_manifest.py` (requires Playwright chromium)
-   - Paginates through CAFC table with Precedential+OPINION filters
-   - Saves to `data/manifest.ndjson` with progress resume
-2. Load manifest into database: `python scripts/build_manifest.py --load-to-db`
-3. Run batch ingestion in chunks:
-   - `python -m backend.ingest.run --limit 50`
-   - Or via API: `POST /api/admin/ingest_batch?limit=50`
-4. Monitor progress: `GET /api/admin/ingest_status`
-5. Verify integrity: `GET /api/integrity/check`
+**Full Corpus Backfill Strategy (~28,000 opinions):**
+
+**Source: CourtListener API (Primary)**
+The system now uses CourtListener as the source of truth for CAFC precedential opinions. This approach provides:
+- Access to the complete historical corpus (~28,000 precedential opinions)
+- Stable API with cluster_id for deduplication
+- No browser automation required (no Playwright/Selenium)
+- Direct PDF URLs for reliable downloads
+
+**Steps:**
+1. Build manifest from CourtListener API:
+   ```bash
+   python scripts/build_manifest_courtlistener.py          # Fetch all opinions
+   python scripts/build_manifest_courtlistener.py -n 100   # Fetch first 100
+   ```
+   - Outputs to `data/manifest.ndjson` (NDJSON format)
+   - Logs: total_rows_fetched, total_unique_written, duplicates_skipped
+
+2. Import manifest into database:
+   ```bash
+   curl -X POST http://localhost:8000/api/admin/load_manifest_file
+   ```
+   - Uses cluster_id-based deduplication
+   - Fallback: (appeal_number, pdf_url) if cluster_id missing
+
+3. Run batch ingestion:
+   ```bash
+   curl -X POST "http://localhost:8000/api/admin/ingest_batch?limit=50"
+   ```
+
+4. Monitor progress:
+   ```bash
+   curl http://localhost:8000/api/admin/ingest_status
+   ```
+
+5. Smoke test (builds 100, imports, ingests 5):
+   ```bash
+   python scripts/smoke_test.py
+   ```
+
+**DEPRECATED: CAFC Website Scraping**
+The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct CAFC scraper are deprecated. Use CourtListener for all new backfills.
 
 **Admin Endpoints:**
 - `POST /api/admin/build_manifest` - Instructions for manifest build
@@ -87,8 +118,12 @@ Preferred communication style: Simple, everyday language.
 
 ### Recent Changes (Jan 2026)
 
+- **CourtListener Integration:** Switched from CAFC website scraping to CourtListener API as the source of truth
+  - `scripts/build_manifest_courtlistener.py` - Manifest builder using CourtListener Search API
+  - Added `courtlistener_cluster_id` and `courtlistener_url` columns for deduplication
+  - Deprecated CAFC wpDataTables scraping approach
+- **Smoke Test:** Added `scripts/smoke_test.py` for end-to-end pipeline verification
 - **PostgreSQL Migration:** Full migration from SQLite to PostgreSQL for production scale
-- **Playwright Manifest Builder:** Script to extract all ~4,000 precedential opinions from CAFC
 - **Resumable Ingester:** CLI tool with retry logic, SHA256 tracking, and per-page storage
 - **Admin API:** Endpoints for batch ingestion control and status monitoring
 - **Full-Text Search:** PostgreSQL tsvector/GIN index for fast corpus-wide search
@@ -125,8 +160,12 @@ Preferred communication style: Simple, everyday language.
   - `AI_INTEGRATIONS_OPENAI_BASE_URL` - Replit proxy endpoint
 
 ### External Data Sources
-- **CAFC Website:** `https://www.cafc.uscourts.gov/home/case-information/opinions-orders/`
-  - Scraped using axios and cheerio for opinion metadata and PDF URLs
+- **CourtListener API (Primary):** `https://www.courtlistener.com/api/rest/v4/`
+  - REST API for fetching CAFC precedential opinions
+  - Provides cluster_id for deduplication, PDF download URLs
+  - Script: `scripts/build_manifest_courtlistener.py`
+- **CAFC Website (DEPRECATED):** `https://www.cafc.uscourts.gov/home/case-information/opinions-orders/`
+  - Legacy scraping approach - no longer used for backfill
 
 ### Key NPM Packages
 - `pdf-parse` - PDF text extraction
