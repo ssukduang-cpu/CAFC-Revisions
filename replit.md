@@ -58,10 +58,12 @@ Preferred communication style: Simple, everyday language.
 - Fixed useSendMessage hook to pass conversationId as parameter
 - **Citation Hardening (Latest):**
   - Citations now include opinion_id, case_name, appeal_no, release_date, page_number, quote, verified
-  - Server-side quote verification using fuzzy word matching (60% threshold)
-  - Response JSON uses claims array with verified citations and support_audit
-  - UI renders claims with citations showing release_date and verified indicators (green/amber)
-  - Unverified quotes are preserved with verified: false flag
+  - STRICT quote verification: quotes must be exact substrings of stored page text (normalized with NFKC Unicode, whitespace collapsed)
+  - Claims with 0 verified citations are replaced with "NOT FOUND IN PROVIDED OPINIONS"
+  - All citations require valid page_number >= 1
+  - Quotes are stored as exact substrings without ellipses
+  - UI only shows verified citations (green checkmarks), no amber/unverified indicators
+  - NOT FOUND claims display hint: "Try ingesting additional relevant opinions"
 
 ## External Dependencies
 

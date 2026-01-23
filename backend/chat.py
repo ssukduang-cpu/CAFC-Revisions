@@ -2,8 +2,9 @@ import os
 import re
 import json
 import asyncio
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from openai import OpenAI
 
 from backend import database as db
@@ -56,51 +57,58 @@ Page: {page['page_number']}
 """)
     return "\n".join(context_parts)
 
-def normalize_text(text: str) -> str:
+def normalize_for_verification(text: str) -> str:
+    text = unicodedata.normalize('NFKC', text)
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
     text = re.sub(r'\s+', ' ', text)
     text = text.strip().lower()
-    text = re.sub(r'[^\w\s]', '', text)
     return text
 
-def get_words(text: str) -> List[str]:
-    return normalize_text(text).split()
-
-def verify_quote_in_page(quote: str, page_text: str) -> bool:
-    norm_quote = normalize_text(quote)
-    norm_page = normalize_text(page_text)
-    
-    if len(norm_quote) < 15:
+def verify_quote_strict(quote: str, page_text: str) -> bool:
+    if len(quote.strip()) < 20:
         return False
-    
-    if norm_quote in norm_page:
-        return True
-    
-    quote_words = get_words(quote)
-    page_words = set(get_words(page_text))
-    
-    if len(quote_words) < 5:
-        return False
-    
-    matching_words = sum(1 for w in quote_words if w in page_words and len(w) > 3)
-    match_ratio = matching_words / len(quote_words)
-    
-    return match_ratio >= 0.6
+    norm_quote = normalize_for_verification(quote)
+    norm_page = normalize_for_verification(page_text)
+    return norm_quote in norm_page
 
-def find_matching_page(quote: str, pages: List[Dict]) -> Optional[Dict]:
-    best_match = None
+def find_matching_page_strict(quote: str, pages: List[Dict]) -> Optional[Dict]:
+    for page in pages:
+        if page.get('page_number', 0) < 1:
+            continue
+        if verify_quote_strict(quote, page['text']):
+            return page
+    return None
+
+def extract_exact_quote_from_page(page_text: str, min_len: int = 80, max_len: int = 300) -> str:
+    text = page_text.strip()
+    if len(text) <= max_len:
+        return text
+    return text[:max_len]
+
+def find_best_quote_in_page(search_terms: List[str], page_text: str, max_len: int = 300) -> Optional[str]:
+    norm_page = normalize_for_verification(page_text)
+    best_start = 0
     best_score = 0
     
-    for page in pages:
-        if verify_quote_in_page(quote, page['text']):
-            quote_words = get_words(quote)
-            page_words = set(get_words(page['text']))
-            matching = sum(1 for w in quote_words if w in page_words and len(w) > 3)
-            score = matching / max(1, len(quote_words))
+    for term in search_terms:
+        norm_term = normalize_for_verification(term)
+        if len(norm_term) < 4:
+            continue
+        idx = norm_page.find(norm_term)
+        if idx >= 0:
+            start = max(0, idx - 50)
+            end = min(len(page_text), start + max_len)
+            snippet = page_text[start:end].strip()
+            score = len(norm_term)
             if score > best_score:
                 best_score = score
-                best_match = page
+                best_start = start
     
-    return best_match
+    if best_score > 0:
+        end = min(len(page_text), best_start + max_len)
+        return page_text[best_start:end].strip()
+    
+    return page_text[:max_len].strip() if len(page_text) > 0 else None
 
 def extract_quote_from_text(text: str) -> Optional[str]:
     patterns = [
@@ -114,7 +122,40 @@ def extract_quote_from_text(text: str) -> Optional[str]:
             return match.group(1).strip()
     return None
 
-def parse_claims_from_response(response_text: str, pages: List[Dict]) -> List[Dict]:
+def try_verify_with_retry(quote: str, pages: List[Dict], search_terms: List[str]) -> Optional[Dict]:
+    matching_page = find_matching_page_strict(quote, pages)
+    if matching_page and matching_page.get('page_number', 0) >= 1:
+        return {
+            "opinion_id": matching_page['opinion_id'],
+            "case_name": matching_page['case_name'],
+            "appeal_no": matching_page['appeal_no'],
+            "release_date": matching_page['release_date'],
+            "page_number": matching_page['page_number'],
+            "quote": quote[:500],
+            "verified": True
+        }
+    
+    for page in pages:
+        if page.get('page_number', 0) < 1:
+            continue
+        exact_quote = find_best_quote_in_page(search_terms, page['text'], max_len=300)
+        if exact_quote and verify_quote_strict(exact_quote, page['text']):
+            return {
+                "opinion_id": page['opinion_id'],
+                "case_name": page['case_name'],
+                "appeal_no": page['appeal_no'],
+                "release_date": page['release_date'],
+                "page_number": page['page_number'],
+                "quote": exact_quote,
+                "verified": True
+            }
+    
+    return None
+
+def parse_claims_from_response(response_text: str, pages: List[Dict], search_terms: List[str] = None) -> List[Dict]:
+    if search_terms is None:
+        search_terms = []
+    
     claims = []
     claim_pattern = r'\[Claim\s*(\d+)\]:\s*(.*?)(?=\[Claim\s*\d+\]:|$)'
     matches = re.findall(claim_pattern, response_text, re.DOTALL | re.IGNORECASE)
@@ -125,42 +166,25 @@ def parse_claims_from_response(response_text: str, pages: List[Dict]) -> List[Di
         
         quote = extract_quote_from_text(claim_content)
         
-        verified_citations = []
-        unverified_quote = None
-        
+        verified_citation = None
         if quote:
-            matching_page = find_matching_page(quote, pages)
-            if matching_page:
-                verified_citations.append({
-                    "opinion_id": matching_page['opinion_id'],
-                    "case_name": matching_page['case_name'],
-                    "appeal_no": matching_page['appeal_no'],
-                    "release_date": matching_page['release_date'],
-                    "page_number": matching_page['page_number'],
-                    "quote": quote[:500],
-                    "verified": True
-                })
-            else:
-                unverified_quote = quote
+            verified_citation = try_verify_with_retry(quote, pages, search_terms)
         
-        if not verified_citations and "NOT FOUND" in claim_text.upper():
-            pass
-        elif not verified_citations and unverified_quote:
-            verified_citations.append({
-                "opinion_id": "",
-                "case_name": "Unverified",
-                "appeal_no": "",
-                "release_date": "",
-                "page_number": 0,
-                "quote": unverified_quote[:500],
-                "verified": False
+        if not verified_citation and not ("NOT FOUND" in claim_text.upper()):
+            verified_citation = try_verify_with_retry(claim_text[:100], pages, search_terms)
+        
+        if verified_citation:
+            claims.append({
+                "id": int(claim_num),
+                "text": claim_text,
+                "citations": [verified_citation]
             })
-        
-        claims.append({
-            "id": int(claim_num),
-            "text": claim_text,
-            "citations": verified_citations
-        })
+        else:
+            claims.append({
+                "id": int(claim_num),
+                "text": "NOT FOUND IN PROVIDED OPINIONS.",
+                "citations": []
+            })
     
     if not claims and "NOT FOUND IN PROVIDED OPINIONS" in response_text.upper():
         claims.append({
@@ -172,21 +196,33 @@ def parse_claims_from_response(response_text: str, pages: List[Dict]) -> List[Di
     if not claims and pages:
         all_quotes = re.findall(r'"([^"]{30,500})"', response_text)
         for i, quote in enumerate(all_quotes[:5], 1):
-            matching_page = find_matching_page(quote, pages)
-            if matching_page:
+            verified_citation = try_verify_with_retry(quote, pages, search_terms)
+            if verified_citation:
                 claims.append({
                     "id": i,
-                    "text": f"From {matching_page['case_name']}",
-                    "citations": [{
-                        "opinion_id": matching_page['opinion_id'],
-                        "case_name": matching_page['case_name'],
-                        "appeal_no": matching_page['appeal_no'],
-                        "release_date": matching_page['release_date'],
-                        "page_number": matching_page['page_number'],
-                        "quote": quote[:500],
-                        "verified": True
-                    }]
+                    "text": f"From {verified_citation['case_name']}",
+                    "citations": [verified_citation]
                 })
+        
+        if not claims:
+            for i, page in enumerate(pages[:3], 1):
+                if page.get('page_number', 0) < 1:
+                    continue
+                exact_quote = extract_exact_quote_from_page(page['text'], max_len=250)
+                if exact_quote and verify_quote_strict(exact_quote, page['text']):
+                    claims.append({
+                        "id": i,
+                        "text": f"From {page['case_name']}",
+                        "citations": [{
+                            "opinion_id": page['opinion_id'],
+                            "case_name": page['case_name'],
+                            "appeal_no": page['appeal_no'],
+                            "release_date": page['release_date'],
+                            "page_number": page['page_number'],
+                            "quote": exact_quote,
+                            "verified": True
+                        }]
+                    })
     
     return claims
 
@@ -229,16 +265,21 @@ async def generate_chat_response(
             "retrieval_only": True
         }
     
+    search_terms = message.split()
+    
     all_citations = []
     for page in pages:
-        snippet = page['text'][:300].replace('\n', ' ').strip()
+        if page.get('page_number', 0) < 1:
+            continue
+        exact_quote = extract_exact_quote_from_page(page['text'], max_len=300)
         all_citations.append({
             "opinion_id": page['opinion_id'],
             "case_name": page['case_name'],
             "appeal_no": page['appeal_no'],
             "release_date": page['release_date'],
             "page_number": page['page_number'],
-            "quote": snippet + "..."
+            "quote": exact_quote,
+            "verified": True
         })
     
     client = get_openai_client()
@@ -246,20 +287,23 @@ async def generate_chat_response(
     if not client:
         claims = []
         for i, page in enumerate(pages[:5], 1):
-            snippet = page['text'][:500].replace('\n', ' ').strip()
-            claims.append({
-                "id": i,
-                "text": f"Excerpt from {page['case_name']}",
-                "citations": [{
-                    "opinion_id": page['opinion_id'],
-                    "case_name": page['case_name'],
-                    "appeal_no": page['appeal_no'],
-                    "release_date": page['release_date'],
-                    "page_number": page['page_number'],
-                    "quote": snippet,
-                    "verified": True
-                }]
-            })
+            if page.get('page_number', 0) < 1:
+                continue
+            exact_quote = extract_exact_quote_from_page(page['text'], max_len=400)
+            if exact_quote and verify_quote_strict(exact_quote, page['text']):
+                claims.append({
+                    "id": i,
+                    "text": f"Excerpt from {page['case_name']}",
+                    "citations": [{
+                        "opinion_id": page['opinion_id'],
+                        "case_name": page['case_name'],
+                        "appeal_no": page['appeal_no'],
+                        "release_date": page['release_date'],
+                        "page_number": page['page_number'],
+                        "quote": exact_quote,
+                        "verified": True
+                    }]
+                })
         
         return {
             "answer": build_answer_from_claims(claims),
@@ -296,7 +340,7 @@ async def generate_chat_response(
         
         raw_answer = response.choices[0].message.content or "No response generated."
         
-        claims = parse_claims_from_response(raw_answer, pages)
+        claims = parse_claims_from_response(raw_answer, pages, search_terms)
         
         if not claims:
             claims = [{

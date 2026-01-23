@@ -1,0 +1,47 @@
+TIGHTEN GROUNDING: NO FUZZY VERIFICATION FOR SUBSTANTIVE CLAIMS
+
+Current behavior: some claims render with “Unverified” citations, and backend verifies quotes using fuzzy word matching (60% threshold). This violates the “hallucinations forbidden” requirement.
+
+Make these changes:
+
+1) Replace fuzzy verification with strict quote verification
+- Verification must be deterministic:
+  a) Normalize both quote and page text with the SAME function:
+     - Unicode normalize (NFKC)
+     - convert CRLF to LF
+     - collapse whitespace to single spaces
+     - do NOT remove punctuation entirely (only normalize whitespace)
+  b) Verified = normalized_quote is an exact substring of normalized_page_text for (opinion_id, page_number).
+- Remove fuzzy matching entirely for “verified=true”.
+
+2) Enforce “no verified citations => NOT FOUND” at the claim level
+- For each claim:
+  - keep only citations where verified=true AND page_number >= 1
+  - if a claim ends with 0 verified citations, REPLACE the claim text with:
+    "NOT FOUND IN PROVIDED OPINIONS."
+  - mark the claim as unsupported in support_audit
+- Do not display substantive claim text with only unverified citations.
+
+3) Ensure every citation has a valid page_number
+- If retrieval cannot confidently assign a page_number, do NOT create that citation.
+- Never emit page_number=0. Treat as invalid/unverified and drop it.
+
+4) Ensure quotes are always exact substrings (no ellipses or paraphrase)
+- When creating a quote snippet:
+  - Select a contiguous span directly from the stored page text (e.g., 80–300 chars).
+  - Do NOT insert “...” into the stored quote.
+  - If you need to shorten for UI, store the full exact substring and let UI truncate visually.
+
+5) Regenerate unsupported claims by re-retrieving the best pages
+- If a claim is unsupported after strict verification:
+  - Attempt one retry: retrieve top pages again (FTS query) and select exact quotes.
+  - If still unsupported, output NOT FOUND IN PROVIDED OPINIONS for that claim.
+
+6) UI adjustments
+- Only show “Sources” cards for verified citations.
+- If claim is NOT FOUND, show a small hint: “Try ingesting additional relevant opinions or refine keywords.”
+
+Acceptance test:
+- Ask: “What did the court decide in Conklin?”
+- All non-NOT FOUND claims must have at least one green (verified) citation with (case_name, appeal_no, release_date, page_number).
+- No claim may be displayed with only amber/unverified citations.

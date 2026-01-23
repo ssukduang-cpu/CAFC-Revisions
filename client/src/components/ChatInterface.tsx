@@ -196,9 +196,9 @@ export function ChatInterface() {
                               {claim.text}
                             </div>
                             
-                            {claim.citations.length > 0 ? (
+                            {claim.citations.filter(c => c.verified !== false && c.pageNumber >= 1).length > 0 ? (
                               <div className="space-y-1.5 pl-3 border-l-2 border-primary/30">
-                                {claim.citations.map((cit, idx) => (
+                                {claim.citations.filter(c => c.verified !== false && c.pageNumber >= 1).map((cit, idx) => (
                                   <button 
                                     key={idx}
                                     onClick={() => handleCitationClick([cit])}
@@ -206,11 +206,7 @@ export function ChatInterface() {
                                     data-testid={`citation-${msg.id}-${claim.id}-${idx}`}
                                   >
                                     <div className="flex items-start gap-2">
-                                      {cit.verified !== false ? (
-                                        <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
-                                      ) : (
-                                        <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                                      )}
+                                      <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
                                       <div className="min-w-0 space-y-0.5">
                                         <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
                                           {cit.caseName}
@@ -226,11 +222,17 @@ export function ChatInterface() {
                                   </button>
                                 ))}
                               </div>
+                            ) : claim.text.toUpperCase().includes("NOT FOUND") ? (
+                              <div className="pl-3 border-l-2 border-muted/50">
+                                <div className="text-xs text-muted-foreground italic">
+                                  Try ingesting additional relevant opinions or refining your search keywords.
+                                </div>
+                              </div>
                             ) : (
                               <div className="pl-3 border-l-2 border-amber-500/50">
                                 <div className="text-xs text-amber-600 flex items-center gap-1">
                                   <AlertCircle className="h-3 w-3" />
-                                  No verified citations
+                                  Unable to verify citation
                                 </div>
                               </div>
                             )}
