@@ -20,12 +20,15 @@ Preferred communication style: Simple, everyday language.
 - **Routing:** Wouter (lightweight router)
 - **Layout:** Three-panel resizable interface (sidebar, chat, sources panel)
 
-### Backend (Express + Node.js)
-- **Framework:** Express.js with TypeScript
+### Backend (Python FastAPI)
+- **Framework:** Python FastAPI
 - **API Pattern:** RESTful endpoints under `/api/`
 - **Key Endpoints:**
   - `POST /api/opinions/sync` - Scrapes CAFC website for new opinions
   - `POST /api/opinions/:id/ingest` - Downloads PDF, extracts text, creates chunks
+  - `POST /api/opinions/batch-ingest` - Batch ingest multiple opinions with retry/validation
+  - `GET /api/ingestion/status` - Check ingestion progress (total/ingested/pending)
+  - `GET /api/integrity/check` - Verify data integrity and FTS5 index health
   - `POST /api/chat` - Sends message and generates RAG response with citations
   - `GET /api/conversations` - Lists chat sessions
 
@@ -48,6 +51,21 @@ Preferred communication style: Simple, everyday language.
 3. **Precedential Only:** System filters for CAFC precedential opinions (status="Precedential", documentType="OPINION")
 4. **Session Storage:** SQLite stores conversation history for multi-turn chat
 5. **Memory Efficient:** Python FastAPI + SQLite uses ~76MB vs Node.js 2GB+ for PDF processing
+
+### Production Database Strategy
+
+**Ingestion Robustness (Jan 2026):**
+- **Retry Logic:** Exponential backoff (3 retries, 1s→2s→4s) for PDF downloads
+- **Validation:** Checks for empty/corrupt PDFs with min text length requirements
+- **Progress Tracking:** Detailed logging at each stage (download/extract/insert/complete)
+- **Batch Processing:** `POST /api/opinions/batch-ingest` with configurable batch size
+- **Integrity Checks:** FTS5 index synchronization verification, empty page detection
+
+**Production Population Strategy:**
+1. Sync opinions from CAFC website (shows ~25 most recent, ~3 precedential)
+2. Run batch ingestion with retry logic via `/api/opinions/batch-ingest`
+3. Verify with `/api/integrity/check` before considering migration-ready
+4. In production: Run same sync/ingest endpoints after publishing
 
 ### Recent Changes (Jan 2026)
 
