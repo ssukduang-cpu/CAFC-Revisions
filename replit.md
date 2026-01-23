@@ -1,0 +1,72 @@
+# CAFC Opinion Assistant
+
+## Overview
+
+A full-stack legal research application that enables natural-language conversations with precedential CAFC (Court of Appeals for the Federal Circuit) opinions. The system scrapes, ingests, and indexes federal court opinions, then uses RAG (Retrieval-Augmented Generation) to provide citation-backed answers from the actual opinion text.
+
+**Core Purpose:** Allow legal practitioners to query CAFC precedent with strict source verification - every claim must be supported by verbatim quotes from ingested PDFs with proper citations.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend (React + Vite)
+- **Framework:** React with TypeScript, built using Vite
+- **UI Components:** shadcn/ui component library with Radix UI primitives
+- **Styling:** Tailwind CSS with custom theme variables for light/dark modes
+- **State Management:** React Query for server state, React Context for app state
+- **Routing:** Wouter (lightweight router)
+- **Layout:** Three-panel resizable interface (sidebar, chat, sources panel)
+
+### Backend (Express + Node.js)
+- **Framework:** Express.js with TypeScript
+- **API Pattern:** RESTful endpoints under `/api/`
+- **Key Endpoints:**
+  - `POST /api/opinions/sync` - Scrapes CAFC website for new opinions
+  - `POST /api/opinions/:id/ingest` - Downloads PDF, extracts text, creates chunks
+  - `POST /api/chat` - Sends message and generates RAG response with citations
+  - `GET /api/conversations` - Lists chat sessions
+
+### Data Layer
+- **Database:** PostgreSQL with Drizzle ORM
+- **Schema:** Four main tables - opinions, chunks, conversations, messages
+- **Text Search:** Full-text search on chunked opinion text (not vector embeddings currently)
+- **PDF Processing:** pdf-parse library for text extraction
+
+### AI Integration
+- **Provider:** OpenAI via Replit AI Integrations (managed API keys)
+- **Model:** GPT-4o for chat completions
+- **RAG Pattern:** Retrieved chunks are injected into system prompt with strict citation requirements
+- **Guardrails:** System prompt enforces verbatim quotes and "NOT FOUND IN PROVIDED OPINIONS" for unsupported claims
+
+### Key Design Decisions
+
+1. **Strict Citation Requirement:** The LLM must cite verbatim quotes from opinion text - no training data assertions allowed
+2. **Chunk-Based Retrieval:** PDFs are split into ~1500 character chunks with overlap for search
+3. **Precedential Only:** System filters for CAFC precedential opinions (status="Precedential", documentType="OPINION")
+4. **Session Storage:** PostgreSQL stores conversation history for multi-turn chat
+
+## External Dependencies
+
+### Database
+- **PostgreSQL:** Primary data store via `DATABASE_URL` environment variable
+- **Drizzle ORM:** Type-safe database operations with schema in `shared/schema.ts`
+
+### AI Services
+- **OpenAI API:** Accessed through Replit AI Integrations
+  - `AI_INTEGRATIONS_OPENAI_API_KEY` - Managed by Replit
+  - `AI_INTEGRATIONS_OPENAI_BASE_URL` - Replit proxy endpoint
+
+### External Data Sources
+- **CAFC Website:** `https://www.cafc.uscourts.gov/home/case-information/opinions-orders/`
+  - Scraped using axios and cheerio for opinion metadata and PDF URLs
+
+### Key NPM Packages
+- `pdf-parse` - PDF text extraction
+- `cheerio` - HTML parsing for web scraping
+- `axios` - HTTP client for PDF downloads and API calls
+- `drizzle-orm` / `drizzle-kit` - Database ORM and migrations
+- `@tanstack/react-query` - Server state management
+- `openai` - OpenAI SDK for chat completions
