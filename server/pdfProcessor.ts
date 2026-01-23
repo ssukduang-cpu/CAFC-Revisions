@@ -1,5 +1,11 @@
-import axios from "axios";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { unlink, readFile } from "fs/promises";
+import { join } from "path";
+import { randomUUID } from "crypto";
 import type { InsertChunk } from "@shared/schema";
+
+const execAsync = promisify(exec);
 
 export interface ProcessedPDF {
   text: string;
@@ -11,31 +17,46 @@ export interface ProcessedPDF {
   }>;
 }
 
-export async function downloadPDF(pdfUrl: string): Promise<Buffer> {
+export async function downloadPDF(pdfUrl: string): Promise<string> {
   console.log(`Downloading PDF from ${pdfUrl}...`);
   
-  const response = await axios.get(pdfUrl, {
-    responseType: 'arraybuffer',
-    timeout: 60000,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; CAFC-Copilot/1.0)',
-    },
-  });
+  // Download directly to disk using curl to avoid memory issues
+  const tempId = randomUUID();
+  const tempPdfPath = join('/tmp', `${tempId}.pdf`);
   
-  return Buffer.from(response.data);
+  await execAsync(`curl -sL -o "${tempPdfPath}" "${pdfUrl}"`, { timeout: 60000 });
+  
+  return tempPdfPath;
 }
 
-export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<{ text: string; numPages: number }> {
+export async function extractTextFromPDF(pdfPath: string): Promise<{ text: string; numPages: number }> {
   console.log('Extracting text from PDF...');
   
-  // Dynamic import for pdf-parse (CommonJS module)
-  const pdfParse = (await import('pdf-parse')).default;
-  const data = await pdfParse(pdfBuffer);
+  // Use pdftotext from poppler-utils (memory efficient system tool)
+  const tempTxtPath = pdfPath.replace('.pdf', '.txt');
   
-  return {
-    text: data.text,
-    numPages: data.numpages,
-  };
+  try {
+    // Run pdftotext to extract text
+    await execAsync(`pdftotext -layout "${pdfPath}" "${tempTxtPath}"`);
+    
+    // Read extracted text
+    const text = await readFile(tempTxtPath, 'utf-8');
+    
+    // Get page count using pdfinfo
+    const { stdout: pdfInfo } = await execAsync(`pdfinfo "${pdfPath}"`);
+    const pagesMatch = pdfInfo.match(/Pages:\s*(\d+)/);
+    const numPages = pagesMatch ? parseInt(pagesMatch[1], 10) : 1;
+    
+    return { text, numPages };
+  } finally {
+    // Clean up temp files
+    try {
+      await unlink(pdfPath);
+      await unlink(tempTxtPath);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 export function chunkText(text: string, chunkSize: number = 1500, overlap: number = 300): Array<{
@@ -81,8 +102,8 @@ export function chunkText(text: string, chunkSize: number = 1500, overlap: numbe
 }
 
 export async function processPDF(pdfUrl: string): Promise<ProcessedPDF> {
-  const pdfBuffer = await downloadPDF(pdfUrl);
-  const { text, numPages } = await extractTextFromPDF(pdfBuffer);
+  const pdfPath = await downloadPDF(pdfUrl);
+  const { text, numPages } = await extractTextFromPDF(pdfPath);
   const chunks = chunkText(text);
   
   return {

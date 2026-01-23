@@ -31,8 +31,8 @@ export async function scrapeCAFCOpinions(maxPages: number = 1): Promise<ScrapedO
     const $ = cheerio.load(response.data);
     
     // The CAFC page uses a table structure for opinions
-    // We'll look for the table with opinions data
-    $('table tbody tr').each((_, row) => {
+    // Table columns: Release Date, Appeal Number, Origin, Document Type, Case Name (with link), Status, PDF Path
+    $('tr[id^="table_1_row_"]').each((_, row) => {
       const $row = $(row);
       const columns = $row.find('td');
       
@@ -41,12 +41,15 @@ export async function scrapeCAFCOpinions(maxPages: number = 1): Promise<ScrapedO
         const appealNo = $(columns[1]).text().trim();
         const origin = $(columns[2]).text().trim();
         const documentType = $(columns[3]).text().trim();
-        const status = $(columns[4]).text().trim();
+        const status = $(columns[5]).text().trim();
         
-        // Find the PDF link
-        const $link = $(columns[5]).find('a');
-        const caseName = $link.text().trim();
+        // Find the PDF link in the case name column (index 4)
+        const $link = $(columns[4]).find('a');
+        const caseNameRaw = $link.text().trim();
         const pdfPath = $link.attr('href');
+        
+        // Clean up case name (remove [OPINION] or [ORDER] suffix)
+        const caseName = caseNameRaw.replace(/\s*\[(OPINION|ORDER)\]\s*$/i, '').trim();
         
         if (pdfPath && caseName && status === "Precedential" && documentType === "OPINION") {
           const pdfUrl = pdfPath.startsWith('http') 

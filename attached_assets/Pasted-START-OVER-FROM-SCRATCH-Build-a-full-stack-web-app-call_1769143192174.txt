@@ -1,0 +1,107 @@
+START OVER FROM SCRATCH. Build a full-stack web app called “CAFC Precedential Copilot” that lets users chat with ONLY precedential CAFC opinions from:
+https://www.cafc.uscourts.gov/home/case-information/opinions-orders/
+
+NON-NEGOTIABLE REQUIREMENTS
+A) Corpus restriction
+- Only include rows where Status == “Precedential” AND Document Type == “OPINION”.
+- Exclude orders and nonprecedential items entirely.
+
+B) Anti-hallucination / strict grounding (ABSOLUTE)
+- The assistant may use ONLY the extracted text from locally downloaded CAFC PDF opinions.
+- Every material factual/legal claim must be supported by at least one VERBATIM QUOTE from the PDFs with a citation including:
+  (case_name, appeal_number, release_date, page_number).
+- If support is missing, output: “NOT FOUND IN PROVIDED OPINIONS” for that claim.
+- No external browsing. No “general background” assertions unless explicitly supported by quotes.
+
+C) Architecture choices (to avoid Node heap/PDF issues)
+- Backend MUST be Python (FastAPI).
+- PDF ingestion/extraction MUST be Python and MUST be incremental per-page.
+- Do not parse PDFs in Node. Do not output entire PDF text as a single JSON blob.
+- Store per-page text in SQLite as you extract it (streaming/iterative, no giant in-memory strings).
+
+D) Model access
+- I do NOT have my own API key.
+- Use Replit’s managed AI/model integration if available in this environment.
+- If managed integration is not programmatically accessible, implement a “no-key fallback mode”:
+  - retrieval-only: return top relevant excerpts + citations without LLM synthesis, so the app still works.
+  - structure the code so adding a provider later is easy.
+
+BACKEND (FastAPI) — IMPLEMENT THESE ENDPOINTS
+1) GET /api/status
+- returns {status:"ok", opinions_total, opinions_ingested}
+
+2) POST /api/opinions/sync
+- Scrape the CAFC Opinions & Orders page.
+- Robustly parse the table rows with this column meaning:
+  - Release Date
+  - Appeal Number
+  - Origin
+  - Document Type
+  - Case Name (contains the PDF link)
+  - Status
+- Normalize each row into a record:
+  {id, case_name, appeal_no, release_date, origin, document_type, status, pdf_url}
+- Filter to (status == “Precedential” && document_type == “OPINION”).
+- Upsert into SQLite table opinions (dedupe by pdf_url or appeal_no+release_date+case_name).
+- Make the scraper resilient: handle relative links, whitespace, and missing cells.
+
+3) GET /api/opinions
+- List opinions with filters: q (text), origin, date range, ingested flag.
+
+4) POST /api/opinions/{id}/ingest
+- Download the PDF by STREAMING to disk: data/pdfs/{id}.pdf
+- Extract text per page using a Python library (prefer pypdf; fallback to pdfminer.six if needed).
+- For each page:
+  - extract page text
+  - insert immediately into SQLite table opinion_pages(opinion_id, page_number, text)
+  - do not accumulate all pages in memory
+- Mark opinion ingested in opinions table.
+- Response should be small: {success:true, num_pages, inserted_pages, page1_preview}
+
+5) POST /api/chat
+Input: {message, selectedOpinionIds: [..] or "all", conversationId}
+Pipeline:
+- Retrieve relevant passages from opinion_pages using a simple, reliable method first:
+  - SQLite FTS5 (preferred) over page text, OR
+  - embeddings + vector DB (Chroma) if managed model access works
+- Always return citations as objects: [{case_name, appeal_no, release_date, page_number, quote}]
+- Response JSON: {answer, citations, support_audit}
+Support audit requirement:
+- Break the answer into numbered claims.
+- Each claim must list the citation(s) supporting it.
+- If a claim cannot be supported: mark it NOT FOUND IN PROVIDED OPINIONS.
+
+Post-generation validation (mandatory):
+- Backend validates that each numbered claim has >=1 citation and each quote is a substring of retrieved page text.
+- If validation fails, regenerate OR replace unsupported claims with NOT FOUND.
+
+DATABASE SCHEMA (SQLite)
+- opinions(id TEXT PK, case_name, appeal_no, release_date, origin, document_type, status, pdf_url, ingested INTEGER, created_at, updated_at)
+- opinion_pages(id INTEGER PK AUTOINCREMENT, opinion_id TEXT, page_number INTEGER, text TEXT)
+- Enable FTS5: opinion_pages_fts(page_text, opinion_id, page_number) with triggers or rebuild.
+
+FRONTEND
+- Simple UI:
+  - “Sync Latest Precedential Opinions” button
+  - Opinions table with search/filter and “Ingest” per row + “Ingest selected”
+  - Chat view with:
+    - selector: “All ingested opinions” vs selected opinions
+    - assistant responses display citations
+    - a “Sources” panel that shows quotes grouped by opinion and page number (link to local PDF or original URL)
+
+IMPLEMENTATION DETAILS / GUARDRAILS
+- Never return full PDF text in API responses.
+- Never build giant arrays of all pages in memory.
+- For ingestion: log progress page-by-page; include memory usage logging in dev.
+- Write tests:
+  - test scraper parses at least one row correctly (use saved HTML fixture)
+  - test ingestion extracts page 1 text and stores it
+  - test citation validator rejects uncited claims
+
+DELIVERABLES
+- Working “Run” on Replit
+- README with:
+  - how to sync and ingest
+  - how grounding is enforced
+  - how to add more opinions
+  - how model integration is handled with no personal key

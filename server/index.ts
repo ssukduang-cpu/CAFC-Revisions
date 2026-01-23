@@ -2,9 +2,42 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { spawn, ChildProcess } from "child_process";
 
 const app = express();
 const httpServer = createServer(app);
+
+let pythonProcess: ChildProcess | null = null;
+
+function startPythonBackend() {
+  if (pythonProcess) {
+    pythonProcess.kill();
+  }
+  
+  console.log("Starting Python FastAPI backend on port 8000...");
+  pythonProcess = spawn("python", ["-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"], {
+    cwd: process.cwd(),
+    stdio: ["pipe", "pipe", "pipe"],
+    env: { ...process.env },
+  });
+  
+  pythonProcess.stdout?.on("data", (data) => {
+    console.log("[python]", data.toString().trim());
+  });
+  
+  pythonProcess.stderr?.on("data", (data) => {
+    console.log("[python]", data.toString().trim());
+  });
+  
+  pythonProcess.on("close", (code) => {
+    console.log("[python] exited with code", code);
+    if (code !== 0 && code !== null) {
+      setTimeout(startPythonBackend, 2000);
+    }
+  });
+}
+
+startPythonBackend();
 
 declare module "http" {
   interface IncomingMessage {
