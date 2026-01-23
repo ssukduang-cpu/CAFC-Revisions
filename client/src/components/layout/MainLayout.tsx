@@ -1,8 +1,9 @@
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { Menu, BookOpen, PanelRightClose, Scale, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Menu, BookOpen, PanelRightClose, Scale, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useApp } from "@/context/AppContext";
 
 interface MainLayoutProps {
   sidebar: React.ReactNode;
@@ -11,7 +12,7 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
-  const [isSourcesOpen, setIsSourcesOpen] = useState(false);
+  const { sourcePanelOpen, setSourcePanelOpen, mobileSidebarOpen, setMobileSidebarOpen } = useApp();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
@@ -31,7 +32,7 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
             </>
           )}
 
-          <ResizablePanel defaultSize={isSourcesOpen ? 57 : 82} minSize={40}>
+          <ResizablePanel defaultSize={sourcePanelOpen ? 57 : 82} minSize={40}>
             <div className="h-full flex flex-col bg-background relative">
               <div className="absolute top-3 left-3 z-10 hidden md:flex">
                 <Button 
@@ -49,11 +50,11 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  onClick={() => setIsSourcesOpen(!isSourcesOpen)}
+                  onClick={() => setSourcePanelOpen(!sourcePanelOpen)}
                   className="text-muted-foreground hover:text-foreground h-8 w-8 hover:bg-muted/50"
                   data-testid="button-toggle-sources"
                 >
-                  {isSourcesOpen ? <PanelRightClose className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+                  {sourcePanelOpen ? <PanelRightClose className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
                 </Button>
               </div>
               
@@ -63,7 +64,7 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
             </div>
           </ResizablePanel>
 
-          {isSourcesOpen && (
+          {sourcePanelOpen && (
             <>
               <ResizableHandle className="w-px bg-border/30 hover:bg-primary/50 transition-colors" />
               <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
@@ -76,6 +77,28 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
         </ResizablePanelGroup>
       </div>
 
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div 
+            className="absolute inset-0 bg-black/50" 
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-sidebar shadow-xl animate-in slide-in-from-left duration-200">
+            <div className="absolute top-3 right-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setMobileSidebarOpen(false)}
+                className="h-8 w-8 text-sidebar-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            {sidebar}
+          </div>
+        </div>
+      )}
+
       <header className="h-14 border-t bg-sidebar flex md:hidden items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
           <div className="bg-primary/10 p-1.5 rounded-md">
@@ -84,10 +107,22 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
           <span className="font-semibold text-sm text-sidebar-foreground">CAFC Copilot</span>
         </div>
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="text-sidebar-foreground h-9 w-9">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-sidebar-foreground h-9 w-9"
+            onClick={() => setSourcePanelOpen(!sourcePanelOpen)}
+            data-testid="button-mobile-sources"
+          >
             <BookOpen className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-sidebar-foreground h-9 w-9">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-sidebar-foreground h-9 w-9"
+            onClick={() => setMobileSidebarOpen(true)}
+            data-testid="button-mobile-menu"
+          >
             <Menu className="h-5 w-5" />
           </Button>
         </div>

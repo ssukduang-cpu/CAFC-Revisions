@@ -2,9 +2,35 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, BookOpen, Quote, Copy, Check } from "lucide-react";
+import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
+
+function ExpandableQuote({ quote, index }: { quote: string; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = quote.length > 200;
+  
+  if (!isLong) {
+    return <span className="relative z-10">{quote}</span>;
+  }
+  
+  return (
+    <div className="relative z-10">
+      <span>{expanded ? quote : `${quote.slice(0, 200)}...`}</span>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="ml-1 text-primary text-[10px] hover:underline inline-flex items-center gap-0.5"
+        data-testid={`button-expand-quote-${index}`}
+      >
+        {expanded ? (
+          <>Show less <ChevronUp className="h-3 w-3" /></>
+        ) : (
+          <>Show more <ChevronDown className="h-3 w-3" /></>
+        )}
+      </button>
+    </div>
+  );
+}
 
 export function SourcesPanel() {
   const { selectedCitations } = useApp();
@@ -66,7 +92,7 @@ export function SourcesPanel() {
               <CardContent className="p-3 pt-2">
                 <div className="relative bg-muted/30 p-2.5 rounded text-sm text-foreground/80 leading-relaxed italic border border-muted/50">
                   <Quote className="absolute top-1 left-1 h-3 w-3 text-primary/20 transform -scale-x-100" />
-                  <span className="relative z-10">{citation.quote}</span>
+                  <ExpandableQuote quote={citation.quote} index={index} />
                 </div>
               </CardContent>
             </Card>

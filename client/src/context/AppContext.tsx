@@ -8,6 +8,10 @@ interface AppContextType {
   setSelectedCitations: (citations: Citation[]) => void;
   showOpinionLibrary: boolean;
   setShowOpinionLibrary: (show: boolean) => void;
+  sourcePanelOpen: boolean;
+  setSourcePanelOpen: (open: boolean) => void;
+  mobileSidebarOpen: boolean;
+  setMobileSidebarOpen: (open: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -16,6 +20,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [selectedCitations, setSelectedCitations] = useState<Citation[]>([]);
   const [showOpinionLibrary, setShowOpinionLibrary] = useState(false);
+  const [sourcePanelOpen, setSourcePanelOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
     <AppContext.Provider 
@@ -26,6 +32,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSelectedCitations,
         showOpinionLibrary,
         setShowOpinionLibrary,
+        sourcePanelOpen,
+        setSourcePanelOpen,
+        mobileSidebarOpen,
+        setMobileSidebarOpen,
       }}
     >
       {children}

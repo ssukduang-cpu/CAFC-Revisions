@@ -1,18 +1,60 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, ExternalLink } from "lucide-react";
+import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { useConversation, useSendMessage, useCreateConversation, parseSources, parseAnswerMarkdown } from "@/hooks/useConversations";
+import { useStatus } from "@/hooks/useOpinions";
 import type { Citation, Source } from "@/lib/api";
 import type { Message } from "@shared/schema";
+
+function LoadingStages() {
+  const [stage, setStage] = useState(0);
+  const stages = [
+    "Finding relevant precedent...",
+    "Analyzing citations...",
+    "Verifying quotes...",
+    "Preparing response..."
+  ];
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStage(s => (s < stages.length - 1 ? s + 1 : s));
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="space-y-1">
+      {stages.map((text, i) => (
+        <div 
+          key={i}
+          className={cn(
+            "flex items-center gap-2 text-sm transition-all duration-300",
+            i < stage ? "text-muted-foreground/50" : i === stage ? "text-foreground" : "text-muted-foreground/30"
+          )}
+        >
+          {i < stage ? (
+            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+          ) : i === stage ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <div className="h-3.5 w-3.5" />
+          )}
+          <span>{text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { currentConversationId, setCurrentConversationId, setSelectedCitations } = useApp();
+  const { currentConversationId, setCurrentConversationId, setSelectedCitations, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
+  const { data: status } = useStatus();
   
   const { data: conversation, isLoading } = useConversation(currentConversationId);
   const sendMessage = useSendMessage();
@@ -59,6 +101,7 @@ export function ChatInterface() {
       verified: true
     };
     setSelectedCitations([citation]);
+    setSourcePanelOpen(true);
   };
 
   const getSources = (message: Message): Source[] => {
@@ -126,9 +169,22 @@ export function ChatInterface() {
               <Scale className="h-7 w-7 text-primary" />
             </div>
             <h2 className="text-xl font-serif font-semibold mb-2 text-foreground">CAFC Copilot</h2>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-4">
               Ask questions about Federal Circuit patent law with citations from precedential opinions.
             </p>
+            
+            {status && (
+              <button
+                onClick={() => setShowOpinionLibrary(true)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 text-xs bg-primary/5 hover:bg-primary/10 text-primary rounded-full border border-primary/20 transition-colors"
+                data-testid="button-opinion-status"
+              >
+                <Library className="h-3 w-3" />
+                {status.opinions.ingested} of {status.opinions.total} opinions indexed
+                <BookOpen className="h-3 w-3 opacity-50" />
+              </button>
+            )}
+            
             <div className="space-y-2 text-left">
               {[
                 "What is the enablement standard for antibody claims?",
@@ -316,9 +372,8 @@ export function ChatInterface() {
               <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Scale className="h-3.5 w-3.5 text-primary" />
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Searching opinions...
+              <div className="flex flex-col gap-1">
+                <LoadingStages />
               </div>
             </div>
           )}
