@@ -2,7 +2,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send, Sparkles, Quote, Scale, User } from "lucide-react";
+import { Send, Sparkles, Quote, Scale, User, Paperclip } from "lucide-react";
 import { MOCK_CHAT_HISTORY, Message } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -24,7 +24,6 @@ export function ChatInterface() {
     setMessages([...messages, newMessage]);
     setInputValue("");
     
-    // Simulate thinking state (would be real streaming in full implementation)
     setTimeout(() => {
       const responseMsg: Message = {
         id: `msg-${Date.now()+1}`,
@@ -37,20 +36,20 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full relative">
-      <ScrollArea className="flex-1 p-4 md:p-6 space-y-6">
-        <div className="space-y-8 max-w-3xl mx-auto pb-4">
+    <div className="flex flex-col h-full relative bg-white dark:bg-zinc-950">
+      <ScrollArea className="flex-1 p-4 md:p-0">
+        <div className="max-w-3xl mx-auto py-6 space-y-6">
           {messages.map((msg) => (
             <div 
               key={msg.id} 
               className={cn(
-                "flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500",
-                msg.role === "user" ? "flex-row-reverse" : "flex-row"
+                "flex gap-4 px-4 py-2 group",
+                // msg.role === "assistant" ? "bg-muted/30 -mx-4 px-8 py-6" : "" 
               )}
             >
               <Avatar className={cn(
-                "h-8 w-8 shrink-0 border",
-                msg.role === "assistant" ? "bg-primary text-primary-foreground border-primary" : "bg-muted text-muted-foreground"
+                "h-8 w-8 shrink-0 border mt-1",
+                msg.role === "assistant" ? "bg-primary text-primary-foreground border-primary" : "bg-zinc-200 text-zinc-600 border-transparent"
               )}>
                 {msg.role === "assistant" ? (
                   <Scale className="h-4 w-4" />
@@ -59,47 +58,45 @@ export function ChatInterface() {
                 )}
               </Avatar>
               
-              <div className={cn(
-                "flex flex-col gap-2 max-w-[85%]",
-                msg.role === "user" ? "items-end" : "items-start"
-              )}>
-                <div className={cn(
-                  "rounded-lg p-4 text-sm leading-relaxed shadow-sm",
-                  msg.role === "user" 
-                    ? "bg-primary text-primary-foreground rounded-tr-none" 
-                    : "bg-card border rounded-tl-none font-serif text-foreground/90"
-                )}>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+              <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-foreground">
+                    {msg.role === "assistant" ? "CAFC Assistant" : "You"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                    {msg.timestamp}
+                  </span>
+                </div>
+                
+                <div className="text-sm leading-7 text-foreground/90 whitespace-pre-wrap">
+                  {msg.content}
                 </div>
 
                 {msg.citations && msg.citations.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-1">
+                  <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-border/50">
                     {msg.citations.map(cit => (
                       <Button 
                         key={cit.id}
-                        variant="secondary" 
+                        variant="outline" 
                         size="sm" 
-                        className="h-6 text-[10px] bg-secondary/50 hover:bg-secondary text-secondary-foreground border border-transparent hover:border-secondary-foreground/20 transition-all font-mono"
+                        className="h-7 text-xs bg-background hover:bg-muted text-primary border-primary/20 hover:border-primary/50 transition-all gap-1.5 shadow-sm"
                       >
-                        <Quote className="h-3 w-3 mr-1.5 opacity-50" />
-                        {cit.caseName}, p.{cit.page}
+                        <Quote className="h-3 w-3 opacity-70" />
+                        <span className="font-medium truncate max-w-[200px]">{cit.caseName}</span>
+                        <span className="text-muted-foreground opacity-70">p.{cit.page}</span>
                       </Button>
                     ))}
                   </div>
                 )}
-                
-                <span className="text-[10px] text-muted-foreground opacity-50 px-1">
-                  {msg.timestamp}
-                </span>
               </div>
             </div>
           ))}
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="max-w-3xl mx-auto relative">
-          <div className="relative rounded-xl border bg-card shadow-sm focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden">
+      <div className="p-4 bg-background border-t">
+        <div className="max-w-3xl mx-auto">
+          <div className="relative rounded-xl border shadow-sm bg-card focus-within:ring-2 focus-within:ring-primary/20 transition-all">
             <Textarea 
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -110,26 +107,32 @@ export function ChatInterface() {
                 }
               }}
               placeholder="Ask a question about CAFC precedent..." 
-              className="min-h-[60px] w-full resize-none border-0 bg-transparent p-4 placeholder:text-muted-foreground/50 focus-visible:ring-0 font-serif text-sm"
+              className="min-h-[50px] max-h-[200px] w-full resize-none border-0 bg-transparent p-3 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
+              rows={1}
             />
-            <div className="flex justify-between items-center p-2 bg-muted/20 border-t border-border/40">
-              <div className="flex gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
-                  <Sparkles className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="absolute right-2 bottom-2 flex gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
               <Button 
                 onClick={handleSend}
                 disabled={!inputValue.trim()}
-                size="sm" 
-                className="h-7 px-3 text-xs gap-2 transition-all"
+                size="icon" 
+                className={cn(
+                  "h-8 w-8 transition-all",
+                  inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                )}
               >
-                Send <Send className="h-3 w-3" />
+                <Send className="h-4 w-4" />
               </Button>
             </div>
           </div>
           <p className="text-[10px] text-center text-muted-foreground mt-2">
-            AI can make mistakes. Verify citations with provided sources.
+            AI responses generated from precedential CAFC opinions only.
           </p>
         </div>
       </div>

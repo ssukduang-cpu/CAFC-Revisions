@@ -2,7 +2,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MOCK_SESSIONS } from "@/lib/mockData";
-import { MessageSquare, Plus, Search, Library, History } from "lucide-react";
+import { MessageSquare, Plus, Search, Library, History, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
@@ -15,65 +15,72 @@ export function Sidebar() {
   );
 
   return (
-    <div className="flex flex-col h-full bg-sidebar/5">
-      {/* New Chat Button Area */}
-      <div className="p-4 pb-2">
-        <Button 
-          className="w-full justify-start gap-2 shadow-sm font-medium border border-sidebar-border/50 hover:bg-background/80 transition-all" 
-          variant="outline"
-        >
-          <Plus className="h-4 w-4" />
-          New Research
-        </Button>
-      </div>
-
-      <div className="px-4 py-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-          <Input 
-            placeholder="Filter history..." 
-            className="pl-8 h-8 text-xs bg-background/50 border-sidebar-border focus:bg-background transition-colors"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
+      {/* App Brand Area */}
+      <div className="p-4 flex items-center gap-3 border-b border-sidebar-border/30">
+        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+          <span className="font-serif font-bold text-lg text-primary-foreground">C</span>
+        </div>
+        <div className="flex flex-col overflow-hidden">
+          <span className="font-semibold text-sm truncate">CAFC Assistant</span>
+          <span className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wider">Federal Circuit</span>
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-2">
-        <div className="py-2 space-y-4">
+      {/* New Chat Button Area */}
+      <div className="p-3">
+        <Button 
+          className="w-full justify-start gap-2 shadow-none bg-sidebar-accent hover:bg-sidebar-accent/80 text-sidebar-foreground border-0 transition-all h-9" 
+        >
+          <Plus className="h-4 w-4" />
+          New Chat
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1 px-3">
+        <div className="space-y-6 py-2">
           
-          <div className="px-2">
-            <h3 className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
-              <History className="h-3 w-3" />
-              Recent Research
+          <div>
+            <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold mb-2 px-2">
+              Recent
             </h3>
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {filteredSessions.map((session) => (
                 <Button
                   key={session.id}
                   variant="ghost"
                   className={cn(
-                    "w-full justify-start h-auto py-2 px-2.5 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-sidebar/10 transition-all text-left block truncate",
-                    session.id === "s-1" && "bg-sidebar/10 text-foreground font-medium border-l-2 border-primary rounded-l-none"
+                    "w-full justify-start h-8 px-2 text-sm font-normal text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent/50 transition-all text-left block truncate",
+                    session.id === "s-1" && "bg-sidebar-accent text-white"
                   )}
                 >
-                  <div className="truncate w-full font-serif text-[13px]">{session.query}</div>
-                  <div className="flex justify-between items-center mt-1 opacity-70">
-                    <span className="text-[10px] font-sans">{session.date}</span>
-                    <span className="text-[10px] font-sans bg-muted px-1 rounded">{session.messageCount}</span>
-                  </div>
+                  <div className="truncate w-full">{session.query}</div>
                 </Button>
               ))}
             </div>
           </div>
 
+          <div>
+            <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold mb-2 px-2">
+              Tools
+            </h3>
+            <Button variant="ghost" className="w-full justify-start h-8 px-2 text-sm text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent/50">
+              <Library className="h-4 w-4 mr-2" />
+              Opinion Library
+            </Button>
+            <Button variant="ghost" className="w-full justify-start h-8 px-2 text-sm text-sidebar-foreground/80 hover:text-white hover:bg-sidebar-accent/50">
+              <Search className="h-4 w-4 mr-2" />
+              Search All
+            </Button>
+          </div>
+
         </div>
       </ScrollArea>
 
-      <div className="p-3 mt-auto border-t bg-sidebar/10">
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground">
-          <Library className="h-4 w-4" />
-          Opinion Library
+      <div className="p-3 mt-auto border-t border-sidebar-border/30 space-y-1">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-white hover:bg-sidebar-accent/50">
+          <Settings className="h-4 w-4" />
+          Settings
         </Button>
       </div>
     </div>
