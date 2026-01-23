@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -6,14 +6,14 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import os
 import json
-import re
+import asyncio
+import subprocess
 
-from backend import database as db
+from backend import db_postgres as db
 from backend.scraper import scrape_opinions
-from backend.ingestion import ingest_opinion, batch_ingest_opinions, get_ingestion_status
 from backend.chat import generate_chat_response
 
-app = FastAPI(title="CAFC Precedential Copilot")
+app = FastAPI(title="Federal Circuit AI")
 
 def to_camel_case(snake_str: str) -> str:
     components = snake_str.split('_')
@@ -24,6 +24,17 @@ def convert_keys_to_camel(data: Any) -> Any:
         return {to_camel_case(k): convert_keys_to_camel(v) for k, v in data.items()}
     elif isinstance(data, list):
         return [convert_keys_to_camel(item) for item in data]
+    return data
+
+def serialize_for_json(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {k: serialize_for_json(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [serialize_for_json(item) for item in data]
+    elif hasattr(data, 'isoformat'):
+        return data.isoformat()
+    elif hasattr(data, '__str__') and not isinstance(data, (str, int, float, bool, type(None))):
+        return str(data)
     return data
 
 app.add_middleware(
@@ -52,18 +63,25 @@ async def sync_opinions():
         added = 0
         skipped = 0
         
-        existing_urls = {op["pdf_url"] for op in db.get_opinions()}
+        existing_docs = db.get_documents(limit=10000)
+        existing_urls = {doc["pdf_url"] for doc in existing_docs}
         
         for opinion_data in opinions:
             if opinion_data["pdf_url"] in existing_urls:
                 skipped += 1
             else:
-                db.upsert_opinion(opinion_data)
+                db.upsert_document({
+                    "pdf_url": opinion_data["pdf_url"],
+                    "case_name": opinion_data["case_name"],
+                    "appeal_number": opinion_data["appeal_no"],
+                    "release_date": opinion_data["release_date"],
+                    "origin": opinion_data.get("origin"),
+                    "document_type": opinion_data.get("document_type"),
+                    "status": opinion_data.get("status")
+                })
                 added += 1
         
-        all_opinions = db.get_opinions()
-        total = len(all_opinions)
-        ingested = sum(1 for o in all_opinions if o.get("ingested"))
+        stats = db.get_ingestion_stats()
         
         return {
             "success": True,
@@ -71,8 +89,8 @@ async def sync_opinions():
             "scraped": len(opinions),
             "added": added,
             "skipped": skipped,
-            "total": total,
-            "ingested": ingested
+            "total": stats["total_documents"],
+            "ingested": stats["ingested"]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -83,37 +101,54 @@ async def list_opinions(
     origin: Optional[str] = None,
     ingested: Optional[bool] = None
 ):
-    opinions = db.get_opinions(q=q, origin=origin, ingested=ingested)
-    total = len(opinions)
-    ingested_count = sum(1 for o in opinions if o.get("ingested"))
+    documents = db.get_documents(q=q, origin=origin, ingested=ingested)
+    documents = serialize_for_json(documents)
+    total = len(documents)
+    ingested_count = sum(1 for d in documents if d.get("ingested"))
+    
+    camel_docs = []
+    for doc in documents:
+        camel_doc = convert_keys_to_camel(doc)
+        camel_doc["isIngested"] = doc.get("ingested", False)
+        camel_doc["appealNo"] = doc.get("appeal_number", "")
+        camel_docs.append(camel_doc)
     
     return {
-        "opinions": convert_keys_to_camel(opinions),
+        "opinions": camel_docs,
         "total": total,
         "ingested": ingested_count
     }
 
 @app.get("/api/opinions/{opinion_id}")
 async def get_opinion(opinion_id: str):
-    opinion = db.get_opinion(opinion_id)
-    if not opinion:
+    doc = db.get_document(opinion_id)
+    if not doc:
         raise HTTPException(status_code=404, detail="Opinion not found")
-    return convert_keys_to_camel(opinion)
+    doc = serialize_for_json(doc)
+    result = convert_keys_to_camel(doc)
+    result["isIngested"] = doc.get("ingested", False)
+    result["appealNo"] = doc.get("appeal_number", "")
+    return result
 
 @app.post("/api/opinions/{opinion_id}/ingest")
 async def ingest_opinion_endpoint(opinion_id: str):
-    result = await ingest_opinion(opinion_id)
+    from backend.ingest.run import ingest_document
+    
+    doc = db.get_document(opinion_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Opinion not found")
+    
+    result = await ingest_document(doc)
+    
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error", "Ingestion failed"))
+    
     return {
         "success": True,
-        "message": result.get("message", "Opinion ingested successfully"),
+        "message": "Opinion ingested successfully",
         "numPages": result.get("num_pages", 0),
-        "chunksCreated": result.get("inserted_pages", 0),
-        "textLength": len(result.get("page1_preview", "")),
-        "status": result.get("status", "completed"),
-        "validation": result.get("validation", {}),
-        "downloadAttempts": result.get("download_attempts", 1)
+        "chunksCreated": result.get("num_chunks", 0),
+        "status": result.get("status", "completed")
     }
 
 class BatchIngestRequest(BaseModel):
@@ -123,81 +158,229 @@ class BatchIngestRequest(BaseModel):
 
 @app.post("/api/opinions/batch-ingest")
 async def batch_ingest_endpoint(request: BatchIngestRequest):
-    result = await batch_ingest_opinions(
-        opinion_ids=request.opinion_ids,
-        batch_size=request.batch_size,
-        skip_ingested=request.skip_ingested
-    )
+    from backend.ingest.run import ingest_document
+    
+    if request.opinion_ids:
+        documents = [db.get_document(oid) for oid in request.opinion_ids if db.get_document(oid)]
+    else:
+        documents = db.get_pending_documents(limit=request.batch_size)
+    
+    if not documents:
+        return {
+            "success": True,
+            "message": "No documents to ingest",
+            "processed": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "results": []
+        }
+    
+    results = []
+    succeeded = 0
+    failed = 0
+    
+    for doc in documents:
+        result = await ingest_document(doc)
+        results.append(serialize_for_json(result))
+        
+        if result.get("success"):
+            succeeded += 1
+        else:
+            failed += 1
+    
     return {
-        "success": result.get("success", False),
-        "message": result.get("message", ""),
-        "processed": result.get("processed", 0),
-        "succeeded": result.get("succeeded", 0),
-        "failed": result.get("failed", 0),
-        "results": result.get("results", [])
+        "success": failed == 0,
+        "message": f"Batch complete: {succeeded} succeeded, {failed} failed",
+        "processed": len(documents),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": results
     }
 
 @app.get("/api/ingestion/status")
 async def ingestion_status_endpoint():
-    return get_ingestion_status()
+    return db.get_ingestion_stats()
 
 @app.get("/api/integrity/check")
 async def integrity_check_endpoint():
-    opinions = db.get_opinions()
-    ingested_opinions = [o for o in opinions if o.get("ingested")]
-    
-    issues = []
-    stats = {
-        "total_opinions": len(opinions),
-        "ingested_opinions": len(ingested_opinions),
-        "opinions_with_issues": 0,
-        "total_pages": 0,
-        "empty_pages": 0
-    }
-    
-    for opinion in ingested_opinions:
-        opinion_id = opinion["id"]
-        pages = db.get_pages_for_opinion(opinion_id)
-        
-        if not pages:
-            issues.append({
-                "opinion_id": opinion_id,
-                "case_name": opinion["case_name"],
-                "issue": "No pages found for ingested opinion"
-            })
-            stats["opinions_with_issues"] += 1
-            continue
-        
-        stats["total_pages"] += len(pages)
-        
-        empty_count = sum(1 for p in pages if len(p.get("text", "").strip()) < 100)
-        stats["empty_pages"] += empty_count
-        
-        if empty_count == len(pages):
-            issues.append({
-                "opinion_id": opinion_id,
-                "case_name": opinion["case_name"],
-                "issue": f"All {len(pages)} pages are empty"
-            })
-            stats["opinions_with_issues"] += 1
-    
+    stats = db.get_ingestion_stats()
     fts_health = db.check_fts_health()
     
     return {
-        "healthy": len(issues) == 0 and fts_health.get("healthy", False),
+        "healthy": fts_health.get("healthy", False),
         "stats": stats,
-        "issues": issues[:20],
         "fts_health": fts_health
     }
 
+@app.get("/api/search")
+async def search_endpoint(
+    q: str,
+    limit: int = 20
+):
+    if not q or len(q.strip()) < 2:
+        return {"results": [], "query": q}
+    
+    results = db.search_chunks(q, limit=limit)
+    results = serialize_for_json(results)
+    
+    formatted_results = []
+    for r in results:
+        formatted_results.append({
+            "documentId": str(r.get("document_id", "")),
+            "caseName": r.get("case_name", ""),
+            "appealNumber": r.get("appeal_number", ""),
+            "releaseDate": r.get("release_date", ""),
+            "pdfUrl": r.get("pdf_url", ""),
+            "pageStart": r.get("page_start", 1),
+            "pageEnd": r.get("page_end", 1),
+            "snippet": r.get("text", "")[:500],
+            "rank": r.get("rank", 0)
+        })
+    
+    return {
+        "query": q,
+        "results": formatted_results,
+        "count": len(formatted_results)
+    }
+
+manifest_build_running = False
+
+@app.post("/api/admin/build_manifest")
+async def build_manifest_endpoint(background_tasks: BackgroundTasks):
+    global manifest_build_running
+    
+    if manifest_build_running:
+        return {
+            "success": False,
+            "message": "Manifest build already in progress"
+        }
+    
+    return {
+        "success": True,
+        "message": "To build the manifest, run the Playwright script locally or use the import endpoint",
+        "instructions": [
+            "Option A - Run Playwright locally:",
+            "  1. Clone the repo locally",
+            "  2. pip install playwright && playwright install chromium",
+            "  3. python scripts/build_manifest.py",
+            "  4. Upload data/manifest.ndjson via POST /api/admin/import_manifest",
+            "",
+            "Option B - Upload existing manifest:",
+            "  POST /api/admin/import_manifest with NDJSON file"
+        ]
+    }
+
+class ManifestImportRequest(BaseModel):
+    opinions: List[Dict[str, Any]]
+
+@app.post("/api/admin/import_manifest")
+async def import_manifest_endpoint(request: ManifestImportRequest):
+    imported = 0
+    skipped = 0
+    
+    for opinion in request.opinions:
+        if not opinion.get("pdf_url"):
+            skipped += 1
+            continue
+        
+        existing = db.get_document_by_url(opinion["pdf_url"])
+        if existing:
+            skipped += 1
+            continue
+        
+        db.upsert_document({
+            "pdf_url": opinion["pdf_url"],
+            "case_name": opinion.get("case_name"),
+            "appeal_number": opinion.get("appeal_number"),
+            "release_date": opinion.get("release_date"),
+            "origin": opinion.get("origin"),
+            "document_type": opinion.get("document_type"),
+            "status": opinion.get("status"),
+            "file_path": opinion.get("file_path")
+        })
+        imported += 1
+    
+    stats = db.get_ingestion_stats()
+    
+    return {
+        "success": True,
+        "message": f"Imported {imported} documents, skipped {skipped} duplicates",
+        "imported": imported,
+        "skipped": skipped,
+        "total_documents": stats["total_documents"]
+    }
+
+@app.post("/api/admin/load_manifest_file")
+async def load_manifest_file_endpoint():
+    manifest_path = os.path.join(os.path.dirname(__file__), "..", "data", "manifest.ndjson")
+    
+    if not os.path.exists(manifest_path):
+        raise HTTPException(status_code=404, detail="Manifest file not found. Run build_manifest.py first or upload via /api/admin/import_manifest")
+    
+    imported = 0
+    skipped = 0
+    
+    with open(manifest_path, "r") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            
+            try:
+                opinion = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            
+            if not opinion.get("pdf_url"):
+                skipped += 1
+                continue
+            
+            existing = db.get_document_by_url(opinion["pdf_url"])
+            if existing:
+                skipped += 1
+                continue
+            
+            db.upsert_document({
+                "pdf_url": opinion["pdf_url"],
+                "case_name": opinion.get("case_name"),
+                "appeal_number": opinion.get("appeal_number"),
+                "release_date": opinion.get("release_date"),
+                "origin": opinion.get("origin"),
+                "document_type": opinion.get("document_type"),
+                "status": opinion.get("status"),
+                "file_path": opinion.get("file_path")
+            })
+            imported += 1
+    
+    stats = db.get_ingestion_stats()
+    
+    return {
+        "success": True,
+        "message": f"Loaded {imported} documents from manifest, skipped {skipped}",
+        "imported": imported,
+        "skipped": skipped,
+        "total_documents": stats["total_documents"]
+    }
+
+@app.post("/api/admin/ingest_batch")
+async def admin_ingest_batch(limit: int = 50):
+    from backend.ingest.run import run_batch_ingest
+    result = await run_batch_ingest(limit=limit)
+    return serialize_for_json(result)
+
+@app.get("/api/admin/ingest_status")
+async def admin_ingest_status():
+    return db.get_ingestion_stats()
+
 @app.get("/api/conversations")
 async def list_conversations():
-    return convert_keys_to_camel(db.get_conversations())
+    convs = db.get_conversations()
+    return serialize_for_json(convert_keys_to_camel(convs))
 
 @app.post("/api/conversations")
 async def create_conversation():
     conv_id = db.create_conversation()
-    return convert_keys_to_camel(db.get_conversation(conv_id))
+    conv = db.get_conversation(conv_id)
+    return serialize_for_json(convert_keys_to_camel(conv))
 
 @app.get("/api/conversations/{conversation_id}")
 async def get_conversation_endpoint(conversation_id: str):
@@ -205,13 +388,14 @@ async def get_conversation_endpoint(conversation_id: str):
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     messages = db.get_messages(conversation_id)
-    result = convert_keys_to_camel(conv)
-    result["messages"] = convert_keys_to_camel(messages)
+    result = serialize_for_json(convert_keys_to_camel(conv))
+    result["messages"] = serialize_for_json(convert_keys_to_camel(messages))
     return result
 
 @app.get("/api/conversations/{conversation_id}/messages")
 async def get_messages(conversation_id: str):
-    return convert_keys_to_camel(db.get_messages(conversation_id))
+    messages = db.get_messages(conversation_id)
+    return serialize_for_json(convert_keys_to_camel(messages))
 
 class MessageRequest(BaseModel):
     content: str
@@ -235,20 +419,20 @@ async def send_message(conversation_id: str, request: MessageRequest):
     answer_text = result.get("answer_markdown", "No response generated.")
     
     assistant_msg_id = db.add_message(
-        conversation_id, 
-        "assistant", 
+        conversation_id,
+        "assistant",
         answer_text,
         json.dumps(citation_data)
     )
     
     messages = db.get_messages(conversation_id)
-    user_msg = next((m for m in messages if m["id"] == user_msg_id), None)
-    assistant_msg = next((m for m in messages if m["id"] == assistant_msg_id), None)
+    user_msg = next((m for m in messages if str(m["id"]) == user_msg_id), None)
+    assistant_msg = next((m for m in messages if str(m["id"]) == assistant_msg_id), None)
     
-    assistant_response = convert_keys_to_camel(assistant_msg) if assistant_msg else {}
+    assistant_response = serialize_for_json(convert_keys_to_camel(assistant_msg)) if assistant_msg else {}
     
     return {
-        "userMessage": convert_keys_to_camel(user_msg) if user_msg else {},
+        "userMessage": serialize_for_json(convert_keys_to_camel(user_msg)) if user_msg else {},
         "assistantMessage": assistant_response
     }
 
@@ -273,8 +457,8 @@ async def chat(request: ChatRequest):
     }
     
     db.add_message(
-        conv_id, 
-        "assistant", 
+        conv_id,
+        "assistant",
         result.get("answer_markdown", ""),
         json.dumps(citation_data)
     )

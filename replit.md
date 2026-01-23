@@ -54,23 +54,44 @@ Preferred communication style: Simple, everyday language.
 
 ### Production Database Strategy
 
-**Ingestion Robustness (Jan 2026):**
-- **Retry Logic:** Exponential backoff (3 retries, 1s→2s→4s) for PDF downloads
-- **Validation:** Checks for empty/corrupt PDFs with min text length requirements
-- **Progress Tracking:** Detailed logging at each stage (download/extract/insert/complete)
-- **Batch Processing:** `POST /api/opinions/batch-ingest` with configurable batch size
-- **Integrity Checks:** FTS5 index synchronization verification, empty page detection
+**Database Architecture (PostgreSQL):**
+- `documents` - Opinion metadata with pdf_url, case_name, appeal_number, ingested status
+- `document_pages` - Per-page text extraction (one row per PDF page)
+- `document_chunks` - 2-page chunks for RAG retrieval with tsvector FTS
+- Full-text search using PostgreSQL GIN index on tsvector columns
 
-**Production Population Strategy:**
-1. Sync opinions from CAFC website (shows ~25 most recent, ~3 precedential)
-2. Run batch ingestion with retry logic via `/api/opinions/batch-ingest`
-3. Verify with `/api/integrity/check` before considering migration-ready
-4. In production: Run same sync/ingest endpoints after publishing
+**Ingestion Robustness (Jan 2026):**
+- **Retry Logic:** Exponential backoff (3 retries, 2s→4s→8s) for PDF downloads
+- **Validation:** Checks for empty/corrupt PDFs with min text length requirements
+- **SHA256 Tracking:** Avoids re-processing unchanged PDFs
+- **Batch Processing:** `POST /api/opinions/batch-ingest` with configurable batch size
+- **Integrity Checks:** FTS index health verification, page/chunk counts
+
+**Full Corpus Backfill Strategy (~4,000 opinions):**
+1. Run Playwright manifest builder to extract all opinion URLs:
+   - `python scripts/build_manifest.py` (requires Playwright chromium)
+   - Paginates through CAFC table with Precedential+OPINION filters
+   - Saves to `data/manifest.ndjson` with progress resume
+2. Load manifest into database: `python scripts/build_manifest.py --load-to-db`
+3. Run batch ingestion in chunks:
+   - `python -m backend.ingest.run --limit 50`
+   - Or via API: `POST /api/admin/ingest_batch?limit=50`
+4. Monitor progress: `GET /api/admin/ingest_status`
+5. Verify integrity: `GET /api/integrity/check`
+
+**Admin Endpoints:**
+- `POST /api/admin/build_manifest` - Instructions for manifest build
+- `POST /api/admin/ingest_batch?limit=N` - Ingest next N pending documents
+- `GET /api/admin/ingest_status` - Total/ingested/pending/failed counts
+- `GET /api/search?q=...` - Full-text search across all ingested opinions
 
 ### Recent Changes (Jan 2026)
 
-- Migrated from Node.js/PostgreSQL to Python FastAPI/SQLite for memory efficiency
-- Fixed FTS5 query escaping to handle special characters (?, ., +, etc.)
+- **PostgreSQL Migration:** Full migration from SQLite to PostgreSQL for production scale
+- **Playwright Manifest Builder:** Script to extract all ~4,000 precedential opinions from CAFC
+- **Resumable Ingester:** CLI tool with retry logic, SHA256 tracking, and per-page storage
+- **Admin API:** Endpoints for batch ingestion control and status monitoring
+- **Full-Text Search:** PostgreSQL tsvector/GIN index for fast corpus-wide search
 - Fixed conversation endpoint to include messages array for frontend rendering
 - Added proxy timeout (120s) for AI-powered chat responses
 - Fixed useSendMessage hook to pass conversationId as parameter
@@ -95,7 +116,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Database
 - **PostgreSQL:** Primary data store via `DATABASE_URL` environment variable
-- **Drizzle ORM:** Type-safe database operations with schema in `shared/schema.ts`
+- **Python psycopg2:** Direct PostgreSQL access with connection pooling
+- **Tables:** documents, document_pages, document_chunks, conversations, messages
 
 ### AI Services
 - **OpenAI API:** Accessed through Replit AI Integrations

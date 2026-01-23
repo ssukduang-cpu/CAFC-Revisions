@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Optional, Tuple
 from openai import OpenAI
 
-from backend import database as db
+from backend import db_postgres as db
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
