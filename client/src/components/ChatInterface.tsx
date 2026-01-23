@@ -56,58 +56,40 @@ export function ChatInterface() {
     return parseCitations(message);
   };
 
-  const formatTimestamp = (date: Date | string) => {
-    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   if (!currentConversationId && messages.length === 0) {
     return (
-      <div className="flex flex-col h-full relative bg-background">
-        <div className="bg-sidebar-accent/30 border-b border-border/50 py-1.5 px-4 text-center">
-          <p className="text-[10px] text-muted-foreground font-medium tracking-wide">
-            <Sparkles className="h-3 w-3 inline mr-1.5 text-amber-500/70" />
-            Not Legal Advice: This tool provides general information only based on CAFC opinions.
-          </p>
-        </div>
-
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-lg px-8">
-            <div className="h-16 w-16 rounded-2xl bg-sidebar-accent/50 flex items-center justify-center mx-auto mb-6 border border-white/10">
-              <Scale className="h-8 w-8 text-primary" />
+      <div className="flex flex-col h-full bg-background">
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-5">
+              <Scale className="h-7 w-7 text-primary" />
             </div>
-            <h2 className="text-xl font-serif font-bold mb-3 text-foreground">CAFC Copilot</h2>
-            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-              Ask questions about Federal Circuit patent law. I'll search precedential CAFC opinions and provide answers with accurate citations.
+            <h2 className="text-xl font-serif font-semibold mb-2 text-foreground">CAFC Copilot</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Ask questions about Federal Circuit patent law with citations from precedential opinions.
             </p>
-            <div className="grid gap-2 text-left">
-              <button 
-                onClick={() => setInputValue("What is the current standard for enablement of antibody claims?")}
-                className="p-3 text-sm text-left bg-sidebar-accent/30 rounded-lg border border-white/5 hover:bg-sidebar-accent/50 transition-colors"
-                data-testid="button-example-enablement"
-              >
-                What is the current standard for enablement of antibody claims?
-              </button>
-              <button 
-                onClick={() => setInputValue("Explain the Fintiv factors for PTAB discretionary denial")}
-                className="p-3 text-sm text-left bg-sidebar-accent/30 rounded-lg border border-white/5 hover:bg-sidebar-accent/50 transition-colors"
-                data-testid="button-example-fintiv"
-              >
-                Explain the Fintiv factors for PTAB discretionary denial
-              </button>
-              <button 
-                onClick={() => setInputValue("What is the Alice/Mayo test for patent eligibility?")}
-                className="p-3 text-sm text-left bg-sidebar-accent/30 rounded-lg border border-white/5 hover:bg-sidebar-accent/50 transition-colors"
-                data-testid="button-example-alice"
-              >
-                What is the Alice/Mayo test for patent eligibility?
-              </button>
+            <div className="space-y-2 text-left">
+              {[
+                "What is the enablement standard for antibody claims?",
+                "Explain the Fintiv factors for PTAB discretionary denial",
+                "What is the Alice/Mayo test for patent eligibility?"
+              ].map((q, i) => (
+                <button 
+                  key={i}
+                  onClick={() => setInputValue(q)}
+                  className="w-full p-3 text-sm text-left bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 hover:border-border transition-colors"
+                  data-testid={`button-example-${i}`}
+                >
+                  {q}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="p-4 bg-background">
-          <div className="max-w-3xl mx-auto">
-            <div className="relative rounded-2xl bg-sidebar-accent border border-white/5 focus-within:ring-1 focus-within:ring-white/20 transition-all shadow-sm">
+        <div className="p-4 border-t border-border/30">
+          <div className="max-w-2xl mx-auto">
+            <div className="relative rounded-xl bg-muted/40 border border-border/50 focus-within:border-primary/50 transition-colors">
               <Textarea 
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -117,8 +99,8 @@ export function ChatInterface() {
                     handleSend();
                   }
                 }}
-                placeholder="Ask a question about CAFC precedent..." 
-                className="min-h-[56px] max-h-[200px] w-full resize-none border-0 bg-transparent py-4 pl-4 pr-12 placeholder:text-muted-foreground/50 focus-visible:ring-0 text-sm font-medium"
+                placeholder="Ask about CAFC precedent..." 
+                className="min-h-[52px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3.5 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
                 rows={1}
                 data-testid="input-chat-message"
               />
@@ -129,7 +111,7 @@ export function ChatInterface() {
                   size="icon" 
                   className={cn(
                     "h-8 w-8 rounded-lg transition-all",
-                    inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:bg-white/5"
+                    inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   )}
                   data-testid="button-send-message"
                 >
@@ -141,6 +123,10 @@ export function ChatInterface() {
                 </Button>
               </div>
             </div>
+            <p className="text-[10px] text-muted-foreground/60 text-center mt-2">
+              <Sparkles className="h-3 w-3 inline mr-1" />
+              Not legal advice. Answers based on precedential CAFC opinions only.
+            </p>
           </div>
         </div>
       </div>
@@ -148,19 +134,12 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex flex-col h-full relative bg-background">
-      <div className="bg-sidebar-accent/30 border-b border-border/50 py-1.5 px-4 text-center">
-        <p className="text-[10px] text-muted-foreground font-medium tracking-wide">
-          <Sparkles className="h-3 w-3 inline mr-1.5 text-amber-500/70" />
-          Not Legal Advice: This tool provides general information only based on CAFC opinions.
-        </p>
-      </div>
-
+    <div className="flex flex-col h-full bg-background">
       <ScrollArea className="flex-1">
-        <div className="max-w-3xl mx-auto py-8 px-4 space-y-8">
+        <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
             messages.map((msg) => {
@@ -170,14 +149,14 @@ export function ChatInterface() {
                 <div 
                   key={msg.id} 
                   className={cn(
-                    "flex gap-4",
+                    "flex gap-3",
                     msg.role === "user" ? "justify-end" : "justify-start"
                   )}
                   data-testid={`message-${msg.id}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="h-8 w-8 rounded-lg bg-transparent border border-white/10 flex items-center justify-center shrink-0 mt-1">
-                      <Scale className="h-4 w-4 text-primary" />
+                    <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Scale className="h-3.5 w-3.5 text-primary" />
                     </div>
                   )}
                   
@@ -186,41 +165,36 @@ export function ChatInterface() {
                     msg.role === "user" ? "items-end" : "items-start"
                   )}>
                     <div className={cn(
-                      "text-sm leading-7",
+                      "text-sm leading-relaxed",
                       msg.role === "user" 
-                        ? "bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-sm font-sans" 
-                        : "text-foreground font-sans"
+                        ? "bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-md" 
+                        : "text-foreground"
                     )}>
-                      {msg.role === "assistant" && (
-                        <div className="mb-4">
-                          <span className="text-sm font-medium text-foreground">Answer</span>
-                        </div>
-                      )}
                       <div className="whitespace-pre-wrap">{msg.content}</div>
                     </div>
 
                     {citations.length > 0 && (
-                      <div className="mt-4 space-y-3 w-full">
-                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pl-1">Sources</div>
-                        <div className="grid gap-2">
+                      <div className="mt-3 space-y-2 w-full">
+                        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Sources</div>
+                        <div className="space-y-1.5">
                           {citations.map((cit, idx) => (
                             <button 
                               key={idx}
                               onClick={() => handleCitationClick([cit])}
-                              className="bg-sidebar-accent/40 border border-white/5 rounded-lg p-3 hover:bg-sidebar-accent/60 transition-colors cursor-pointer group text-left w-full"
+                              className="w-full bg-muted/30 border border-border/50 rounded-lg p-2.5 hover:bg-muted/50 transition-colors text-left group"
                               data-testid={`citation-${msg.id}-${idx}`}
                             >
-                              <div className="flex items-start gap-3">
-                                <Quote className="h-4 w-4 text-primary shrink-0 mt-0.5 opacity-70" />
-                                <div className="space-y-1 min-w-0">
-                                  <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                              <div className="flex items-start gap-2">
+                                <Quote className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                                <div className="min-w-0 space-y-0.5">
+                                  <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
                                     {cit.caseName}
                                   </div>
-                                  <div className="text-[11px] text-muted-foreground line-clamp-2 italic">
+                                  <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
                                     "{cit.quote}"
                                   </div>
                                   <div className="text-[10px] font-mono text-muted-foreground/60">
-                                    {cit.appealNo} • Page {cit.pageNumber}
+                                    {cit.appealNo} • p.{cit.pageNumber}
                                   </div>
                                 </div>
                               </div>
@@ -232,7 +206,7 @@ export function ChatInterface() {
                   </div>
 
                   {msg.role === "user" && (
-                    <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center shrink-0 mt-1 border border-white/10 text-xs font-medium text-foreground">
+                    <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5 text-xs font-medium text-muted-foreground">
                       U
                     </div>
                   )}
@@ -242,9 +216,9 @@ export function ChatInterface() {
           )}
           
           {sendMessage.isPending && (
-            <div className="flex gap-4 justify-start">
-              <div className="h-8 w-8 rounded-lg bg-transparent border border-white/10 flex items-center justify-center shrink-0 mt-1">
-                <Scale className="h-4 w-4 text-primary" />
+            <div className="flex gap-3 justify-start">
+              <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Scale className="h-3.5 w-3.5 text-primary" />
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -257,9 +231,9 @@ export function ChatInterface() {
         </div>
       </ScrollArea>
 
-      <div className="p-4 bg-background">
-        <div className="max-w-3xl mx-auto">
-          <div className="relative rounded-2xl bg-sidebar-accent border border-white/5 focus-within:ring-1 focus-within:ring-white/20 transition-all shadow-sm">
+      <div className="p-4 border-t border-border/30">
+        <div className="max-w-2xl mx-auto">
+          <div className="relative rounded-xl bg-muted/40 border border-border/50 focus-within:border-primary/50 transition-colors">
             <Textarea 
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -270,7 +244,7 @@ export function ChatInterface() {
                 }
               }}
               placeholder="Ask a follow-up question..." 
-              className="min-h-[56px] max-h-[200px] w-full resize-none border-0 bg-transparent py-4 pl-4 pr-12 placeholder:text-muted-foreground/50 focus-visible:ring-0 text-sm font-medium"
+              className="min-h-[52px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3.5 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
               rows={1}
               data-testid="input-chat-message"
             />
@@ -281,7 +255,7 @@ export function ChatInterface() {
                 size="icon" 
                 className={cn(
                   "h-8 w-8 rounded-lg transition-all",
-                  inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:bg-white/5"
+                  inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 )}
                 data-testid="button-send-message"
               >

@@ -103,12 +103,11 @@ export function Sidebar() {
             </div>
           ) : (
             filteredConversations.map((conv) => (
-              <Button
+              <div
                 key={conv.id}
-                variant="ghost"
                 onClick={() => setCurrentConversationId(conv.id)}
                 className={cn(
-                  "w-full justify-start h-auto py-2.5 px-3 text-sm font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all text-left block group rounded-lg",
+                  "w-full h-auto py-2.5 px-3 text-sm font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all text-left cursor-pointer group rounded-lg",
                   currentConversationId === conv.id && "bg-sidebar-accent text-sidebar-foreground"
                 )}
                 data-testid={`button-conversation-${conv.id}`}
@@ -127,7 +126,7 @@ export function Sidebar() {
                     <Trash2 className="h-3 w-3 text-red-400" />
                   </button>
                 </div>
-              </Button>
+              </div>
             ))
           )}
         </div>
