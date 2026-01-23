@@ -395,7 +395,7 @@ async def generate_chat_response(
     if party_only and is_question:
         # Extract potential party names from the question (proper nouns, capitalized words)
         words = message.split()
-        potential_parties = [w.strip('?.,!') for w in words if w[0].isupper() and len(w) > 2 and w.lower() not in question_indicators]
+        potential_parties = [w.strip('?.,!') for w in words if len(w) > 0 and w[0].isupper() and len(w) > 2 and w.lower() not in question_indicators]
         
         if potential_parties:
             # Search for cases matching the party names
@@ -408,15 +408,51 @@ async def generate_chat_response(
             
             if party_cases:
                 # Get the opinion IDs from matching party cases
-                party_opinion_ids = list(set(p.get('opinion_id') for p in party_cases))
-                # Now do a full-text search within those cases
-                pages = db.search_pages(message, party_opinion_ids, limit=15, party_only=False)
+                party_opinion_ids = [str(p.get('opinion_id')) for p in party_cases]
+                party_opinion_ids = list(set(party_opinion_ids))
                 
-                if not pages:
-                    # If no full-text matches, search with just the question keywords
-                    non_party_words = [w for w in words if w not in potential_parties]
-                    if non_party_words:
-                        pages = db.search_pages(' '.join(non_party_words), party_opinion_ids, limit=15, party_only=False)
+                # Extract meaningful search terms from the question (remove stopwords and question words)
+                stopwords = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'from', 'to', 'of', 'for', 'on', 'at', 'by', 'with'}
+                meaningful_words = [w.strip('?.,!').lower() for w in words 
+                                   if w.strip('?.,!').lower() not in stopwords 
+                                   and w.strip('?.,!').lower() not in question_indicators
+                                   and w.strip('?.,!') not in potential_parties
+                                   and len(w.strip('?.,!')) > 2]
+                
+                # Add legal-specific search terms based on question context
+                legal_terms = []
+                if any(t in message.lower() for t in ['holding', 'held', 'decide', 'rule', 'ruling']):
+                    legal_terms.extend(['affirm', 'reverse', 'remand', 'held', 'hold', 'conclude'])
+                
+                # Search strategy: try multiple approaches to find relevant content
+                # Note: PostgreSQL plainto_tsquery uses AND for multiple words,
+                # so we search each term individually and combine results
+                
+                all_pages = []
+                seen_page_keys = set()
+                
+                # First try meaningful words individually
+                for word in meaningful_words:
+                    if word and len(word) > 2:
+                        results = db.search_pages(word, party_opinion_ids, limit=5, party_only=False)
+                        for p in results:
+                            key = (p.get('opinion_id'), p.get('page_number'))
+                            if key not in seen_page_keys:
+                                seen_page_keys.add(key)
+                                all_pages.append(p)
+                
+                # Then try legal terms individually
+                for term in legal_terms:
+                    results = db.search_pages(term, party_opinion_ids, limit=5, party_only=False)
+                    for p in results:
+                        key = (p.get('opinion_id'), p.get('page_number'))
+                        if key not in seen_page_keys:
+                            seen_page_keys.add(key)
+                            all_pages.append(p)
+                
+                # Sort by rank (if available) and limit
+                all_pages.sort(key=lambda x: x.get('rank', 0), reverse=True)
+                pages = all_pages[:15]
     
     if not pages:
         return {
