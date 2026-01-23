@@ -202,7 +202,7 @@ def mark_opinion_ingested(opinion_id: str):
         conn.commit()
 
 def escape_fts_query(text: str) -> str:
-    special_chars = ['?', '*', '+', '-', '(', ')', '{', '}', '[', ']', '^', '"', '~', ':', '\\']
+    special_chars = ['?', '*', '+', '-', '(', ')', '{', '}', '[', ']', '^', '"', '~', ':', '\\', '.', ',', ';', '!', '@', '#', '$', '%', '&', '/', "'"]
     for char in special_chars:
         text = text.replace(char, ' ')
     return text

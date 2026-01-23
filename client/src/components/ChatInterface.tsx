@@ -15,7 +15,7 @@ export function ChatInterface() {
   const { currentConversationId, setCurrentConversationId, setSelectedCitations } = useApp();
   
   const { data: conversation, isLoading } = useConversation(currentConversationId);
-  const sendMessage = useSendMessage(currentConversationId);
+  const sendMessage = useSendMessage();
   const createConversation = useCreateConversation();
 
   const messages = conversation?.messages || [];
@@ -41,7 +41,7 @@ export function ChatInterface() {
         setCurrentConversationId(convId);
       }
       
-      await sendMessage.mutateAsync(messageContent);
+      await sendMessage.mutateAsync({ conversationId: convId, content: messageContent });
     } catch (error) {
       console.error("Failed to send message:", error);
       setInputValue(messageContent);

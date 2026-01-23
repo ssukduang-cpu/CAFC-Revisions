@@ -49,19 +49,17 @@ export function useDeleteConversation() {
   });
 }
 
-export function useSendMessage(conversationId: string | null) {
+export function useSendMessage() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (content: string) => {
+    mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) => {
       if (!conversationId) throw new Error("No conversation selected");
       return sendMessage(conversationId, content);
     },
-    onSuccess: () => {
-      if (conversationId) {
-        queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      }
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["conversation", variables.conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
   });
 }
