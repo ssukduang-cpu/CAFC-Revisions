@@ -382,7 +382,23 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         if not query.strip():
             return []
         
-        if opinion_ids:
+        if opinion_ids and party_only:
+            # Party-only search within specific opinions
+            cursor.execute("""
+                SELECT DISTINCT ON (d.id)
+                    p.document_id as opinion_id, p.page_number, p.text,
+                    d.case_name, d.appeal_number as appeal_no, 
+                    to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    1.0 as rank
+                FROM document_pages p
+                JOIN documents d ON p.document_id = d.id
+                WHERE d.id = ANY(%s)
+                  AND d.case_name ILIKE '%%' || %s || '%%'
+                ORDER BY d.id, p.page_number
+                LIMIT %s
+            """, (opinion_ids, query, limit))
+        elif opinion_ids:
+            # Full text search within specific opinions
             cursor.execute("""
                 SELECT 
                     p.document_id as opinion_id, p.page_number, p.text,
