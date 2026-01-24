@@ -451,7 +451,7 @@ def build_answer_markdown(response_text: str, markers: List[Dict], position_to_s
     
     return result.strip()
 
-def generate_fallback_response(pages: List[Dict], search_terms: List[str]) -> Dict[str, Any]:
+def generate_fallback_response(pages: List[Dict], search_terms: List[str], search_query: str = "") -> Dict[str, Any]:
     """Generate response when LLM is unavailable - use top pages as sources."""
     sources = []
     for i, page in enumerate(pages[:5], 1):
@@ -472,13 +472,25 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str]) -> Di
                 "courtlistener_url": page.get('courtlistener_url', '')
             })
     
+    pages_sample = [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]]
+    
     if not sources:
         return {
             "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.",
             "sources": [],
             "debug": {
                 "claims": [],
-                "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1}
+                "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                "search_query": search_query,
+                "search_terms": search_terms,
+                "pages_count": len(pages),
+                "pages_sample": pages_sample,
+                "markers_count": 0,
+                "markers": [],
+                "sources_count": 0,
+                "sources": [],
+                "raw_response": None,
+                "return_branch": "fallback_no_sources"
             }
         }
     
@@ -490,7 +502,17 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str]) -> Di
         "sources": sources,
         "debug": {
             "claims": [{"id": i+1, "text": s['quote'][:100], "citations": [s]} for i, s in enumerate(sources)],
-            "support_audit": {"total_claims": len(sources), "supported_claims": len(sources), "unsupported_claims": 0}
+            "support_audit": {"total_claims": len(sources), "supported_claims": len(sources), "unsupported_claims": 0},
+            "search_query": search_query,
+            "search_terms": search_terms,
+            "pages_count": len(pages),
+            "pages_sample": pages_sample,
+            "markers_count": 0,
+            "markers": [],
+            "sources_count": len(sources),
+            "sources": [{"sid": s.get("sid"), "opinion_id": s.get("opinion_id"), "page_number": s.get("page_number"), "quote": s.get("quote", "")[:120]} for s in sources[:10]],
+            "raw_response": None,
+            "return_branch": "fallback_with_sources"
         }
     }
 
@@ -717,7 +739,16 @@ async def generate_chat_response(
             "debug": {
                 "claims": [],
                 "support_audit": {"total_claims": 0, "supported_claims": len(sources), "unsupported_claims": 0},
-                "search_mode": "party_only_listing"
+                "search_query": message,
+                "search_terms": search_terms,
+                "pages_count": len(pages),
+                "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
+                "markers_count": 0,
+                "markers": [],
+                "sources_count": len(sources),
+                "sources": [{"sid": s.get("sid"), "opinionId": s.get("opinionId"), "caseName": s.get("caseName")} for s in sources[:10]],
+                "raw_response": None,
+                "return_branch": "party_only_listing"
             }
         }
     
@@ -790,14 +821,24 @@ async def generate_chat_response(
             "sources": [],
             "debug": {
                 "claims": [],
-                "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1}
+                "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                "search_query": message,
+                "search_terms": search_terms,
+                "pages_count": 0,
+                "pages_sample": [],
+                "markers_count": 0,
+                "markers": [],
+                "sources_count": 0,
+                "sources": [],
+                "raw_response": None,
+                "return_branch": "not_found_no_pages"
             }
         }
     
     client = get_openai_client()
     
     if not client:
-        return generate_fallback_response(pages, search_terms)
+        return generate_fallback_response(pages, search_terms, message)
     
     context = build_context(pages)
     
@@ -829,7 +870,16 @@ async def generate_chat_response(
                 "debug": {
                     "claims": [],
                     "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
-                    "raw_response": raw_answer
+                    "search_query": message,
+                    "search_terms": search_terms,
+                    "pages_count": len(pages),
+                    "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
+                    "markers_count": 0,
+                    "markers": [],
+                    "sources_count": 0,
+                    "sources": [],
+                    "raw_response": raw_answer,
+                    "return_branch": "llm_returned_not_found"
                 }
             }
         
@@ -863,8 +913,16 @@ async def generate_chat_response(
                 "debug": {
                     "claims": [],
                     "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},
+                    "search_query": message,
+                    "search_terms": search_terms,
+                    "pages_count": len(pages),
+                    "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
+                    "markers_count": 0,
+                    "markers": [],
+                    "sources_count": 0,
+                    "sources": [],
                     "raw_response": raw_answer,
-                    "response_type": "disambiguation"
+                    "return_branch": "disambiguation"
                 }
             }
         
@@ -879,8 +937,16 @@ async def generate_chat_response(
                 "debug": {
                     "claims": [],
                     "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                    "search_query": message,
+                    "search_terms": search_terms,
+                    "pages_count": len(pages),
+                    "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
+                    "markers_count": len(markers),
+                    "markers": [{"opinion_id": m.get("opinion_id"), "page_number": m.get("page_number"), "quote_preview": (m.get("quote") or "")[:120], "position": m.get("position")} for m in markers[:10]],
+                    "sources_count": 0,
+                    "sources": [],
                     "raw_response": raw_answer,
-                    "response_type": "rejected_uncited_response"
+                    "return_branch": "rejected_uncited_response"
                 }
             }
         
@@ -912,21 +978,43 @@ async def generate_chat_response(
                     "supported_claims": len(sources),
                     "unsupported_claims": 0
                 },
-                "raw_response": raw_answer
+                "search_query": message,
+                "search_terms": search_terms,
+                "pages_count": len(pages),
+                "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
+                "markers_count": len(markers),
+                "markers": [{"opinion_id": m.get("opinion_id"), "page_number": m.get("page_number"), "quote_preview": (m.get("quote") or "")[:120], "position": m.get("position")} for m in markers[:10]],
+                "sources_count": len(sources),
+                "sources": [{"sid": s.get("sid"), "opinion_id": s.get("opinion_id"), "page_number": s.get("page_number"), "quote": s.get("quote", "")[:120]} for s in sources[:10]],
+                "raw_response": raw_answer,
+                "return_branch": "ok"
             }
         }
         
     except asyncio.TimeoutError:
-        fallback = generate_fallback_response(pages, search_terms)
+        fallback = generate_fallback_response(pages, search_terms, message)
         fallback["debug"]["error"] = "timeout"
+        fallback["debug"]["return_branch"] = "timeout_fallback"
         return fallback
     except Exception as e:
+        import logging
+        logging.error(f"Chat error: {str(e)}, query: {message}")
         return {
             "answer_markdown": f"Error generating response: {str(e)}\n\nPlease try again.",
             "sources": [],
             "debug": {
                 "claims": [],
                 "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
-                "error": str(e)
+                "search_query": message,
+                "search_terms": search_terms,
+                "pages_count": len(pages) if pages else 0,
+                "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in (pages or [])[:5]],
+                "markers_count": 0,
+                "markers": [],
+                "sources_count": 0,
+                "sources": [],
+                "raw_response": None,
+                "error": str(e),
+                "return_branch": "exception"
             }
         }
