@@ -8,12 +8,32 @@ const app = express();
 const httpServer = createServer(app);
 
 let pythonProcess: ChildProcess | null = null;
+let pythonReady = false;
+
+async function waitForPython(maxRetries = 30, delayMs = 1000): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch("http://localhost:8000/api/status");
+      if (response.ok) {
+        console.log("[python] Backend is ready!");
+        pythonReady = true;
+        return true;
+      }
+    } catch (e) {
+      // Python not ready yet
+    }
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  console.error("[python] Backend failed to start after", maxRetries, "retries");
+  return false;
+}
 
 function startPythonBackend() {
   if (pythonProcess) {
     pythonProcess.kill();
   }
   
+  pythonReady = false;
   console.log("Starting Python FastAPI backend on port 8000...");
   pythonProcess = spawn("python", ["-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"], {
     cwd: process.cwd(),
@@ -29,12 +49,20 @@ function startPythonBackend() {
     console.log("[python]", data.toString().trim());
   });
   
+  pythonProcess.on("error", (err) => {
+    console.error("[python] Failed to start:", err.message);
+  });
+  
   pythonProcess.on("close", (code) => {
     console.log("[python] exited with code", code);
+    pythonReady = false;
     if (code !== 0 && code !== null) {
       setTimeout(startPythonBackend, 2000);
     }
   });
+  
+  // Start checking for Python readiness
+  waitForPython();
 }
 
 startPythonBackend();

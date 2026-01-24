@@ -25,7 +25,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     console.error("[proxy] error:", err.message);
     if (res && !res.writableEnded) {
       (res as any).writeHead?.(503, { "Content-Type": "application/json" });
-      (res as any).end?.(JSON.stringify({ error: "Python backend unavailable" }));
+      (res as any).end?.(JSON.stringify({ 
+        error: "Python backend unavailable", 
+        message: "The backend is starting up. Please wait a moment and try again.",
+        retryAfter: 5
+      }));
     }
   });
 
