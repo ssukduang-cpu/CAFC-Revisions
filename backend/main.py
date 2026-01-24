@@ -437,12 +437,31 @@ async def build_and_load_manifest(count: int = 100):
                 appeal_number = result.get('docketNumber', '')
                 date_filed = result.get('dateFiled')
                 
-                pdf_url = f"https://www.courtlistener.com/pdf/{cluster_id}/"
-                
-                if db.document_exists_by_dedupe_key(cluster_id, appeal_number, pdf_url):
+                # Check if already exists using cluster_id
+                if db.document_exists_by_dedupe_key(cluster_id, appeal_number, None):
                     skipped += 1
                     fetched += 1
                     continue
+                
+                # Fetch actual PDF URL from opinions endpoint
+                pdf_url = None
+                try:
+                    opinions_url = f"https://www.courtlistener.com/api/rest/v4/opinions/?cluster={cluster_id}"
+                    op_response = await client.get(opinions_url, headers=headers)
+                    if op_response.status_code == 200:
+                        op_data = op_response.json()
+                        op_results = op_data.get('results', [])
+                        for op in op_results:
+                            dl_url = op.get('download_url')
+                            if dl_url:
+                                pdf_url = dl_url
+                                break
+                except Exception as e:
+                    pass
+                
+                # Fallback to the /pdf/ URL if we couldn't get the actual download_url
+                if not pdf_url:
+                    pdf_url = f"https://www.courtlistener.com/pdf/{cluster_id}/"
                 
                 db.upsert_document({
                     "pdf_url": pdf_url,
