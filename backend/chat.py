@@ -515,6 +515,63 @@ def get_previous_action_items(conversation_id: str) -> List[Dict]:
     except Exception:
         return []
 
+def get_previous_case_context(conversation_id: str) -> Optional[Dict]:
+    """Get the case mentioned in the most recent exchange, for pronoun resolution."""
+    if not conversation_id:
+        return None
+    
+    try:
+        messages = db.get_messages(conversation_id)
+        # Look for the most recent assistant message with sources
+        for msg in reversed(messages):
+            if msg.get('role') == 'assistant' and msg.get('citations'):
+                citations = msg.get('citations')
+                if isinstance(citations, str):
+                    citations = json.loads(citations)
+                
+                # Check for sources array
+                sources = citations.get('sources', [])
+                if sources and len(sources) > 0:
+                    # Get unique cases from sources
+                    unique_cases = {}
+                    for s in sources:
+                        oid = s.get('opinionId') or s.get('opinion_id')
+                        if oid and oid not in unique_cases:
+                            unique_cases[oid] = {
+                                'opinion_id': oid,
+                                'case_name': s.get('caseName') or s.get('case_name', ''),
+                                'appeal_no': s.get('appealNo') or s.get('appeal_no', '')
+                            }
+                    
+                    # If there's exactly one case discussed, return it
+                    if len(unique_cases) == 1:
+                        return list(unique_cases.values())[0]
+                    # If multiple cases, return None (ambiguous reference)
+                    return None
+                
+                # Check for action_items (disambiguation)
+                action_items = citations.get('action_items', [])
+                if action_items and len(action_items) == 1:
+                    item = action_items[0]
+                    return {
+                        'opinion_id': item.get('opinion_id'),
+                        'case_name': item.get('label', ''),
+                        'appeal_no': ''
+                    }
+        return None
+    except Exception:
+        return None
+
+def has_pronoun_reference(message: str) -> bool:
+    """Check if message contains pronouns that likely refer to a previous case."""
+    pronouns = [
+        r'\bits\b', r'\bthis case\b', r'\bthat case\b', r'\bthe case\b',
+        r'\bthe opinion\b', r'\bthis opinion\b', r'\bthat opinion\b',
+        r'\bthe holding\b', r'\bthe ruling\b', r'\bthe decision\b'
+    ]
+    msg_lower = message.lower()
+    return any(re.search(p, msg_lower) for p in pronouns)
+
 async def generate_chat_response(
     message: str,
     opinion_ids: Optional[List[str]] = None,
@@ -553,6 +610,14 @@ async def generate_chat_response(
     # If we resolved an option to a specific case, search within that case
     if resolved_opinion_id:
         opinion_ids = [str(resolved_opinion_id)]
+    
+    # Check for pronoun references to previously discussed case (e.g., "its holding", "this case")
+    if not resolved_opinion_id and conversation_id and has_pronoun_reference(message):
+        prev_case = get_previous_case_context(conversation_id)
+        if prev_case and prev_case.get('opinion_id'):
+            resolved_opinion_id = prev_case['opinion_id']
+            opinion_ids = [str(resolved_opinion_id)]
+            party_only = False  # Search full text within the resolved case
     
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     search_terms = message.split()
