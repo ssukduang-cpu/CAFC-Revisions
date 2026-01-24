@@ -170,6 +170,10 @@ Page: {page['page_number']}
 def normalize_for_verification(text: str) -> str:
     text = unicodedata.normalize('NFKC', text)
     text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = text.replace('\u00ad', '')
+    text = text.replace('\u2010', '').replace('\u2011', '').replace('\u2012', '')
+    text = text.replace('\u2013', '').replace('\u2014', '').replace('\u2015', '')
+    text = re.sub(r'-\s+', '', text)
     text = re.sub(r'\s+', ' ', text)
     text = text.strip().lower()
     return text
