@@ -133,14 +133,50 @@ class TestResponseSchema:
     
     def test_response_has_required_fields(self):
         """Verify response structure includes all required fields."""
-        # This is a structure test - actual API testing done elsewhere
         required_fields = ['answer_markdown', 'sources', 'debug']
         debug_fields = ['claims', 'support_audit', 'search_query', 'pages_count', 
                        'markers_count', 'sources_count', 'return_branch']
         
-        # Just verify the expected structure is documented
         assert len(required_fields) == 3
         assert 'return_branch' in debug_fields
+    
+    def test_standardize_response_promotes_fields(self):
+        """Test that standardize_response promotes debug fields to top level."""
+        from backend.chat import standardize_response
+        
+        response = {
+            "answer_markdown": "Test answer",
+            "sources": [],
+            "debug": {
+                "return_branch": "test_branch",
+                "markers_count": 5,
+                "sources_count": 3,
+                "other_field": "preserved"
+            }
+        }
+        
+        result = standardize_response(response)
+        
+        assert result["return_branch"] == "test_branch"
+        assert result["markers_count"] == 5
+        assert result["sources_count"] == 3
+        assert result["debug"]["other_field"] == "preserved"
+    
+    def test_standardize_response_defaults(self):
+        """Test that standardize_response uses defaults when fields missing."""
+        from backend.chat import standardize_response
+        
+        response = {
+            "answer_markdown": "Test answer",
+            "sources": [],
+            "debug": {}
+        }
+        
+        result = standardize_response(response)
+        
+        assert result["return_branch"] == "unknown"
+        assert result["markers_count"] == 0
+        assert result["sources_count"] == 0
 
 
 if __name__ == "__main__":

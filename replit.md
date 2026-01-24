@@ -168,6 +168,11 @@ The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct C
     - Response shows "Available indexed options:" for easy recovery
     - Resolved queries include "(Specifically: [case name])" to prevent LLM re-triggering ambiguity
     - State is only cleared after successful resolution to an indexed case
+- **API Response Schema Consistency (Jan 2026):**
+  - `standardize_response()` helper promotes debug fields to top-level for all `/api/chat` responses
+  - Top-level fields: `return_branch`, `markers_count`, `sources_count`
+  - All 11+ return paths in `generate_chat_response()` use consistent schema
+  - Regression tests in `tests/test_disambiguation.py` prevent schema drift
 
 ## External Dependencies
 
