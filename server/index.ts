@@ -35,7 +35,11 @@ function startPythonBackend() {
   
   pythonReady = false;
   console.log("Starting Python FastAPI backend on port 8000...");
-  pythonProcess = spawn("python", ["-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"], {
+  
+  // Try python3 first (more common in production), then fall back to python
+  const pythonCmd = process.platform === "win32" ? "python" : "python3";
+  
+  pythonProcess = spawn(pythonCmd, ["-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"], {
     cwd: process.cwd(),
     stdio: ["pipe", "pipe", "pipe"],
     env: { ...process.env },
