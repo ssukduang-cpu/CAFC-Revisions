@@ -532,24 +532,30 @@ def get_previous_case_context(conversation_id: str) -> Optional[Dict]:
                 # Check for sources array
                 sources = citations.get('sources', [])
                 if sources and len(sources) > 0:
-                    # Get unique cases from sources
-                    unique_cases = {}
+                    # Get unique cases from sources, counting occurrences
+                    case_counts = {}
+                    case_info = {}
                     for s in sources:
                         oid = s.get('opinionId') or s.get('opinion_id')
-                        if oid and oid not in unique_cases:
-                            unique_cases[oid] = {
-                                'opinion_id': oid,
-                                'case_name': s.get('caseName') or s.get('case_name', ''),
-                                'appeal_no': s.get('appealNo') or s.get('appeal_no', '')
-                            }
+                        if oid:
+                            case_counts[oid] = case_counts.get(oid, 0) + 1
+                            if oid not in case_info:
+                                case_info[oid] = {
+                                    'opinion_id': oid,
+                                    'case_name': s.get('caseName') or s.get('case_name', ''),
+                                    'appeal_no': s.get('appealNo') or s.get('appeal_no', '')
+                                }
                     
-                    # If there's exactly one case discussed, return it
-                    if len(unique_cases) == 1:
-                        return list(unique_cases.values())[0]
-                    # If multiple cases, return None (ambiguous reference)
+                    if len(case_counts) == 1:
+                        # Only one case - use it
+                        return list(case_info.values())[0]
+                    elif len(case_counts) > 1:
+                        # Multiple cases - use the one with most sources (most discussed)
+                        top_case_id = max(case_counts.keys(), key=lambda k: case_counts[k])
+                        return case_info[top_case_id]
                     return None
                 
-                # Check for action_items (disambiguation)
+                # Check for action_items (disambiguation) - use first if only one
                 action_items = citations.get('action_items', [])
                 if action_items and len(action_items) == 1:
                     item = action_items[0]
