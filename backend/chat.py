@@ -716,7 +716,6 @@ async def generate_chat_response(
                      'already', 'always', 'never', 'ever', 'often', 'sometimes', 'usually'}
         
         # Clean and tokenize the query
-        import re
         # Remove section symbols, punctuation, and normalize
         cleaned_query = re.sub(r'[§\?!.,;:\'"()\[\]{}]', ' ', message)
         tokens = cleaned_query.lower().split()
