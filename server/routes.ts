@@ -29,6 +29,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Admin endpoints need longer timeout for bulk operations
+  app.use("/api/admin", (req: Request, res: Response, next: NextFunction) => {
+    req.setTimeout(600000);  // 10 minutes
+    res.setTimeout(600000);
+    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api/admin` });
+  });
+
   app.use("/api", (req: Request, res: Response, next: NextFunction) => {
     req.setTimeout(120000);
     res.setTimeout(120000);
