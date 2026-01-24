@@ -21,6 +21,7 @@ export interface Source {
   quote: string;
   viewerUrl: string;
   pdfUrl: string;
+  courtlistenerUrl: string;
 }
 
 export interface Claim {

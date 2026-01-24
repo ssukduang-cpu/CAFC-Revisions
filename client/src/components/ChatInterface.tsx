@@ -456,15 +456,15 @@ export function ChatInterface() {
                                         >
                                           View in app
                                         </button>
-                                        {source.pdfUrl && (
+                                        {(source.courtlistenerUrl || source.pdfUrl) && (
                                           <a
-                                            href={source.pdfUrl}
+                                            href={source.courtlistenerUrl || source.pdfUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5"
                                             data-testid={`source-cafc-${source.sid}`}
                                           >
-                                            Open on CAFC <ExternalLink className="h-2.5 w-2.5" />
+                                            {source.courtlistenerUrl ? 'View on CourtListener' : 'Open on CAFC'} <ExternalLink className="h-2.5 w-2.5" />
                                           </a>
                                         )}
                                       </div>

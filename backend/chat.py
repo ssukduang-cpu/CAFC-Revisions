@@ -376,7 +376,8 @@ def build_sources_from_markers(markers: List[Dict], pages: List[Dict], search_te
             "page_number": page['page_number'],
             "quote": quote[:300],
             "viewer_url": f"/pdf/{page['opinion_id']}?page={page['page_number']}",
-            "pdf_url": page.get('pdf_url', '')
+            "pdf_url": page.get('pdf_url', ''),
+            "courtlistener_url": page.get('courtlistener_url', '')
         })
     
     return sources, position_to_sid
@@ -425,7 +426,8 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str]) -> Di
                 "page_number": page['page_number'],
                 "quote": exact_quote,
                 "viewer_url": f"/pdf/{page['opinion_id']}?page={page['page_number']}",
-                "pdf_url": page.get('pdf_url', '')
+                "pdf_url": page.get('pdf_url', ''),
+                "courtlistener_url": page.get('courtlistener_url', '')
             })
     
     if not sources:

@@ -415,6 +415,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     p.document_id as opinion_id, p.page_number, p.text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    d.courtlistener_url,
                     1.0 as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
@@ -430,6 +431,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     p.document_id as opinion_id, p.page_number, p.text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    d.courtlistener_url,
                     ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
@@ -445,6 +447,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     p.document_id as opinion_id, p.page_number, p.text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    d.courtlistener_url,
                     1.0 as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
@@ -460,6 +463,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     p.document_id as opinion_id, p.page_number, p.text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    d.courtlistener_url,
                     (
                         ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) +
                         CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END

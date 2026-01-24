@@ -165,7 +165,8 @@ export function parseSources(message: Message): Source[] {
         pageNumber: s.page_number || s.pageNumber || 0,
         quote: s.quote || '',
         viewerUrl: s.viewer_url || s.viewerUrl || '',
-        pdfUrl: s.pdf_url || s.pdfUrl || ''
+        pdfUrl: s.pdf_url || s.pdfUrl || '',
+        courtlistenerUrl: s.courtlistener_url || s.courtlistenerUrl || ''
       }));
     }
     return [];
