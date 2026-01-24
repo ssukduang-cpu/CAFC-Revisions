@@ -317,70 +317,108 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
         })
     return markers
 
-def build_sources_from_markers(markers: List[Dict], pages: List[Dict], search_terms: List[str] = None) -> Tuple[List[Dict], Dict[int, str]]:
-    """Build deduplicated sources list and position-to-sid mapping."""
-    if search_terms is None:
-        search_terms = []
-    
-    sources = []
-    position_to_sid = {}
-    seen_keys = {}
-    sid_counter = 1
-    
-    pages_by_opinion = {}
-    for page in pages:
-        key = (page['opinion_id'], page['page_number'])
-        pages_by_opinion[key] = page
-    
-    for marker in markers:
-        quote = marker['quote']
-        opinion_id = marker['opinion_id']
-        page_num = marker['page_number']
-        
-        if page_num < 1:
-            continue
-        
-        page = pages_by_opinion.get((opinion_id, page_num))
-        if not page:
-            for p in pages:
-                if p.get('page_number', 0) >= 1 and verify_quote_strict(quote, p['text']):
-                    page = p
-                    break
-        
-        if not page:
-            continue
-        
-        if not verify_quote_strict(quote, page['text']):
-            exact_quote = find_best_quote_in_page(search_terms, page['text'], max_len=150)
-            if exact_quote and verify_quote_strict(exact_quote, page['text']):
-                quote = exact_quote
-            else:
+def build_sources_from_markers(
+        markers: List[Dict],
+        pages: List[Dict],
+        search_terms: List[str] = None
+    ) -> Tuple[List[Dict], Dict[int, str]]:
+        """Build deduplicated sources list and position-to-sid mapping.
+
+        Behavior:
+        - Prefer using the cited page from `pages` (top search results).
+        - If the cited page is not present, fetch it directly from DB via db.get_page_text().
+        - Only accept citations if the quoted text can be strictly verified against the page text.
+          (If the model used ellipses "...", verify the longest literal fragment first.)
+        """
+        if search_terms is None:
+            search_terms = []
+
+        sources: List[Dict] = []
+        position_to_sid: Dict[int, str] = {}
+        seen_keys: Dict[Tuple[str, int, str], str] = {}
+        sid_counter = 1
+
+        # Index the pages we already have by (opinion_id, page_number)
+        pages_by_opinion: Dict[Tuple[str, int], Dict] = {}
+        for page in pages:
+            key = (page.get("opinion_id"), page.get("page_number"))
+            if key[0] and key[1]:
+                pages_by_opinion[key] = page
+
+        for marker in markers:
+            quote = (marker.get("quote") or "").strip()
+            opinion_id = (marker.get("opinion_id") or "").strip()
+            page_num = int(marker.get("page_number") or 0)
+
+            if not opinion_id or page_num < 1 or not quote:
                 continue
-        
-        dedup_key = (page['opinion_id'], page['page_number'], quote[:50])
-        if dedup_key in seen_keys:
-            position_to_sid[marker['position']] = seen_keys[dedup_key]
-            continue
-        
-        sid = str(sid_counter)
-        sid_counter += 1
-        seen_keys[dedup_key] = sid
-        position_to_sid[marker['position']] = sid
-        
-        sources.append({
-            "sid": sid,
-            "opinion_id": page['opinion_id'],
-            "case_name": page['case_name'],
-            "appeal_no": page['appeal_no'],
-            "release_date": page['release_date'],
-            "page_number": page['page_number'],
-            "quote": quote[:300],
-            "viewer_url": f"/pdf/{page['opinion_id']}?page={page['page_number']}",
-            "pdf_url": page.get('pdf_url', ''),
-            "courtlistener_url": page.get('courtlistener_url', '')
-        })
-    
-    return sources, position_to_sid
+
+            # 1) Try to find the cited page in the search results we already have
+            page = pages_by_opinion.get((opinion_id, page_num))
+
+            # 2) If not found, fetch that specific page from the DB (new helper)
+            if not page:
+                try:
+                    fetched = db.get_page_text(opinion_id, page_num)
+                    if fetched and fetched.get("text"):
+                        page = fetched
+                except Exception:
+                    page = None
+
+            # 3) Last resort: scan pages we already have and accept one where quote verifies
+            if not page:
+                for p in pages:
+                    if p.get("page_number", 0) >= 1 and verify_quote_strict(quote, p.get("text", "")):
+                        page = p
+                        break
+
+            if not page or not page.get("text"):
+                continue
+
+            page_text = page["text"]
+
+            # Verify the quote strictly; handle ellipses by checking the longest literal fragment
+            if not verify_quote_strict(quote, page_text):
+                quote_frag = quote
+                if "..." in quote:
+                    parts = [p.strip() for p in quote.split("...") if p.strip()]
+                    parts.sort(key=len, reverse=True)
+                    if parts:
+                        quote_frag = parts[0]
+
+                if verify_quote_strict(quote_frag, page_text):
+                    quote = quote_frag
+                else:
+                    exact_quote = find_best_quote_in_page(search_terms, page_text, max_len=150)
+                    if exact_quote and verify_quote_strict(exact_quote, page_text):
+                        quote = exact_quote
+                    else:
+                        continue
+
+            dedup_key = (page["opinion_id"], page["page_number"], quote[:50])
+            if dedup_key in seen_keys:
+                position_to_sid[marker.get("position", 0)] = seen_keys[dedup_key]
+                continue
+
+            sid = str(sid_counter)
+            sid_counter += 1
+            seen_keys[dedup_key] = sid
+            position_to_sid[marker.get("position", 0)] = sid
+
+            sources.append({
+                "sid": sid,
+                "opinion_id": page.get("opinion_id"),
+                "case_name": page.get("case_name", ""),
+                "appeal_no": page.get("appeal_no", ""),
+                "release_date": page.get("release_date", ""),
+                "page_number": page.get("page_number", 1),
+                "quote": quote[:300],
+                "viewer_url": f"/pdf/{page.get('opinion_id')}?page={page.get('page_number', 1)}",
+                "pdf_url": page.get("pdf_url", ""),
+                "courtlistener_url": page.get("courtlistener_url", "")
+            })
+
+        return sources, position_to_sid
 
 def build_answer_markdown(response_text: str, markers: List[Dict], position_to_sid: Dict[int, str]) -> str:
     """Convert LLM response to markdown with [1], [2] markers.
@@ -830,22 +868,17 @@ async def generate_chat_response(
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
         
         if not sources:
-            # If no citations found, pass through the raw answer if it looks substantive
-            # (more than just a few words), otherwise fall back to excerpts
-            if len(raw_answer) > 200 and any(keyword in raw_answer.lower() for keyword in ['holding', 'court', 'affirm', 'reverse', 'conclude']):
-                return {
-                    "answer_markdown": raw_answer,
-                    "sources": [],
-                    "debug": {
-                        "claims": [],
-                        "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},
-                        "raw_response": raw_answer,
-                        "response_type": "passthrough"
-                    }
+            # Strict grounding enforcement: never return uncited raw model text.
+            return {
+                "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo verifiable excerpts were found in the ingested opinions that support an answer to your query. Try refining your question or ingesting additional opinions.",
+                "sources": [],
+                "debug": {
+                    "claims": [],
+                    "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                    "raw_response": raw_answer,
+                    "response_type": "rejected_uncited_response"
                 }
-            fallback = generate_fallback_response(pages, search_terms)
-            fallback["debug"]["raw_response"] = raw_answer
-            return fallback
+            }
         
         answer_markdown = build_answer_markdown(raw_answer, markers, position_to_sid)
         

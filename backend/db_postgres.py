@@ -341,9 +341,34 @@ def get_pages_for_document(doc_id: str) -> List[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT * FROM document_pages WHERE document_id = %s ORDER BY page_number
+            SELECT * FROM document_pages
+            WHERE document_id = %s
+            ORDER BY page_number
         """, (doc_id,))
         return [dict(row) for row in cursor.fetchall()]
+
+
+def get_page_text(opinion_id: str, page_number: int) -> Optional[Dict]:
+    """Fetch a single page and its document metadata by opinion_id and page_number."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                p.document_id as opinion_id,
+                p.page_number,
+                p.text,
+                d.case_name,
+                d.appeal_number as appeal_no,
+                to_char(d.release_date, 'YYYY-MM-DD') as release_date,
+                d.pdf_url,
+                d.courtlistener_url
+            FROM document_pages p
+            JOIN documents d ON p.document_id = d.id
+            WHERE p.document_id = %s AND p.page_number = %s
+            LIMIT 1
+        """, (opinion_id, page_number))
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 def search_chunks(query: str, limit: int = 20, party_only: bool = False) -> List[Dict]:
     """Search chunks with case name boosting - party names rank higher than content matches.
