@@ -285,52 +285,56 @@ export default function Admin() {
           </CardContent>
         </Card>
 
-        {status?.total_documents === 0 && (
-          <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+        <Card className={status?.total_documents === 0 ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950" : ""}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {status?.total_documents === 0 ? (
                 <AlertCircle className="h-5 w-5 text-orange-600" />
-                No Documents Loaded
-              </CardTitle>
-              <CardDescription>
-                Load opinions from CourtListener to start ingesting. Choose how many opinions to import.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => handleLoadManifest(100)}
-                  disabled={isLoadingManifest}
-                  variant="outline"
-                  data-testid="load-100-button"
-                >
-                  Load 100 opinions
-                </Button>
-                <Button
-                  onClick={() => handleLoadManifest(500)}
-                  disabled={isLoadingManifest}
-                  variant="outline"
-                  data-testid="load-500-button"
-                >
-                  Load 500 opinions
-                </Button>
-                <Button
-                  onClick={() => handleLoadManifest(1000)}
-                  disabled={isLoadingManifest}
-                  data-testid="load-1000-button"
-                >
-                  Load 1,000 opinions
-                </Button>
-              </div>
-              {isLoadingManifest && (
-                <Badge variant="secondary" className="animate-pulse">
-                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                  Loading opinions from CourtListener...
-                </Badge>
+              ) : (
+                <Database className="h-5 w-5" />
               )}
-            </CardContent>
-          </Card>
-        )}
+              Load Opinions from CourtListener
+            </CardTitle>
+            <CardDescription>
+              {status?.total_documents === 0 
+                ? "No documents loaded yet. Choose how many opinions to import from CourtListener."
+                : "Add more CAFC opinions to your database. New opinions will be deduplicated automatically."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => handleLoadManifest(100)}
+                disabled={isLoadingManifest}
+                variant="outline"
+                data-testid="load-100-button"
+              >
+                Load 100 opinions
+              </Button>
+              <Button
+                onClick={() => handleLoadManifest(500)}
+                disabled={isLoadingManifest}
+                variant="outline"
+                data-testid="load-500-button"
+              >
+                Load 500 opinions
+              </Button>
+              <Button
+                onClick={() => handleLoadManifest(1000)}
+                disabled={isLoadingManifest}
+                data-testid="load-1000-button"
+              >
+                Load 1,000 opinions
+              </Button>
+            </div>
+            {isLoadingManifest && (
+              <Badge variant="secondary" className="animate-pulse">
+                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                Loading opinions from CourtListener...
+              </Badge>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
