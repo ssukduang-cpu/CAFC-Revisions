@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Quote, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, BookOpen, Users, FileText } from "lucide-react";
+import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
@@ -172,43 +172,83 @@ export function ChatInterface() {
   const renderMarkdownText = (text: string, sources: Source[]) => {
     const lines = text.split('\n');
     return lines.map((line, lineIdx) => {
-      // Handle ## headings (h2)
-      if (line.startsWith('## ')) {
-        const heading = line.slice(3);
+      const trimmedLine = line.trim();
+      
+      // Handle #### headings (h4)
+      if (trimmedLine.startsWith('#### ')) {
+        const heading = trimmedLine.slice(5);
         return (
-          <h2 key={lineIdx} className="font-serif text-lg font-semibold text-foreground mt-3 mb-1 first:mt-0">
+          <h4 key={lineIdx} className="text-sm font-semibold text-foreground mt-2 mb-1 first:mt-0">
+            {renderInlineMarkdown(heading, sources)}
+          </h4>
+        );
+      }
+      // Handle ### headings (h3)
+      if (trimmedLine.startsWith('### ')) {
+        const heading = trimmedLine.slice(4);
+        return (
+          <h3 key={lineIdx} className="text-base font-semibold text-foreground mt-3 mb-1 first:mt-0">
+            {renderInlineMarkdown(heading, sources)}
+          </h3>
+        );
+      }
+      // Handle ## headings (h2)
+      if (trimmedLine.startsWith('## ')) {
+        const heading = trimmedLine.slice(3);
+        return (
+          <h2 key={lineIdx} className="text-lg font-bold text-foreground mt-4 mb-2 first:mt-0 border-b border-border/30 pb-1">
             {renderInlineMarkdown(heading, sources)}
           </h2>
         );
       }
-      // Handle ### headings (h3)
-      if (line.startsWith('### ')) {
-        const heading = line.slice(4);
+      // Handle # headings (h1) - rarely used but handle it
+      if (trimmedLine.startsWith('# ') && !trimmedLine.startsWith('## ')) {
+        const heading = trimmedLine.slice(2);
         return (
-          <h3 key={lineIdx} className="font-serif text-base font-medium text-foreground mt-2 mb-1 first:mt-0">
+          <h1 key={lineIdx} className="text-xl font-bold text-foreground mt-4 mb-2 first:mt-0">
             {renderInlineMarkdown(heading, sources)}
-          </h3>
+          </h1>
         );
       }
-      // Handle **bold heading** lines
-      if (line.startsWith('**') && line.endsWith('**') && !line.slice(2, -2).includes('**')) {
-        const heading = line.slice(2, -2);
+      // Handle **bold heading** lines (standalone bold lines as section headers)
+      if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**') && !trimmedLine.slice(2, -2).includes('**')) {
+        const heading = trimmedLine.slice(2, -2);
         return (
-          <h3 key={lineIdx} className="font-serif font-medium text-foreground mt-2 mb-1 first:mt-0">
+          <h3 key={lineIdx} className="text-sm font-semibold text-foreground mt-3 mb-1 first:mt-0">
             {heading}
           </h3>
         );
       }
+      // Handle numbered list items (1., 2., etc)
+      const numberedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
+      if (numberedMatch) {
+        return (
+          <div key={lineIdx} className="flex gap-2 mb-1.5 pl-1">
+            <span className="text-muted-foreground font-medium text-sm w-5 shrink-0">{numberedMatch[1]}.</span>
+            <span className="flex-1">{renderMarkdownWithSources(numberedMatch[2], sources)}</span>
+          </div>
+        );
+      }
+      // Handle bullet points (- item or * item)
+      const bulletMatch = trimmedLine.match(/^[-*]\s+(.+)$/);
+      if (bulletMatch) {
+        return (
+          <div key={lineIdx} className="flex gap-2 mb-1.5 pl-1">
+            <span className="text-muted-foreground">•</span>
+            <span className="flex-1">{renderMarkdownWithSources(bulletMatch[1], sources)}</span>
+          </div>
+        );
+      }
       // Handle horizontal rules
-      if (line.trim() === '---' || line.trim() === '***') {
-        return <hr key={lineIdx} className="my-2 border-border/50" />;
+      if (trimmedLine === '---' || trimmedLine === '***') {
+        return <hr key={lineIdx} className="my-3 border-border/50" />;
       }
       // Skip empty lines to reduce spacing
-      if (line.trim() === '') {
+      if (trimmedLine === '') {
         return null;
       }
       return (
-        <p key={lineIdx} className="mb-1 last:mb-0">
+        <p key={lineIdx} className="mb-2 last:mb-0 leading-relaxed">
           {renderMarkdownWithSources(line, sources)}
         </p>
       );
@@ -437,7 +477,6 @@ export function ChatInterface() {
                                     </div>
                                     <div className="min-w-0 space-y-1 flex-1">
                                       <div className="flex items-center gap-1">
-                                        <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
                                         <span className="text-xs font-medium text-foreground truncate">
                                           {source.caseName}
                                         </span>

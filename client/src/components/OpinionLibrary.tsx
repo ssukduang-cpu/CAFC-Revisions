@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { 
   Dialog, 
   DialogContent, 
@@ -19,7 +19,7 @@ import {
   Loader2
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { useOpinions, useSyncOpinions, useIngestOpinion } from "@/hooks/useOpinions";
+import { useOpinions, useSyncOpinions, useIngestOpinion, useStatus } from "@/hooks/useOpinions";
 import { useState } from "react";
 
 export function OpinionLibrary() {
@@ -28,6 +28,7 @@ export function OpinionLibrary() {
   const [ingestingId, setIngestingId] = useState<string | null>(null);
   
   const { data, isLoading } = useOpinions();
+  const { data: status } = useStatus();
   const syncOpinions = useSyncOpinions();
   const ingestOpinion = useIngestOpinion();
 
@@ -80,7 +81,7 @@ export function OpinionLibrary() {
               </div>
             </div>
             <Badge variant="secondary" className="font-mono text-xs font-semibold px-3 py-1.5">
-              {data?.ingested || 0} / {data?.total || 0}
+              {status?.opinions.ingested ?? 0} / {status?.opinions.total ?? 0} indexed
             </Badge>
           </div>
         </DialogHeader>
@@ -147,40 +148,34 @@ export function OpinionLibrary() {
                 filteredOpinions.map((opinion) => (
                   <div 
                     key={opinion.id}
-                    className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between gap-4"
+                    className="p-3 hover:bg-muted/30 transition-colors grid grid-cols-[auto_1fr_auto] gap-3 items-center"
                     data-testid={`opinion-row-${opinion.id}`}
                   >
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="shrink-0">
                       {opinion.isIngested ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
                       ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground/30 mt-0.5 shrink-0" />
+                        <Circle className="h-4 w-4 text-muted-foreground/30" />
                       )}
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm truncate">{opinion.caseName}</div>
-                        <div className="text-xs text-muted-foreground space-x-2">
-                          <span className="font-mono">{opinion.appealNo}</span>
-                          <span>•</span>
-                          <span>{opinion.releaseDate}</span>
-                          <span>•</span>
-                          <span>{opinion.origin}</span>
-                        </div>
+                    </div>
+                    <div className="min-w-0 overflow-hidden">
+                      <div className="font-medium text-sm truncate" title={opinion.caseName}>
+                        {opinion.caseName}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        <span className="font-mono">{opinion.appealNo}</span>
+                        <span className="mx-1">•</span>
+                        <span>{opinion.releaseDate}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Badge 
-                        variant={opinion.status === "Precedential" ? "default" : "secondary"}
-                        className="text-[10px]"
-                      >
-                        {opinion.status}
-                      </Badge>
-                      {!opinion.isIngested && (
+                      {!opinion.isIngested ? (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleIngest(opinion.id)}
                           disabled={ingestingId === opinion.id}
-                          className="gap-1"
+                          className="gap-1 h-7 text-xs"
                           data-testid={`button-ingest-${opinion.id}`}
                           title="Download PDF and extract text for AI search"
                         >
@@ -191,6 +186,8 @@ export function OpinionLibrary() {
                           )}
                           Ingest
                         </Button>
+                      ) : (
+                        <span className="text-[10px] text-green-600 font-medium px-2">Indexed</span>
                       )}
                       <a 
                         href={
@@ -200,11 +197,11 @@ export function OpinionLibrary() {
                         } 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="p-2 hover:bg-muted rounded-md transition-colors"
+                        className="p-1.5 hover:bg-muted rounded transition-colors"
                         data-testid={`link-pdf-${opinion.id}`}
                         title={opinion.pdfUrl?.includes('cafc.uscourts.gov') ? "Open PDF on CAFC" : "View on CourtListener"}
                       >
-                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                        <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                       </a>
                     </div>
                   </div>
