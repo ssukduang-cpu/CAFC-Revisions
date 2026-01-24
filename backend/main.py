@@ -407,7 +407,7 @@ async def build_and_load_manifest(count: int = 100):
     base_url = "https://www.courtlistener.com/api/rest/v4/search/"
     
     async with httpx.AsyncClient(timeout=60.0) as client:
-        while fetched < count:
+        while imported < count:
             if next_url:
                 response = await client.get(next_url, headers=headers)
             else:
@@ -429,7 +429,7 @@ async def build_and_load_manifest(count: int = 100):
                 break
             
             for result in results:
-                if fetched >= count:
+                if imported >= count:
                     break
                 
                 cluster_id = result.get('cluster_id')
@@ -437,10 +437,11 @@ async def build_and_load_manifest(count: int = 100):
                 appeal_number = result.get('docketNumber', '')
                 date_filed = result.get('dateFiled')
                 
+                fetched += 1
+                
                 # Check if already exists using cluster_id
                 if db.document_exists_by_dedupe_key(cluster_id, appeal_number, None):
                     skipped += 1
-                    fetched += 1
                     continue
                 
                 # Fetch actual PDF URL from opinions endpoint
