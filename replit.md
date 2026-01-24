@@ -162,6 +162,12 @@ The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct C
   - Backend resolves natural language references using word-boundary regex (avoids false positives like "firstly")
   - Action items include opinion_id for direct case lookup without re-searching
   - Helper functions: `detect_option_reference()`, `get_previous_action_items()` in backend/chat.py
+  - **Robust Resolution Flow (Latest):**
+    - Pending disambiguation stored in `conversations.pending_disambiguation` JSONB column
+    - When non-indexed case selected, pending state is preserved so user can select another option
+    - Response shows "Available indexed options:" for easy recovery
+    - Resolved queries include "(Specifically: [case name])" to prevent LLM re-triggering ambiguity
+    - State is only cleared after successful resolution to an indexed case
 
 ## External Dependencies
 

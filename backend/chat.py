@@ -2,6 +2,7 @@ import os
 import re
 import json
 import asyncio
+import logging
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Optional, Tuple
@@ -663,8 +664,11 @@ async def generate_chat_response(
     # This takes precedence over any other logic to prevent re-searching
     if conversation_id:
         pending_state = db.get_pending_disambiguation(conversation_id)
+        logging.info(f"[DISAMBIGUATION] conversation_id={conversation_id}, pending_state={pending_state is not None}, message='{message}'")
         if pending_state:
+            logging.info(f"[DISAMBIGUATION] pending_state contains {len(pending_state.get('candidates', []))} candidates")
             option_num = detect_option_reference(message)
+            logging.info(f"[DISAMBIGUATION] detect_option_reference returned: {option_num}")
             candidates = pending_state.get('candidates', [])
             original_query = pending_state.get('original_query', '')
             
@@ -675,12 +679,46 @@ async def generate_chat_response(
                     resolved_opinion_id = selected.get('opinion_id')
                     case_name = selected.get('label', '')
                     
-                    # Clear disambiguation state
+                    # If selected case has no opinion_id, it's not in our database
+                    if not resolved_opinion_id:
+                        # Try to find it by case name
+                        case_lookup = db.search_pages(case_name, None, limit=1, party_only=True)
+                        if case_lookup:
+                            resolved_opinion_id = case_lookup[0].get('opinion_id')
+                            logging.info(f"Disambiguation: Found opinion_id {resolved_opinion_id} for case '{case_name}'")
+                        else:
+                            # Case not in database - keep pending state so user can select another option
+                            logging.info(f"Disambiguation: Case '{case_name}' not found in database, keeping pending state")
+                            # List the other available options
+                            other_options = [f"{c.get('id')}. {c.get('label')}" for c in candidates if c.get('id') != selected.get('id')]
+                            other_options_text = "\n".join(other_options) if other_options else "No other options available."
+                            return {
+                                "answer_markdown": f"**{case_name}** is not currently in our indexed database.\n\nThis case may be referenced in other opinions but hasn't been ingested yet.\n\n**Available indexed options:**\n{other_options_text}\n\nYou can reply with the number of another option, or ask a new question.",
+                                "sources": [],
+                                "debug": {
+                                    "claims": [],
+                                    "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},
+                                    "search_query": case_name,
+                                    "search_terms": [],
+                                    "pages_count": 0,
+                                    "pages_sample": [],
+                                    "markers_count": 0,
+                                    "markers": [],
+                                    "sources_count": 0,
+                                    "sources": [],
+                                    "raw_response": "",
+                                    "return_branch": "disambiguation_case_not_found"
+                                }
+                            }
+                    
+                    # Success - we found the case, now clear disambiguation state
                     db.clear_pending_disambiguation(conversation_id)
                     
-                    # Use original query context for the resolved case
+                    # Use original query context for the resolved case, but make it specific
                     if original_query:
-                        message = original_query
+                        # Replace generic terms with specific case name to prevent re-ambiguity
+                        # e.g., "What is the holding of Google?" -> "What is the holding of Google LLC v. Ecofactor, Inc.?"
+                        message = f"{original_query} (Specifically: {case_name})"
                     party_only = False
                     
                     # Log for debugging
@@ -1116,7 +1154,6 @@ async def generate_chat_response(
         fallback["debug"]["return_branch"] = "timeout_fallback"
         return fallback
     except Exception as e:
-        import logging
         logging.error(f"Chat error: {str(e)}, query: {message}")
         return {
             "answer_markdown": f"Error generating response: {str(e)}\n\nPlease try again.",
