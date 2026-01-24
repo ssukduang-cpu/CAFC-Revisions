@@ -93,12 +93,16 @@ async def sync_opinions():
 async def list_opinions(
     q: Optional[str] = None,
     origin: Optional[str] = None,
-    ingested: Optional[bool] = None
+    ingested: Optional[bool] = None,
+    limit: int = 50,
+    offset: int = 0
 ):
-    documents = db.get_documents(q=q, origin=origin, ingested=ingested)
+    documents = db.get_documents(q=q, origin=origin, ingested=ingested, limit=limit, offset=offset)
     documents = serialize_for_json(documents)
-    total = len(documents)
-    ingested_count = sum(1 for d in documents if d.get("ingested"))
+    
+    stats = db.get_ingestion_stats()
+    total = stats.get('total_documents', 0)
+    ingested_count = stats.get('ingested', 0)
     
     camel_docs = []
     for doc in documents:
@@ -110,7 +114,10 @@ async def list_opinions(
     return {
         "opinions": camel_docs,
         "total": total,
-        "ingested": ingested_count
+        "ingested": ingested_count,
+        "limit": limit,
+        "offset": offset,
+        "hasMore": offset + len(camel_docs) < total
     }
 
 @app.get("/api/opinions/{opinion_id}")

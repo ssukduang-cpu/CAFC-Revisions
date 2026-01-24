@@ -16,27 +16,78 @@ import {
   CheckCircle2, 
   Circle,
   ExternalLink,
-  Loader2
+  Loader2,
+  ChevronDown
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { useOpinions, useSyncOpinions, useIngestOpinion, useStatus } from "@/hooks/useOpinions";
-import { useState } from "react";
+import { useSyncOpinions, useIngestOpinion, useStatus } from "@/hooks/useOpinions";
+import { useState, useCallback, useEffect } from "react";
+import { fetchOpinions } from "@/lib/api";
+import type { Opinion } from "@shared/schema";
+
+const PAGE_SIZE = 50;
 
 export function OpinionLibrary() {
   const { showOpinionLibrary, setShowOpinionLibrary } = useApp();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [ingestingId, setIngestingId] = useState<string | null>(null);
+  const [opinions, setOpinions] = useState<Opinion[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [total, setTotal] = useState(0);
   
-  const { data, isLoading } = useOpinions();
   const { data: status } = useStatus();
   const syncOpinions = useSyncOpinions();
   const ingestOpinion = useIngestOpinion();
 
-  const opinions = data?.opinions || [];
-  const filteredOpinions = opinions.filter(op => 
-    op.caseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    op.appealNo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const loadOpinions = useCallback(async (reset = false) => {
+    const newOffset = reset ? 0 : offset;
+    if (reset) {
+      setIsLoading(true);
+    } else {
+      setIsLoadingMore(true);
+    }
+    
+    try {
+      const data = await fetchOpinions({
+        limit: PAGE_SIZE,
+        offset: newOffset,
+        q: debouncedSearch || undefined
+      });
+      
+      if (reset) {
+        setOpinions(data.opinions);
+      } else {
+        setOpinions(prev => [...prev, ...data.opinions]);
+      }
+      setHasMore(data.hasMore);
+      setTotal(data.total);
+      setOffset(newOffset + data.opinions.length);
+    } catch (error) {
+      console.error("Failed to load opinions:", error);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [offset, debouncedSearch]);
+
+  useEffect(() => {
+    if (showOpinionLibrary) {
+      loadOpinions(true);
+    }
+  }, [showOpinionLibrary, debouncedSearch]);
+
+  const handleLoadMore = () => {
+    loadOpinions(false);
+  };
 
   const handleSync = async () => {
     try {
@@ -131,7 +182,7 @@ export function OpinionLibrary() {
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : filteredOpinions.length === 0 ? (
+              ) : opinions.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   {searchTerm ? (
                     <p>No opinions match your search</p>
@@ -145,7 +196,8 @@ export function OpinionLibrary() {
                   )}
                 </div>
               ) : (
-                filteredOpinions.map((opinion) => (
+                <>
+                {opinions.map((opinion) => (
                   <div 
                     key={opinion.id}
                     className="p-3 hover:bg-muted/30 transition-colors grid grid-cols-[auto_1fr_auto] gap-3 items-center"
@@ -225,7 +277,26 @@ export function OpinionLibrary() {
                       </a>
                     </div>
                   </div>
-                ))
+                ))}
+                {hasMore && (
+                  <div className="p-4 text-center">
+                    <Button
+                      variant="outline"
+                      onClick={handleLoadMore}
+                      disabled={isLoadingMore}
+                      className="gap-2"
+                      data-testid="button-load-more"
+                    >
+                      {isLoadingMore ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                      Load More ({opinions.length} of {total})
+                    </Button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </ScrollArea>

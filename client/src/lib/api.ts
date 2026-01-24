@@ -93,12 +93,16 @@ export async function fetchStatus(): Promise<{ status: string; opinions: Opinion
 export async function fetchOpinions(options?: {
   status?: string;
   limit?: number;
+  offset?: number;
   ingested?: boolean;
-}): Promise<{ opinions: Opinion[]; total: number; ingested: number }> {
+  q?: string;
+}): Promise<{ opinions: Opinion[]; total: number; ingested: number; hasMore: boolean; offset: number; limit: number }> {
   const params = new URLSearchParams();
   if (options?.status) params.set("status", options.status);
   if (options?.limit) params.set("limit", options.limit.toString());
+  if (options?.offset) params.set("offset", options.offset.toString());
   if (options?.ingested !== undefined) params.set("ingested", options.ingested.toString());
+  if (options?.q) params.set("q", options.q);
   
   const url = `/api/opinions${params.toString() ? `?${params}` : ""}`;
   const res = await apiRequest("GET", url);
