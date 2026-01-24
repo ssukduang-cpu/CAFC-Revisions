@@ -318,107 +318,107 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
     return markers
 
 def build_sources_from_markers(
-        markers: List[Dict],
-        pages: List[Dict],
-        search_terms: List[str] = None
-    ) -> Tuple[List[Dict], Dict[int, str]]:
-        """Build deduplicated sources list and position-to-sid mapping.
+    markers: List[Dict],
+    pages: List[Dict],
+    search_terms: List[str] = None
+) -> Tuple[List[Dict], Dict[int, str]]:
+    """Build deduplicated sources list and position-to-sid mapping.
 
-        Behavior:
-        - Prefer using the cited page from `pages` (top search results).
-        - If the cited page is not present, fetch it directly from DB via db.get_page_text().
-        - Only accept citations if the quoted text can be strictly verified against the page text.
-          (If the model used ellipses "...", verify the longest literal fragment first.)
-        """
-        if search_terms is None:
-            search_terms = []
+    Behavior:
+    - Prefer using the cited page from `pages` (top search results).
+    - If the cited page is not present, fetch it directly from DB via db.get_page_text().
+    - Only accept citations if the quoted text can be strictly verified against the page text.
+      (If the model used ellipses "...", verify the longest literal fragment first.)
+    """
+    if search_terms is None:
+        search_terms = []
 
-        sources: List[Dict] = []
-        position_to_sid: Dict[int, str] = {}
-        seen_keys: Dict[Tuple[str, int, str], str] = {}
-        sid_counter = 1
+    sources: List[Dict] = []
+    position_to_sid: Dict[int, str] = {}
+    seen_keys: Dict[Tuple[str, int, str], str] = {}
+    sid_counter = 1
 
-        # Index the pages we already have by (opinion_id, page_number)
-        pages_by_opinion: Dict[Tuple[str, int], Dict] = {}
-        for page in pages:
-            key = (page.get("opinion_id"), page.get("page_number"))
-            if key[0] and key[1]:
-                pages_by_opinion[key] = page
+    # Index the pages we already have by (opinion_id, page_number)
+    pages_by_opinion: Dict[Tuple[str, int], Dict] = {}
+    for page in pages:
+        key = (page.get("opinion_id"), page.get("page_number"))
+        if key[0] and key[1]:
+            pages_by_opinion[key] = page
 
-        for marker in markers:
-            quote = (marker.get("quote") or "").strip()
-            opinion_id = (marker.get("opinion_id") or "").strip()
-            page_num = int(marker.get("page_number") or 0)
+    for marker in markers:
+        quote = (marker.get("quote") or "").strip()
+        opinion_id = (marker.get("opinion_id") or "").strip()
+        page_num = int(marker.get("page_number") or 0)
 
-            if not opinion_id or page_num < 1 or not quote:
-                continue
+        if not opinion_id or page_num < 1 or not quote:
+            continue
 
-            # 1) Try to find the cited page in the search results we already have
-            page = pages_by_opinion.get((opinion_id, page_num))
+        # 1) Try to find the cited page in the search results we already have
+        page = pages_by_opinion.get((opinion_id, page_num))
 
-            # 2) If not found, fetch that specific page from the DB (new helper)
-            if not page:
-                try:
-                    fetched = db.get_page_text(opinion_id, page_num)
-                    if fetched and fetched.get("text"):
-                        page = fetched
-                except Exception:
-                    page = None
+        # 2) If not found, fetch that specific page from the DB (new helper)
+        if not page:
+            try:
+                fetched = db.get_page_text(opinion_id, page_num)
+                if fetched and fetched.get("text"):
+                    page = fetched
+            except Exception:
+                page = None
 
-            # 3) Last resort: scan pages we already have and accept one where quote verifies
-            if not page:
-                for p in pages:
-                    if p.get("page_number", 0) >= 1 and verify_quote_strict(quote, p.get("text", "")):
-                        page = p
-                        break
+        # 3) Last resort: scan pages we already have and accept one where quote verifies
+        if not page:
+            for p in pages:
+                if p.get("page_number", 0) >= 1 and verify_quote_strict(quote, p.get("text", "")):
+                    page = p
+                    break
 
-            if not page or not page.get("text"):
-                continue
+        if not page or not page.get("text"):
+            continue
 
-            page_text = page["text"]
+        page_text = page["text"]
 
-            # Verify the quote strictly; handle ellipses by checking the longest literal fragment
-            if not verify_quote_strict(quote, page_text):
-                quote_frag = quote
-                if "..." in quote:
-                    parts = [p.strip() for p in quote.split("...") if p.strip()]
-                    parts.sort(key=len, reverse=True)
-                    if parts:
-                        quote_frag = parts[0]
+        # Verify the quote strictly; handle ellipses by checking the longest literal fragment
+        if not verify_quote_strict(quote, page_text):
+            quote_frag = quote
+            if "..." in quote:
+                parts = [p.strip() for p in quote.split("...") if p.strip()]
+                parts.sort(key=len, reverse=True)
+                if parts:
+                    quote_frag = parts[0]
 
-                if verify_quote_strict(quote_frag, page_text):
-                    quote = quote_frag
+            if verify_quote_strict(quote_frag, page_text):
+                quote = quote_frag
+            else:
+                exact_quote = find_best_quote_in_page(search_terms, page_text, max_len=150)
+                if exact_quote and verify_quote_strict(exact_quote, page_text):
+                    quote = exact_quote
                 else:
-                    exact_quote = find_best_quote_in_page(search_terms, page_text, max_len=150)
-                    if exact_quote and verify_quote_strict(exact_quote, page_text):
-                        quote = exact_quote
-                    else:
-                        continue
+                    continue
 
-            dedup_key = (page["opinion_id"], page["page_number"], quote[:50])
-            if dedup_key in seen_keys:
-                position_to_sid[marker.get("position", 0)] = seen_keys[dedup_key]
-                continue
+        dedup_key = (page["opinion_id"], page["page_number"], quote[:50])
+        if dedup_key in seen_keys:
+            position_to_sid[marker.get("position", 0)] = seen_keys[dedup_key]
+            continue
 
-            sid = str(sid_counter)
-            sid_counter += 1
-            seen_keys[dedup_key] = sid
-            position_to_sid[marker.get("position", 0)] = sid
+        sid = str(sid_counter)
+        sid_counter += 1
+        seen_keys[dedup_key] = sid
+        position_to_sid[marker.get("position", 0)] = sid
 
-            sources.append({
-                "sid": sid,
-                "opinion_id": page.get("opinion_id"),
-                "case_name": page.get("case_name", ""),
-                "appeal_no": page.get("appeal_no", ""),
-                "release_date": page.get("release_date", ""),
-                "page_number": page.get("page_number", 1),
-                "quote": quote[:300],
-                "viewer_url": f"/pdf/{page.get('opinion_id')}?page={page.get('page_number', 1)}",
-                "pdf_url": page.get("pdf_url", ""),
-                "courtlistener_url": page.get("courtlistener_url", "")
-            })
+        sources.append({
+            "sid": sid,
+            "opinion_id": page.get("opinion_id"),
+            "case_name": page.get("case_name", ""),
+            "appeal_no": page.get("appeal_no", ""),
+            "release_date": page.get("release_date", ""),
+            "page_number": page.get("page_number", 1),
+            "quote": quote[:300],
+            "viewer_url": f"/pdf/{page.get('opinion_id')}?page={page.get('page_number', 1)}",
+            "pdf_url": page.get("pdf_url", ""),
+            "courtlistener_url": page.get("courtlistener_url", "")
+        })
 
-        return sources, position_to_sid
+    return sources, position_to_sid
 
 def build_answer_markdown(response_text: str, markers: List[Dict], position_to_sid: Dict[int, str]) -> str:
     """Convert LLM response to markdown with [1], [2] markers.
