@@ -12,6 +12,21 @@ from backend import db_postgres as db
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
+
+def standardize_response(response: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Standardize chat response by promoting debug fields to top-level.
+    Ensures consistent schema: return_branch, markers_count, sources_count at top level.
+    """
+    debug = response.get("debug", {})
+    
+    # Promote key observability fields to top-level
+    response["return_branch"] = debug.get("return_branch", "unknown")
+    response["markers_count"] = debug.get("markers_count", 0)
+    response["sources_count"] = debug.get("sources_count", 0)
+    
+    return response
+
 AI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
 AI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
 
@@ -478,7 +493,7 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str], searc
     pages_sample = [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]]
     
     if not sources:
-        return {
+        return standardize_response({
             "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.",
             "sources": [],
             "debug": {
@@ -495,12 +510,12 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str], searc
                 "raw_response": None,
                 "return_branch": "fallback_no_sources"
             }
-        }
+        })
     
     markers = " ".join([f"[{s['sid']}]" for s in sources])
     answer = f"**Relevant Excerpts Found**\n\nThe following excerpts from ingested opinions may be relevant to your query. {markers}"
     
-    return {
+    return standardize_response({
         "answer_markdown": answer,
         "sources": sources,
         "debug": {
@@ -517,7 +532,7 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str], searc
             "raw_response": None,
             "return_branch": "fallback_with_sources"
         }
-    }
+    })
 
 def detect_option_reference(message: str) -> Optional[int]:
     """Detect if message is a reference to a previous numbered option.
@@ -692,7 +707,7 @@ async def generate_chat_response(
                             # List the other available options
                             other_options = [f"{c.get('id')}. {c.get('label')}" for c in candidates if c.get('id') != selected.get('id')]
                             other_options_text = "\n".join(other_options) if other_options else "No other options available."
-                            return {
+                            return standardize_response({
                                 "answer_markdown": f"**{case_name}** is not currently in our indexed database.\n\nThis case may be referenced in other opinions but hasn't been ingested yet.\n\n**Available indexed options:**\n{other_options_text}\n\nYou can reply with the number of another option, or ask a new question.",
                                 "sources": [],
                                 "debug": {
@@ -709,7 +724,7 @@ async def generate_chat_response(
                                     "raw_response": "",
                                     "return_branch": "disambiguation_case_not_found"
                                 }
-                            }
+                            })
                     
                     # Success - we found the case, now clear disambiguation state
                     db.clear_pending_disambiguation(conversation_id)
@@ -726,7 +741,7 @@ async def generate_chat_response(
                 else:
                     # Out of range selection
                     db.clear_pending_disambiguation(conversation_id)
-                    return {
+                    return standardize_response({
                         "answer_markdown": f"I only have {len(candidates)} option(s). Please reply with a number from 1 to {len(candidates)}, or restate your question.",
                         "sources": [],
                         "debug": {
@@ -743,7 +758,7 @@ async def generate_chat_response(
                             "raw_response": "",
                             "return_branch": "disambiguation_out_of_range"
                         }
-                    }
+                    })
             else:
                 # User sent a new query, not a selection - clear old disambiguation
                 db.clear_pending_disambiguation(conversation_id)
@@ -868,7 +883,7 @@ async def generate_chat_response(
         ])
         answer = f"Found {len(sources)} case(s) where \"{message}\" appears as a party:\n\n{case_list}\n\nAsk a specific question about these cases (e.g., \"What was the holding in the Google case?\") to get detailed analysis."
         
-        return {
+        return standardize_response({
             "answer_markdown": answer,
             "sources": sources,
             "debug": {
@@ -885,7 +900,7 @@ async def generate_chat_response(
                 "raw_response": None,
                 "return_branch": "party_only_listing"
             }
-        }
+        })
     
     # For party-only mode with a question, find cases by party name then search their content
     if party_only and is_question:
@@ -951,7 +966,7 @@ async def generate_chat_response(
                 pages = all_pages[:15]
     
     if not pages:
-        return {
+        return standardize_response({
             "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo relevant excerpts were found. Try different search terms or ingest additional opinions.",
             "sources": [],
             "debug": {
@@ -968,7 +983,7 @@ async def generate_chat_response(
                 "raw_response": None,
                 "return_branch": "not_found_no_pages"
             }
-        }
+        })
     
     client = get_openai_client()
     
@@ -999,7 +1014,7 @@ async def generate_chat_response(
         raw_answer = response.choices[0].message.content or "No response generated."
         
         if "NOT FOUND IN PROVIDED OPINIONS" in raw_answer.upper():
-            return {
+            return standardize_response({
                 "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nThe ingested opinions do not contain information relevant to your query. Try ingesting additional opinions or refining your search.",
                 "sources": [],
                 "debug": {
@@ -1016,7 +1031,7 @@ async def generate_chat_response(
                     "raw_response": raw_answer,
                     "return_branch": "llm_returned_not_found"
                 }
-            }
+            })
         
         # Handle AMBIGUOUS QUERY response - pass through the clarification message
         if "AMBIGUOUS QUERY" in raw_answer.upper() or "MULTIPLE MATCHES FOUND" in raw_answer.upper():
@@ -1059,7 +1074,7 @@ async def generate_chat_response(
                 )
                 logging.info(f"Stored disambiguation: {len(action_items)} candidates for query '{original_message}'")
             
-            return {
+            return standardize_response({
                 "answer_markdown": raw_answer,
                 "sources": [],
                 "action_items": action_items,
@@ -1081,14 +1096,14 @@ async def generate_chat_response(
                     "raw_response": raw_answer,
                     "return_branch": "disambiguation"
                 }
-            }
+            })
         
         markers = extract_cite_markers(raw_answer)
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
         
         if not sources:
             # Strict grounding enforcement: never return uncited raw model text.
-            return {
+            return standardize_response({
                 "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo verifiable excerpts were found in the ingested opinions that support an answer to your query. Try refining your question or ingesting additional opinions.",
                 "sources": [],
                 "debug": {
@@ -1105,7 +1120,7 @@ async def generate_chat_response(
                     "raw_response": raw_answer,
                     "return_branch": "rejected_uncited_response"
                 }
-            }
+            })
         
         answer_markdown = build_answer_markdown(raw_answer, markers, position_to_sid)
         
@@ -1125,7 +1140,7 @@ async def generate_chat_response(
                 }]
             })
         
-        return {
+        return standardize_response({
             "answer_markdown": answer_markdown,
             "sources": sources,
             "debug": {
@@ -1146,16 +1161,16 @@ async def generate_chat_response(
                 "raw_response": raw_answer,
                 "return_branch": "ok"
             }
-        }
+        })
         
     except asyncio.TimeoutError:
         fallback = generate_fallback_response(pages, search_terms, message)
         fallback["debug"]["error"] = "timeout"
         fallback["debug"]["return_branch"] = "timeout_fallback"
-        return fallback
+        return standardize_response(fallback)
     except Exception as e:
         logging.error(f"Chat error: {str(e)}, query: {message}")
-        return {
+        return standardize_response({
             "answer_markdown": f"Error generating response: {str(e)}\n\nPlease try again.",
             "sources": [],
             "debug": {
@@ -1173,4 +1188,4 @@ async def generate_chat_response(
                 "error": str(e),
                 "return_branch": "exception"
             }
-        }
+        })

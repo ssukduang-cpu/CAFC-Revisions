@@ -634,7 +634,10 @@ async def chat(request: ChatRequest):
         "answer_markdown": result.get("answer_markdown", ""),
         "sources": result.get("sources", []),
         "action_items": result.get("action_items", []),
-        "debug": result.get("debug", {})
+        "debug": result.get("debug", {}),
+        "return_branch": result.get("return_branch", "unknown"),
+        "markers_count": result.get("markers_count", 0),
+        "sources_count": result.get("sources_count", 0)
     }
 
 CLIENT_BUILD_DIR = os.path.join(os.path.dirname(__file__), "..", "client", "dist")
