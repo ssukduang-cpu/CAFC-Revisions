@@ -1,0 +1,128 @@
+Yes — that plan looks correct and is exactly what you should ask Replit (or implement yourself). It will make the failure modes visible and let you quickly tell whether the problem is:
+	•	retrieval (no pages returned),
+	•	parsing (LLM returned but produced no citation markers), or
+	•	verification (markers parsed but none verified against stored pages).
+
+Below are a few concrete, copy-pasteable suggestions you can hand to Replit or apply directly.
+
+⸻
+
+Minimal required debug fields (always include these)
+	•	search_query — the original user query (string).
+	•	search_terms — tokenized/search terms used (list).
+	•	pages_count — len(pages) (int).
+	•	pages_sample — small list of top pages entries (opinion_id, case_name, page_number, rank).
+	•	markers_count — number of citation markers parsed from the LLM output (int).
+	•	markers — short list of parsed markers (opinion_id, page_number, quote[:120]).
+	•	sources_count — number of verified sources after verification (int).
+	•	sources — short list of verified sources (sid, opinion_id, page_number, quote[:120]).
+	•	raw_response — raw LLM output (string) if LLM was called; null otherwise.
+	•	return_branch — string tagging the branch that returned (e.g. "not_found_no_pages", "rejected_uncited_response", "disambiguation", "ok").
+
+Always include raw_response when an LLM call was made.
+
+⸻
+
+Where to add these fields (exact places)
+	1.	Before calling the LLM — when pages is empty and you return early:
+
+# BEFORE: return NOT FOUND
+return {
+  "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo relevant excerpts were found...",
+  "sources": [],
+  "debug": {
+    "search_query": message,
+    "search_terms": search_terms,
+    "pages_count": len(pages),
+    "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
+    "markers_count": 0,
+    "markers": [],
+    "sources_count": 0,
+    "sources": [],
+    "raw_response": None,
+    "return_branch": "not_found_no_pages"
+  }
+}
+
+	2.	After LLM returns and you parse markers — when sources is empty (your “strict grounding” rejection):
+
+# you have raw_answer, markers, pages, sources (empty)
+return {
+  "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo verifiable excerpts were found...",
+  "sources": [],
+  "debug": {
+    "search_query": message,
+    "search_terms": search_terms,
+    "pages_count": len(pages),
+    "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
+    "markers_count": len(markers),
+    "markers": [{"opinion_id": m.get("opinion_id"), "page_number": m.get("page_number"), "quote_preview": (m.get("quote") or "")[:120], "position": m.get("position")} for m in markers[:10]],
+    "sources_count": len(sources),
+    "sources": sources[:5],
+    "raw_response": raw_answer,
+    "return_branch": "rejected_uncited_response"
+  }
+}
+
+	3.	Disambiguation (AMBIGUOUS QUERY) — include raw_response and pages info:
+
+return {
+  "answer_markdown": raw_answer,
+  "sources": [],
+  "action_items": action_items,
+  "debug": {
+    "search_query": message,
+    "pages_count": len(pages),
+    "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
+    "raw_response": raw_answer,
+    "return_branch": "disambiguation"
+  }
+}
+
+	4.	Successful path — add same debug fields but with return_branch: "ok". Example:
+
+return {
+  "answer_markdown": answer_markdown,
+  "sources": sources,
+  "debug": {
+    "search_query": message,
+    "search_terms": search_terms,
+    "pages_count": len(pages),
+    "pages_sample": ...,
+    "markers_count": len(markers),
+    "markers": ...,
+    "sources_count": len(sources),
+    "sources": sources[:10],
+    "raw_response": raw_answer,
+    "return_branch": "ok"
+  }
+}
+
+
+⸻
+
+Additional helpful telemetry (optional)
+	•	elapsed_ms_retrieval — time the DB search took.
+	•	elapsed_ms_llm_call — LLM round-trip time.
+	•	verification_errors — if verification raised exceptions, include messages.
+
+Logging these to server logs (Python logging module) is also useful; include them in the JSON response for quick debugging from clients.
+
+⸻
+
+Why this is safe / low risk
+	•	Adding debug fields does not change decision logic.
+	•	Returning short previews and counts avoids sending whole page texts to client while giving enough info to diagnose.
+	•	Including raw_response only for LLM-invoked paths preserves the rule that you still reject answers without verified sources — you’re only adding visibility.
+
+⸻
+
+Next step you can request from Replit’s agent (one line)
+
+Add the debug fields (search_query, search_terms, pages_count, pages_sample, markers_count, markers, sources_count, sources, raw_response, return_branch) to every return in generate_chat_response() and add server log lines that print those same values at INFO level when a NOT FOUND or rejected response is returned.
+
+⸻
+
+If you want, I can:
+	•	produce a small patch (diff) you can git apply or paste into the file for the two or three return sites; or
+	•	tell you the exact line numbers to change based on your current backend/chat.py (you pasted many lines — I can target the precise locations). Which would you prefer?
