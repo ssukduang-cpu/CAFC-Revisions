@@ -1,0 +1,82 @@
+An “ultimate prompt” for Replit’s agent should do two things at once:
+	1.	Force a complete, structured diagnostic sweep (API, DB/FTS, retrieval, grounding/citations, conversation state, UI wiring, and deployment/runtime).
+	2.	Force the agent to produce concrete artifacts (commands to run, files/lines to inspect, patches, and regression tests), not narrative.
+
+Below is a single prompt you can paste into Replit AI. It is designed for your exact app (FastAPI + Postgres + FTS + strict grounding + UI + disambiguation state).
+
+⸻
+
+Ultimate Replit Debug Prompt (paste as-is)
+
+You are debugging a FastAPI + PostgreSQL app that serves as a strict-grounded “Federal Circuit patent lawyer” chat system. The app ingests CAFC precedential opinions, stores page text and chunks, and uses Postgres FTS for retrieval. /api/chat enforces litigation-grade grounding: the model may only answer using verbatim quotes from retrieved pages, and answers are rejected unless citations are parsed and verified against stored page text.
+
+Objective: Perform a full end-to-end diagnostic of every subsystem (runtime, DB/FTS, ingestion integrity, retrieval, disambiguation, LLM call, citation parsing, quote verification, response shaping, UI behavior, and deployment process identity). Identify any lurking failures or mismatches and fix them with minimal, safe patches and regression tests.
+
+Deliverables (must produce all)
+	1.	A single “doctor” script (scripts/doctor.sh) that runs in the Replit shell and prints PASS/FAIL for:
+	•	server reachability and correct base URL
+	•	API route discovery (/openapi.json) and confirmation /api/chat exists
+	•	DB connectivity + table presence + row counts (pages, chunks, opinions)
+	•	FTS sanity (at least 3 test searches return expected hits)
+	•	retrieval pipeline sanity (keyword fallback works; returns relevant pages for “reissue §251 In re Kostic”)
+	•	LLM call sanity (request succeeds; non-empty output)
+	•	citation parsing sanity (markers_count > 0 when model emits CITATION_MAP)
+	•	verification sanity (sources_count > 0; quotes match stored page text)
+	•	disambiguation sanity (ask “holding of google” → list; reply “second one” → resolves without re-ranking)
+	•	response schema sanity (return_branch/markers_count/sources_count always present or reliably in debug)
+	•	log/metrics sanity (key events logged)
+	2.	A debug README section (DEBUGGING.md) describing:
+	•	how to run the doctor script
+	•	how to interpret each failure
+	•	which logs/files to check for each failure
+	3.	Implement any required fixes, with:
+	•	small focused code diffs
+	•	explanations
+	•	and pytest regression tests covering:
+	•	citation parsing canonical + noncanonical formats
+	•	quote verification exact-match behavior
+	•	disambiguation follow-up (“second one”) binds to prior candidate list
+	•	response schema includes debug fields when requested
+
+Constraints / requirements
+	•	Do not rewrite the architecture. Make the smallest changes that make the system reliable.
+	•	Prefer deterministic behavior: stable ranking and stable candidate lists.
+	•	If the app can run in multiple processes, detect “wrong process” issues (shell curl hitting a different server than UI) and fix via explicit base URL discovery.
+	•	Make sure the UI and shell tests hit the same server.
+	•	Ensure all debug output redacts secrets (DATABASE_URL password, API keys).
+	•	If a health endpoint does not exist, do not add one unless necessary; prefer using /openapi.json to confirm server identity.
+
+Step-by-step diagnostic plan (you must execute and show results)
+	1.	Identify how the server is started in Replit (.replit, workflow, command) and determine the actual listening host/port.
+	2.	Confirm API routes from /openapi.json; verify /api/chat path and request schema.
+	3.	Validate DB connection and schema; print counts and sample rows.
+	4.	Validate FTS index is used and returns expected results for multiple representative queries:
+	•	“reissue 251 enlarge scope”
+	•	“In re Kostic reissue enlarge”
+	•	“waiver forfeiture Google” (to test disambiguation)
+	5.	Validate retrieval → LLM → parsing → verification end-to-end with debug:
+	•	capture raw model output
+	•	parse markers
+	•	verify quotes against stored page text
+	6.	Validate disambiguation state:
+	•	store candidate list server-side keyed by conversation_id
+	•	detect ordinal selections (“second one”, “#2”, “option 2”)
+	•	ensure follow-up does NOT re-run retrieval
+	7.	Ensure response schema is consistent (return_branch/markers_count/sources_count), and debug fields are included when debug=true.
+	8.	Add tests, run them, and report failures and fixes.
+
+Output format
+	•	First: summarize the highest-likelihood failure points you expect (process mismatch, debug envelope missing, state not persisted, parser regex too strict).
+	•	Then: create the doctor script and run it (show output).
+	•	Then: propose and implement patches + tests.
+	•	End: rerun doctor script and tests and show all PASS.
+
+Proceed now.
+
+⸻
+
+One important note
+
+Replit’s agent may try to “help” by only giving suggestions instead of actually creating files and tests. The wording above forces it to create scripts/tests and run them.
+
+If you want, I can also provide a “doctor.sh lite” (10–15 lines) that fits Replit’s shell constraints, but the prompt above is the most comprehensive way to debug the entire app.
