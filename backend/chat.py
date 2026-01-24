@@ -101,19 +101,20 @@ A. Inline Citations
 - First reference: Full case name + holding parenthetical
 - Subsequent references: Short-form case name
 
-B. Citation Map (REQUIRED)
+B. Citation Map (REQUIRED - EXACT FORMAT)
 
-At the end of every substantive response, include a structured citation map:
+At the END of every substantive response, you MUST include a citation map in this EXACT format:
 
 CITATION_MAP:
-[1] opinion_id | pinpoint | "verbatim quote"
-[2] opinion_id | pinpoint | "verbatim quote"
+[1] <opinion_id> | Page <page_number> | "Exact verbatim quote from the opinion..."
+[2] <opinion_id> | Page <page_number> | "Another exact verbatim quote..."
 
-Rules:
-- Quotes must be exact substrings from the excerpt.
-- Pinpoint may be page, paragraph, line range, or chunk index.
-- Every numbered citation used in the text MUST appear in the map.
-- Do not include analysis in the citation map.
+CRITICAL RULES FOR CITATION_MAP:
+- <opinion_id> must be the EXACT document ID from the excerpt header (e.g., "81e1529a-8a80-4811-a923-ca9f04f470d6")
+- <page_number> must be the numeric page number from the excerpt (e.g., "Page 11")
+- The quoted text MUST be an EXACT substring copied verbatim from the excerpt - no paraphrasing, no word changes
+- Every [N] citation used inline in your answer MUST have a corresponding entry in the CITATION_MAP
+- Place the CITATION_MAP at the very end of your response, after all analysis
 
 VII. TONE & VOICE
 
@@ -281,11 +282,12 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
     markers = []
     
     # Try new CITATION_MAP format first
-    citation_map_match = re.search(r'CITATION_MAP:\s*\n((?:\[\d+\][^\n]+\n?)+)', response_text, re.IGNORECASE)
+    citation_map_match = re.search(r'CITATION_MAP:\s*\n?((?:\[\d+\][^\n]+\n?)+)', response_text, re.IGNORECASE)
     if citation_map_match:
         map_text = citation_map_match.group(1)
-        # Parse each line: [1] opinion_id | page_number | "quote"
-        line_pattern = r'\[(\d+)\]\s*([^|]+)\|([^|]+)\|"([^"]+)"'
+        # Parse each line: [1] opinion_id | Page page_number | "quote"
+        # Use .+ for quote to handle special characters, with $ or end-of-string
+        line_pattern = r'\[(\d+)\]\s*([^|]+)\|\s*([^|]+)\|\s*"(.+)"'
         for match in re.finditer(line_pattern, map_text):
             citation_num = int(match.group(1))
             opinion_id = match.group(2).strip()
