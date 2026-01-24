@@ -151,15 +151,35 @@ export function OpinionLibrary() {
                     className="p-3 hover:bg-muted/30 transition-colors grid grid-cols-[auto_1fr_auto] gap-3 items-center"
                     data-testid={`opinion-row-${opinion.id}`}
                   >
-                    <div className="shrink-0">
+                    <a 
+                      href={
+                        opinion.pdfUrl?.includes('cafc.uscourts.gov') 
+                          ? opinion.pdfUrl 
+                          : (opinion.courtlistenerUrl || opinion.pdfUrl)
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 hover:scale-110 transition-transform"
+                      title="Open opinion"
+                    >
                       {opinion.isIngested ? (
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                       ) : (
                         <Circle className="h-4 w-4 text-muted-foreground/30" />
                       )}
-                    </div>
-                    <div className="min-w-0 overflow-hidden">
-                      <div className="font-medium text-sm truncate" title={opinion.caseName}>
+                    </a>
+                    <a 
+                      href={
+                        opinion.pdfUrl?.includes('cafc.uscourts.gov') 
+                          ? opinion.pdfUrl 
+                          : (opinion.courtlistenerUrl || opinion.pdfUrl)
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-w-0 overflow-hidden hover:text-primary transition-colors cursor-pointer"
+                      title="Open opinion"
+                    >
+                      <div className="font-medium text-sm truncate">
                         {opinion.caseName}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
@@ -167,7 +187,7 @@ export function OpinionLibrary() {
                         <span className="mx-1">•</span>
                         <span>{opinion.releaseDate}</span>
                       </div>
-                    </div>
+                    </a>
                     <div className="flex items-center gap-2 shrink-0">
                       {!opinion.isIngested ? (
                         <Button
