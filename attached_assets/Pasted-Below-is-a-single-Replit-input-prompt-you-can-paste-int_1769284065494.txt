@@ -1,0 +1,78 @@
+Below is a single Replit input prompt you can paste into Replit’s AI/agent to fix the “The second one triggers a new ambiguity list” issue. It is written to be implementation-directed and should converge quickly.
+
+⸻
+
+Replit input prompt
+
+Goal: When the UI shows an “AMBIGUOUS QUERY — MULTIPLE MATCHES FOUND” list and the user replies “the second one” (or similar), the backend must resolve the prior disambiguation choice, not treat it as a new query and re-run retrieval.
+
+Implement conversational disambiguation state + ordinal selection
+	1.	Persist disambiguation candidates per conversation
+
+	•	When returning the ambiguity response, also store a structured payload in the server-side conversation state (DB table or in-memory keyed by conversation_id):
+	•	pending_disambiguation = True
+	•	candidates = [{rank:1, opinion_id, case_name, appeal_no, date}, ...]
+	•	original_query = <string>
+	•	created_at
+	•	Also return these candidates in the API response as machine-readable JSON, e.g.:
+
+"disambiguation": {
+  "pending": true,
+  "candidates": [
+    {"rank":1,"opinion_id":"...","label":"Ioengine, LLC v. Ingenico Inc. (No. 21-1227)"},
+    {"rank":2,"opinion_id":"...","label":"Google LLC v. EcoFactor, Inc. (No. 22-1750)"},
+    {"rank":3,"opinion_id":"...","label":"In re Google Tech. Holdings LLC (980 F.3d 858)"}
+  ]
+}
+
+
+
+	2.	Detect ordinal selection messages
+
+	•	If the latest server state has pending_disambiguation=True, then treat the user message as a selection if it matches any of:
+	•	^(the\s+)?(first|second|third|fourth|fifth)\b
+	•	^\s*\d+\s*$
+	•	^(option|choice)\s*\d+
+	•	^(#)\s*\d+
+	•	Map words → numbers (second → 2) and clamp to candidate list length.
+	•	If it’s a selection, do not run retrieval using the text “the second one”.
+	•	Instead, pick selected = candidates[n-1], set:
+	•	pending_disambiguation=False
+	•	selected_opinion_id = selected.opinion_id
+	•	and proceed directly to grounded answer generation for that opinion.
+
+	3.	Guarantee stable ranking
+
+	•	Ensure candidate ordering is deterministic and identical across turns:
+	•	Sort by match score desc, then date desc, then case name.
+	•	Persist the final sorted list exactly as shown to user.
+	•	Do not regenerate candidates on the follow-up turn.
+
+	4.	Handle errors cleanly
+
+	•	If user selects “second” but only 1 candidate exists, reply with:
+	•	“I only have 1 option. Please reply ‘1’ or restate the case name.”
+	•	If there is no pending disambiguation state, treat “second one” as a normal query.
+
+	5.	Add logging for debugging
+
+	•	Log on follow-up:
+	•	pending_disambiguation, selection_detected, selection_index, selected_opinion_id
+	•	Add a regression test:
+	•	Query “What is the holding of google?”
+	•	Confirm ambiguity list returns.
+	•	Send “the second one”
+	•	Confirm server selects candidate #2 from the prior list (no new ambiguity list returned).
+
+Deliverable
+	•	Make the change in the /api/chat conversation handler.
+	•	Add tests for ordinal parsing.
+	•	Confirm in UI: “the second one” resolves to the correct candidate without re-listing new cases.
+
+⸻
+
+Why this will fix what you’re seeing in the screenshot
+
+Right now, your system is almost certainly treating “The second one” as a fresh semantic query, so it re-runs retrieval and finds unrelated “second-best matches.” The fix is to bind the follow-up utterance to the prior ambiguity state and treat it as a selection event, not a search query.
+
+If you paste back (1) your /api/chat handler code path around the ambiguity response and (2) how you store conversation state today, I can tailor the exact patch (DB vs in-memory, schema, and tests) to your codebase.
