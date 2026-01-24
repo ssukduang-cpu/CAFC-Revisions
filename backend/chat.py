@@ -694,6 +694,73 @@ async def generate_chat_response(
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     search_terms = message.split()
     
+    # Fallback retrieval strategy for natural language questions
+    # PostgreSQL plainto_tsquery uses AND for multiple words, which often fails for long questions
+    # Trigger fallback when: (1) no pages returned, OR (2) very few pages for a long query
+    is_long_query = len(message.split()) >= 5
+    needs_fallback = (not pages) or (len(pages) < 3 and is_long_query)
+    
+    if needs_fallback and not party_only:
+        # Common English stopwords to remove
+        stopwords = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'from', 'to', 'of', 'for', 
+                     'on', 'at', 'by', 'with', 'it', 'its', 'this', 'that', 'be', 'been', 'being',
+                     'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
+                     'may', 'might', 'must', 'shall', 'can', 'and', 'or', 'but', 'if', 'when',
+                     'what', 'how', 'why', 'where', 'which', 'who', 'whom', 'whose', 'than', 'then',
+                     'so', 'as', 'not', 'no', 'yes', 'about', 'into', 'through', 'during', 'before',
+                     'after', 'above', 'below', 'between', 'under', 'again', 'further', 'once',
+                     'here', 'there', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such',
+                     'only', 'own', 'same', 'too', 'very', 'just', 'also', 'now', 'even', 'still',
+                     'already', 'always', 'never', 'ever', 'often', 'sometimes', 'usually'}
+        
+        # Clean and tokenize the query
+        import re
+        # Remove section symbols, punctuation, and normalize
+        cleaned_query = re.sub(r'[§\?!.,;:\'"()\[\]{}]', ' ', message)
+        tokens = cleaned_query.lower().split()
+        
+        # Filter: remove stopwords, short tokens (<=2 chars), and pure numbers
+        meaningful_tokens = [
+            t for t in tokens 
+            if t not in stopwords and len(t) > 2 and not t.isdigit()
+        ]
+        
+        # Add domain-specific legal terms based on query context
+        domain_terms = []
+        message_lower = message.lower()
+        if 'reissue' in message_lower or '251' in message_lower:
+            domain_terms.extend(['reissue', 'recapture', 'broadening', 'broaden', 'enlarge', 'scope', 'original'])
+        if 'claim' in message_lower:
+            domain_terms.extend(['claim', 'claims', 'limitation', 'element'])
+        if 'patent' in message_lower or 'prior art' in message_lower:
+            domain_terms.extend(['patent', 'obviousness', 'anticipation', 'novelty', 'prior'])
+        if 'infringement' in message_lower:
+            domain_terms.extend(['infringement', 'infringe', 'infringes', 'literal', 'doctrine', 'equivalents'])
+        
+        # Combine meaningful tokens with domain terms (deduplicate)
+        all_search_tokens = list(set(meaningful_tokens + domain_terms))
+        
+        # Search each token individually and merge results
+        all_pages = []
+        seen_page_keys = set()
+        
+        for token in all_search_tokens:
+            if token and len(token) > 2:
+                results = db.search_pages(token, opinion_ids, limit=5, party_only=False)
+                for p in results:
+                    key = (p.get('opinion_id'), p.get('page_number'))
+                    if key not in seen_page_keys:
+                        seen_page_keys.add(key)
+                        all_pages.append(p)
+        
+        # Sort by rank (higher is better) and keep top 15
+        all_pages.sort(key=lambda x: x.get('rank', 0), reverse=True)
+        pages = all_pages[:15]
+        
+        # Update search_terms to reflect what we actually searched for
+        if pages:
+            search_terms = all_search_tokens
+    
     # Detect if the query looks like a question vs a simple party name lookup
     question_indicators = ['what', 'how', 'why', 'when', 'where', 'which', 'who', 
                            'holding', 'held', 'decide', 'rule', 'ruling', 'opinion',
