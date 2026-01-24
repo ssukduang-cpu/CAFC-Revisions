@@ -955,12 +955,21 @@ async def generate_chat_response(
         if "AMBIGUOUS QUERY" in raw_answer.upper() or "MULTIPLE MATCHES FOUND" in raw_answer.upper():
             # Extract candidate cases from the response for clickable action items
             action_items = []
-            # Look for numbered cases like "1. **Case Name** (Appeal No. XX-XXXX)"
-            case_pattern = r'(\d+)\.\s+\*\*([^*]+)\*\*\s*\((?:Appeal\s*No\.?\s*)?([^)]+)\)'
+            # Match formats like:
+            # "1. **Case Name** (Appeal No. XX-XXXX)"
+            # "1. **Case Name**, Appeal No. XX-XXXX (date)"  
+            # "1. **Case Name**, cited in multiple cases"
+            
+            # First pattern: numbered case with bold name and optional appeal info
+            case_pattern = r'(\d+)\.\s+\*\*([^*]+)\*\*'
             for match in re.finditer(case_pattern, raw_answer):
                 num = match.group(1)
-                case_name = match.group(2).strip()
-                appeal_info = match.group(3).strip()
+                case_name = match.group(2).strip().rstrip(',')
+                
+                # Try to extract appeal number from text after the case name
+                remaining_text = raw_answer[match.end():match.end()+100]
+                appeal_match = re.search(r'Appeal\s*No\.?\s*(\d{2}-\d+)', remaining_text, re.IGNORECASE)
+                appeal_no = appeal_match.group(1) if appeal_match else ""
                 
                 # Look up the opinion_id for this case to enable direct selection
                 case_lookup = db.search_pages(case_name, None, limit=1, party_only=True)
@@ -969,7 +978,7 @@ async def generate_chat_response(
                 action_items.append({
                     "id": num,
                     "label": case_name,
-                    "appeal_no": appeal_info.split(',')[0].strip() if ',' in appeal_info else appeal_info,
+                    "appeal_no": appeal_no,
                     "action": f"What is the holding in {case_name}?",
                     "opinion_id": str(opinion_id) if opinion_id else None
                 })
