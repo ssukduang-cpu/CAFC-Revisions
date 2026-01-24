@@ -123,9 +123,15 @@ def init_db():
             CREATE TABLE IF NOT EXISTS conversations (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 title TEXT DEFAULT 'New Research',
+                pending_disambiguation JSONB,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
+        """)
+        
+        cursor.execute("""
+            ALTER TABLE conversations 
+            ADD COLUMN IF NOT EXISTS pending_disambiguation JSONB
         """)
         
         cursor.execute("""
@@ -556,6 +562,46 @@ def get_messages(conv_id: str) -> List[Dict]:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM messages WHERE conversation_id = %s ORDER BY created_at", (conv_id,))
         return [dict(row) for row in cursor.fetchall()]
+
+def set_pending_disambiguation(conv_id: str, candidates: List[Dict], original_query: str) -> None:
+    """Store disambiguation candidates for a conversation."""
+    import json
+    data = {
+        "pending": True,
+        "candidates": candidates,
+        "original_query": original_query,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE conversations SET pending_disambiguation = %s WHERE id = %s",
+            (json.dumps(data), conv_id)
+        )
+
+def get_pending_disambiguation(conv_id: str) -> Optional[Dict]:
+    """Get pending disambiguation state for a conversation."""
+    import json
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT pending_disambiguation FROM conversations WHERE id = %s", (conv_id,))
+        row = cursor.fetchone()
+        if row and row.get("pending_disambiguation"):
+            data = row["pending_disambiguation"]
+            if isinstance(data, str):
+                data = json.loads(data)
+            if data.get("pending"):
+                return data
+        return None
+
+def clear_pending_disambiguation(conv_id: str) -> None:
+    """Clear disambiguation state after resolution."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE conversations SET pending_disambiguation = NULL WHERE id = %s",
+            (conv_id,)
+        )
 
 def get_ingestion_stats() -> Dict[str, Any]:
     with get_db() as conn:

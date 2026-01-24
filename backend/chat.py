@@ -656,36 +656,65 @@ async def generate_chat_response(
     if opinion_ids and len(opinion_ids) == 0:
         opinion_ids = None
     
-    # Check if message is a reference to a previous option (e.g., "1", "the first one", "option 2")
     original_message = message
     resolved_opinion_id = None  # Will be set if we resolve to a specific case
-    option_num = detect_option_reference(message)
-    if option_num and conversation_id:
-        action_items = get_previous_action_items(conversation_id)
-        if action_items and 1 <= option_num <= len(action_items):
-            # Replace the message with the action from the selected option
-            selected_action = action_items[option_num - 1]
-            message = selected_action.get('action', message)
+    
+    # PRIORITY 1: Check for pending disambiguation state (stored in DB)
+    # This takes precedence over any other logic to prevent re-searching
+    if conversation_id:
+        pending_state = db.get_pending_disambiguation(conversation_id)
+        if pending_state:
+            option_num = detect_option_reference(message)
+            candidates = pending_state.get('candidates', [])
+            original_query = pending_state.get('original_query', '')
             
-            # Use opinion_id directly from action_item if available (added during disambiguation)
-            resolved_opinion_id = selected_action.get('opinion_id')
-            if resolved_opinion_id:
-                # Switch from party_only to full content search within this case
-                party_only = False
+            if option_num:
+                if 1 <= option_num <= len(candidates):
+                    # Valid selection - resolve directly from stored candidates
+                    selected = candidates[option_num - 1]
+                    resolved_opinion_id = selected.get('opinion_id')
+                    case_name = selected.get('label', '')
+                    
+                    # Clear disambiguation state
+                    db.clear_pending_disambiguation(conversation_id)
+                    
+                    # Use original query context for the resolved case
+                    if original_query:
+                        message = original_query
+                    party_only = False
+                    
+                    # Log for debugging
+                    logging.info(f"Disambiguation resolved: selected #{option_num} = {case_name} (opinion_id={resolved_opinion_id})")
+                else:
+                    # Out of range selection
+                    db.clear_pending_disambiguation(conversation_id)
+                    return {
+                        "answer_markdown": f"I only have {len(candidates)} option(s). Please reply with a number from 1 to {len(candidates)}, or restate your question.",
+                        "sources": [],
+                        "debug": {
+                            "claims": [],
+                            "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},
+                            "search_query": message,
+                            "search_terms": [],
+                            "pages_count": 0,
+                            "pages_sample": [],
+                            "markers_count": 0,
+                            "markers": [],
+                            "sources_count": 0,
+                            "sources": [],
+                            "raw_response": "",
+                            "return_branch": "disambiguation_out_of_range"
+                        }
+                    }
             else:
-                # Fallback: Look up the case by name if opinion_id not stored
-                case_label = selected_action.get('label', '')
-                if case_label:
-                    case_pages = db.search_pages(case_label, None, limit=1, party_only=True)
-                    if case_pages:
-                        resolved_opinion_id = case_pages[0].get('opinion_id')
-                        party_only = False
+                # User sent a new query, not a selection - clear old disambiguation
+                db.clear_pending_disambiguation(conversation_id)
     
     # If we resolved an option to a specific case, search within that case
     if resolved_opinion_id:
         opinion_ids = [str(resolved_opinion_id)]
     
-    # Check for pronoun references to previously discussed case (e.g., "its holding", "this case")
+    # PRIORITY 2: Check for pronoun references to previously discussed case (e.g., "its holding", "this case")
     if not resolved_opinion_id and conversation_id and has_pronoun_reference(message):
         prev_case = get_previous_case_context(conversation_id)
         if prev_case and prev_case.get('opinion_id'):
@@ -983,10 +1012,23 @@ async def generate_chat_response(
                     "opinion_id": str(opinion_id) if opinion_id else None
                 })
             
+            # STORE disambiguation candidates in DB for next turn resolution
+            if conversation_id and action_items:
+                db.set_pending_disambiguation(
+                    conversation_id,
+                    candidates=action_items,
+                    original_query=original_message
+                )
+                logging.info(f"Stored disambiguation: {len(action_items)} candidates for query '{original_message}'")
+            
             return {
                 "answer_markdown": raw_answer,
                 "sources": [],
                 "action_items": action_items,
+                "disambiguation": {
+                    "pending": True,
+                    "candidates": action_items
+                },
                 "debug": {
                     "claims": [],
                     "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},
