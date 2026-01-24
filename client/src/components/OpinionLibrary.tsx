@@ -193,12 +193,12 @@ export function OpinionLibrary() {
                         </Button>
                       )}
                       <a 
-                        href={opinion.pdfUrl} 
+                        href={opinion.courtlistenerUrl || opinion.pdfUrl} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="p-2 hover:bg-muted rounded-md transition-colors"
                         data-testid={`link-pdf-${opinion.id}`}
-                        title="Open original PDF on CAFC website"
+                        title={opinion.courtlistenerUrl ? "View on CourtListener" : "Open original PDF"}
                       >
                         <ExternalLink className="h-4 w-4 text-muted-foreground" />
                       </a>

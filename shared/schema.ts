@@ -14,6 +14,7 @@ export const opinions = pgTable("opinions", {
   origin: text("origin").notNull(), // e.g., "D. Del.", "PTAB"
   documentType: text("document_type").notNull(), // "OPINION" or "ORDER"
   pdfUrl: text("pdf_url").notNull().unique(),
+  courtlistenerUrl: text("courtlistener_url"), // CourtListener opinion page URL
   summary: text("summary"),
   isIngested: boolean("is_ingested").notNull().default(false),
   pdfText: text("pdf_text"), // Full extracted text
