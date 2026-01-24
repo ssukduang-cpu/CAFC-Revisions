@@ -382,6 +382,96 @@ async def admin_ingest_batch(limit: int = 50):
     result = await run_batch_ingest(limit=limit)
     return serialize_for_json(result)
 
+@app.post("/api/admin/build_and_load_manifest")
+async def build_and_load_manifest(count: int = 100):
+    """
+    Build a manifest from CourtListener API and load it directly into the database.
+    This is an all-in-one endpoint for production use.
+    """
+    import httpx
+    
+    api_token = os.environ.get('COURTLISTENER_API_TOKEN')
+    if not api_token:
+        raise HTTPException(status_code=500, detail="COURTLISTENER_API_TOKEN not configured")
+    
+    headers = {
+        'Authorization': f'Token {api_token}',
+        'User-Agent': 'Federal-Circuit-AI-Research/1.0'
+    }
+    
+    imported = 0
+    skipped = 0
+    fetched = 0
+    
+    next_url = None
+    base_url = "https://www.courtlistener.com/api/rest/v4/search/"
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        while fetched < count:
+            if next_url:
+                response = await client.get(next_url, headers=headers)
+            else:
+                params = {
+                    'type': 'o',
+                    'court': 'cafc',
+                    'stat_Published': 'on',
+                    'order_by': 'dateFiled desc',
+                }
+                response = await client.get(base_url, params=params, headers=headers)
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=f"CourtListener API error: {response.text[:200]}")
+            
+            data = response.json()
+            results = data.get('results', [])
+            
+            if not results:
+                break
+            
+            for result in results:
+                if fetched >= count:
+                    break
+                
+                cluster_id = result.get('cluster_id')
+                case_name = result.get('caseName', '')
+                appeal_number = result.get('docketNumber', '')
+                date_filed = result.get('dateFiled')
+                
+                pdf_url = f"https://www.courtlistener.com/pdf/{cluster_id}/"
+                
+                if db.document_exists_by_dedupe_key(cluster_id, appeal_number, pdf_url):
+                    skipped += 1
+                    fetched += 1
+                    continue
+                
+                db.upsert_document({
+                    "pdf_url": pdf_url,
+                    "case_name": case_name,
+                    "appeal_number": appeal_number,
+                    "release_date": date_filed,
+                    "origin": "courtlistener_api",
+                    "document_type": "OPINION",
+                    "status": "Precedential",
+                    "courtlistener_cluster_id": cluster_id,
+                    "courtlistener_url": f"https://www.courtlistener.com/opinion/{cluster_id}/"
+                })
+                imported += 1
+                fetched += 1
+            
+            next_url = data.get('next')
+            if not next_url:
+                break
+    
+    stats = db.get_ingestion_stats()
+    
+    return {
+        "success": True,
+        "message": f"Loaded {imported} documents from CourtListener, skipped {skipped} duplicates",
+        "imported": imported,
+        "skipped": skipped,
+        "total_documents": stats["total_documents"]
+    }
+
 @app.get("/api/admin/ingest_status")
 async def admin_ingest_status():
     return db.get_ingestion_stats()

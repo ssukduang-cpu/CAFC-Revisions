@@ -90,6 +90,37 @@ export default function Admin() {
     }
   });
 
+  const [isLoadingManifest, setIsLoadingManifest] = useState(false);
+  
+  const handleLoadManifest = async (count: number) => {
+    setIsLoadingManifest(true);
+    addLog("info", `Building manifest from CourtListener (${count} opinions)...`);
+    
+    try {
+      const res = await fetch(`/api/admin/build_and_load_manifest?count=${count}`, { method: "POST" });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to load manifest");
+      }
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/ingest_status"] });
+      addLog("success", `Loaded ${data.imported} documents from CourtListener`);
+      toast({
+        title: "Manifest Loaded",
+        description: `Successfully loaded ${data.imported} documents`
+      });
+    } catch (error: any) {
+      addLog("error", `Failed to load manifest: ${error.message}`);
+      toast({
+        title: "Error Loading Manifest",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingManifest(false);
+    }
+  };
+
   const isRunningRef = useRef(false);
   const timeoutRef = useRef<number | null>(null);
 
@@ -253,6 +284,53 @@ export default function Admin() {
             </div>
           </CardContent>
         </Card>
+
+        {status?.total_documents === 0 && (
+          <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-orange-600" />
+                No Documents Loaded
+              </CardTitle>
+              <CardDescription>
+                Load opinions from CourtListener to start ingesting. Choose how many opinions to import.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => handleLoadManifest(100)}
+                  disabled={isLoadingManifest}
+                  variant="outline"
+                  data-testid="load-100-button"
+                >
+                  Load 100 opinions
+                </Button>
+                <Button
+                  onClick={() => handleLoadManifest(500)}
+                  disabled={isLoadingManifest}
+                  variant="outline"
+                  data-testid="load-500-button"
+                >
+                  Load 500 opinions
+                </Button>
+                <Button
+                  onClick={() => handleLoadManifest(1000)}
+                  disabled={isLoadingManifest}
+                  data-testid="load-1000-button"
+                >
+                  Load 1,000 opinions
+                </Button>
+              </div>
+              {isLoadingManifest && (
+                <Badge variant="secondary" className="animate-pulse">
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                  Loading opinions from CourtListener...
+                </Badge>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
