@@ -98,7 +98,7 @@ async def download_pdf_with_retry(
     
     # Add CourtListener authentication if downloading from their domain
     headers = {
-        'User-Agent': 'Federal-Circuit-AI-Research/1.0 (legal research tool)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     }
     if 'courtlistener.com' in actual_url:
         api_token = os.environ.get('COURTLISTENER_API_TOKEN')
@@ -166,13 +166,24 @@ async def download_pdf_with_retry(
         "error": last_error
     }
 
-def extract_pages(pdf_path: str) -> List[str]:
+def extract_pages(pdf_path: str) -> Dict[str, Any]:
+    """
+    Extract text from PDF pages.
+    Returns dict with 'pages' list and 'ocr_required' flag if text is too sparse.
+    """
     reader = PdfReader(pdf_path)
     pages = []
     for page in reader.pages:
         text = page.extract_text() or ""
         pages.append(text)
-    return pages
+    
+    # Check if this is a scanned/image PDF (less than 100 chars total)
+    total_text = "".join(pages).strip()
+    if len(total_text) < 100:
+        log(f"WARNING: Scanned/image PDF detected - only {len(total_text)} chars extracted. OCR required.")
+        return {"pages": pages, "ocr_required": True, "total_chars": len(total_text)}
+    
+    return {"pages": pages, "ocr_required": False, "total_chars": len(total_text)}
 
 def create_chunks(pages: List[str], chunk_size: int = CHUNK_SIZE_PAGES) -> List[Dict]:
     chunks = []
@@ -206,10 +217,12 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
     
     os.makedirs(PDF_DIR, exist_ok=True)
     pdf_path = os.path.join(PDF_DIR, f"{doc_id}.pdf")
+    ingestion_success = False
     
     try:
         if doc.get("ingested"):
             log(f"Already ingested: {case_name[:50]}")
+            ingestion_success = True
             return {"success": True, "status": "already_ingested", "doc_id": doc_id}
         
         download_result = await download_pdf_with_retry(pdf_url, pdf_path, cluster_id=cluster_id)
@@ -227,12 +240,26 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
         
         if doc.get("pdf_sha256") == sha256 and doc.get("ingested"):
             log(f"PDF unchanged, skipping: {case_name[:50]}")
+            ingestion_success = True
             return {"success": True, "status": "unchanged", "doc_id": doc_id}
         
         log(f"Extracting text from {download_result['size_bytes']} bytes...")
-        pages = extract_pages(pdf_path)
+        extraction_result = extract_pages(pdf_path)
+        pages = extraction_result["pages"]
         num_pages = len(pages)
         log(f"Extracted {num_pages} pages")
+        
+        # Check for scanned/image PDFs that need OCR
+        if extraction_result["ocr_required"]:
+            db.mark_document_error(doc_id, f"OCR required: only {extraction_result['total_chars']} chars extracted")
+            return {
+                "success": False,
+                "status": "ocr_required",
+                "doc_id": doc_id,
+                "num_pages": num_pages,
+                "total_chars": extraction_result["total_chars"],
+                "error": "Scanned/image PDF - OCR required"
+            }
         
         chunks = create_chunks(pages)
         log(f"Created {len(chunks)} chunks")
@@ -240,6 +267,7 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
         db.ingest_document_atomic(doc_id, pages, chunks, sha256)
         
         log(f"Completed: {case_name[:50]} ({num_pages} pages, {len(chunks)} chunks)")
+        ingestion_success = True
         
         return {
             "success": True,
@@ -257,7 +285,8 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
         return {"success": False, "status": "error", "doc_id": doc_id, "error": error_msg}
     
     finally:
-        if os.path.exists(pdf_path):
+        # Only delete PDF on successful ingestion - keep failed ones for debugging
+        if ingestion_success and os.path.exists(pdf_path):
             try:
                 os.remove(pdf_path)
             except:
@@ -265,7 +294,7 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
 
 async def run_batch_ingest(
     limit: int = 10,
-    concurrency: int = 1,
+    concurrency: int = 2,
     only_not_ingested: bool = True
 ) -> Dict[str, Any]:
     db.init_db()
@@ -284,20 +313,43 @@ async def run_batch_ingest(
     
     log(f"Found {len(documents)} documents to ingest")
     
-    results = []
+    # Use semaphore to limit concurrent processing (2 is safe for Replit memory limits)
+    semaphore = asyncio.Semaphore(concurrency)
+    
+    async def process_with_semaphore(doc: Dict) -> Dict[str, Any]:
+        async with semaphore:
+            result = await ingest_document(doc)
+            # Small delay between completions to avoid overwhelming the database
+            await asyncio.sleep(0.2)
+            return result
+    
+    # Create tasks for all documents and run them concurrently with semaphore limiting
+    tasks = [process_with_semaphore(doc) for doc in documents]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Process results, handling any exceptions that were caught
     succeeded = 0
     failed = 0
+    processed_results = []
     
-    for doc in documents:
-        result = await ingest_document(doc)
-        results.append(result)
-        
-        if result.get("success"):
-            succeeded += 1
-        else:
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            # Handle any unhandled exceptions from gather
+            error_msg = f"{type(result).__name__}: {str(result)}"
+            log(f"Task exception: {error_msg}")
+            processed_results.append({
+                "success": False,
+                "status": "exception",
+                "doc_id": str(documents[i]["id"]),
+                "error": error_msg
+            })
             failed += 1
-        
-        await asyncio.sleep(0.5)
+        else:
+            processed_results.append(result)
+            if result.get("success"):
+                succeeded += 1
+            else:
+                failed += 1
     
     log(f"\nBatch complete: {succeeded} succeeded, {failed} failed")
     
@@ -307,7 +359,7 @@ async def run_batch_ingest(
         "processed": len(documents),
         "succeeded": succeeded,
         "failed": failed,
-        "results": results
+        "results": processed_results
     }
 
 def main():
