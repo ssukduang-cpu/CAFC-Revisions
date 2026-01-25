@@ -165,6 +165,20 @@ The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct C
   - Onboarding banner shows "X of Y opinions indexed" linking to Opinion Library
   - Mobile slide-out drawer for conversations
   - Expandable quotes with "Show more" for long citations (>200 chars)
+- **Opinion Library Dashboard (Jan 2026):**
+  - Full-page split-pane layout using react-resizable-panels (40/60 split)
+  - Virtualized list using react-window for 3000+ opinions at 60fps
+  - High-density case cards with typography hierarchy (bold case name, mono appeal number)
+  - Semantic badges: Precedential (blue), Indexed (green dot), Patent sections (§101, §103 amber)
+  - Integrated PDF viewer in right pane using iframe to `/pdf/{id}` route
+  - Empty state with file icon and "Select an opinion to preview" message
+  - Selected case highlighting (border-l-primary, bg-primary/5)
+  - Hover states with subtle background and border transitions
+- **PDF Serving (Jan 2026):**
+  - `/pdf/{opinion_id}` route serves locally stored PDFs with UUID validation
+  - Security: Path traversal protection via UUID parsing
+  - Custom JSON error responses with CourtListener fallback URLs
+  - PDFs retained after ingestion to support "View in app" functionality
 - **Party-Only Search (Jan 2026):**
   - Toggle between "All Text" and "Parties Only" search modes
   - "Parties Only" searches ONLY case names, not full opinion text
