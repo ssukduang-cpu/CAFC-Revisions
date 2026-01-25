@@ -189,6 +189,21 @@ The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct C
   - Top-level fields: `return_branch`, `markers_count`, `sources_count`
   - All 11+ return paths in `generate_chat_response()` use consistent schema
   - Regression tests in `tests/test_disambiguation.py` prevent schema drift
+- **Chat Performance & Streaming (Jan 2026):**
+  - **SSE Streaming:** Real-time token streaming via `/api/chat/stream` endpoint
+    - Server-Sent Events with conversation_id, start, token, sources, done event types
+    - `generate_chat_response_stream()` async generator in backend/chat.py
+    - Persists full response to conversation history after streaming completes
+  - **Conversation Context:** State-aware history with `build_conversation_summary()`
+    - Condenses last 3-5 turns into Legal Context Summary
+    - Extracts case names (word v. word pattern) and legal issues (§101, §103)
+    - Prepended to system prompt for multi-turn coherence
+  - **Follow-up Questions:** Section XII in SYSTEM_PROMPT requires 3 "Suggested Next Steps"
+    - Format: `## Suggested Next Steps` with numbered questions
+    - Strategic guidance: logical progression, related doctrine, practical application
+  - **LRU Cache:** `@lru_cache` for common legal definitions (Alice/Mayo, Graham v. John Deere, Phillips, Halo)
+  - **Parallel Processing:** `asyncio.gather()` for concurrent context building and cache lookups
+  - **Hyphenation Cleanup:** `cleanup_hyphenated_text()` fixes PDF word breaks (Al-ice → Alice)
 
 ## External Dependencies
 
