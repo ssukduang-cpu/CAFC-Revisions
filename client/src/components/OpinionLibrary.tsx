@@ -116,6 +116,16 @@ function OpinionCard({ opinion, isSelected, onSelect, onIngest, isIngesting }: O
               </Badge>
             ))}
             
+            {(opinion as any).isLandmark && (
+              <Badge 
+                variant="outline" 
+                className="text-[10px] px-1.5 py-0 h-5 border-amber-500/50 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-700 font-semibold gap-1"
+              >
+                <Scale className="h-2.5 w-2.5" />
+                Landmark
+              </Badge>
+            )}
+            
             {(opinion as any).lastError?.toLowerCase().includes('ocr') && (
               <Badge 
                 variant="outline" 

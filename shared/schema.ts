@@ -17,6 +17,8 @@ export const opinions = pgTable("opinions", {
   courtlistenerUrl: text("courtlistener_url"), // CourtListener opinion page URL
   summary: text("summary"),
   isIngested: boolean("is_ingested").notNull().default(false),
+  isLandmark: boolean("is_landmark").notNull().default(false), // Foundation cases (Alice, Phillips, etc.)
+  landmarkSignificance: text("landmark_significance"), // e.g., "§101 abstract idea test"
   pdfText: text("pdf_text"), // Full extracted text
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
