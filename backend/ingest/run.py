@@ -32,8 +32,7 @@ def log(message: str):
 async def get_actual_pdf_url(cluster_id: str) -> Optional[str]:
     """
     Fetch the actual PDF download URL from CourtListener API.
-    The /pdf/ endpoint returns 202 for on-demand generation,
-    but the API provides the original download_url which works directly.
+    Prioritizes local_path (CourtListener's storage) over download_url (original source).
     """
     api_token = os.environ.get('COURTLISTENER_API_TOKEN')
     if not api_token:
@@ -53,12 +52,14 @@ async def get_actual_pdf_url(cluster_id: str) -> Optional[str]:
                 data = response.json()
                 if data.get('results'):
                     opinion = data['results'][0]
-                    download_url = opinion.get('download_url')
-                    if download_url:
-                        return download_url
+                    # Prioritize local_path - this is CourtListener's cached copy
                     local_path = opinion.get('local_path')
                     if local_path:
                         return f"https://storage.courtlistener.com/{local_path}"
+                    # Fallback to download_url (original source)
+                    download_url = opinion.get('download_url')
+                    if download_url:
+                        return download_url
     except Exception as e:
         log(f"Error fetching actual PDF URL for cluster {cluster_id}: {e}")
     
@@ -67,11 +68,13 @@ async def get_actual_pdf_url(cluster_id: str) -> Optional[str]:
 async def download_pdf_with_retry(
     url: str,
     pdf_path: str,
+    cluster_id: Optional[str] = None,
     max_retries: int = MAX_RETRIES,
     initial_backoff: float = INITIAL_BACKOFF
 ) -> Dict[str, Any]:
     last_error = None
     actual_url = url
+    tried_courtlistener = False
     
     # For CourtListener /pdf/ URLs, fetch the actual download URL from their API
     # The /pdf/ endpoint returns 202 requiring on-demand generation
@@ -79,11 +82,12 @@ async def download_pdf_with_retry(
         import re
         match = re.search(r'/pdf/(\d+)/', url)
         if match:
-            cluster_id = match.group(1)
-            real_url = await get_actual_pdf_url(cluster_id)
+            extracted_cluster_id = match.group(1)
+            real_url = await get_actual_pdf_url(extracted_cluster_id)
             if real_url:
                 log(f"Using actual PDF URL: {real_url}")
                 actual_url = real_url
+                tried_courtlistener = True
     
     # Add CourtListener authentication if downloading from their domain
     headers = {
@@ -123,6 +127,21 @@ async def download_pdf_with_retry(
                 
         except Exception as e:
             last_error = str(e)
+            
+            # On 404 from CAFC, try CourtListener as fallback if we have cluster_id
+            if '404' in str(e) and cluster_id and not tried_courtlistener:
+                log(f"CAFC 404, trying CourtListener for cluster {cluster_id}...")
+                cl_url = await get_actual_pdf_url(cluster_id)
+                if cl_url:
+                    actual_url = cl_url
+                    tried_courtlistener = True
+                    # Update headers for CourtListener
+                    api_token = os.environ.get('COURTLISTENER_API_TOKEN')
+                    if api_token:
+                        headers['Authorization'] = f'Token {api_token}'
+                    log(f"Using CourtListener URL: {cl_url}")
+                    continue  # Retry with new URL
+            
             if attempt < max_retries - 1:
                 backoff = initial_backoff * (2 ** attempt)
                 log(f"Attempt {attempt + 1} failed: {e}. Retrying in {backoff}s...")
@@ -168,6 +187,7 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
     doc_id = str(doc["id"])
     pdf_url = doc["pdf_url"]
     case_name = doc.get("case_name", "Unknown")
+    cluster_id = doc.get("courtlistener_cluster_id")
     
     log(f"Starting ingestion: {case_name[:50]}")
     
@@ -179,7 +199,7 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
             log(f"Already ingested: {case_name[:50]}")
             return {"success": True, "status": "already_ingested", "doc_id": doc_id}
         
-        download_result = await download_pdf_with_retry(pdf_url, pdf_path)
+        download_result = await download_pdf_with_retry(pdf_url, pdf_path, cluster_id=cluster_id)
         
         if not download_result["success"]:
             error_msg = f"Download failed: {download_result.get('error', 'Unknown')}"
