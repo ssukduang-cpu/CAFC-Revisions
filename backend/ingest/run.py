@@ -100,12 +100,27 @@ async def download_pdf_with_retry(
     
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=120.0, follow_redirects=True, verify=False) as client:
+            async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
                 response = await client.get(actual_url, headers=headers)
+                status_code = response.status_code
                 
                 # CourtListener returns 202 when PDF is being generated - retry with delay
-                if response.status_code == 202:
+                if status_code == 202:
                     raise ValueError("PDF generation in progress (202), retrying...")
+                
+                # On 4xx errors from CAFC, try CourtListener as fallback if we have cluster_id
+                if status_code >= 400 and cluster_id and not tried_courtlistener:
+                    log(f"CAFC {status_code}, trying CourtListener for cluster {cluster_id}...")
+                    cl_url = await get_actual_pdf_url(cluster_id)
+                    if cl_url:
+                        actual_url = cl_url
+                        tried_courtlistener = True
+                        # Update headers for CourtListener
+                        api_token = os.environ.get('COURTLISTENER_API_TOKEN')
+                        if api_token:
+                            headers['Authorization'] = f'Token {api_token}'
+                        log(f"Using CourtListener URL: {cl_url}")
+                        continue  # Retry with new URL
                 
                 response.raise_for_status()
                 
@@ -127,20 +142,6 @@ async def download_pdf_with_retry(
                 
         except Exception as e:
             last_error = str(e)
-            
-            # On 404 from CAFC, try CourtListener as fallback if we have cluster_id
-            if '404' in str(e) and cluster_id and not tried_courtlistener:
-                log(f"CAFC 404, trying CourtListener for cluster {cluster_id}...")
-                cl_url = await get_actual_pdf_url(cluster_id)
-                if cl_url:
-                    actual_url = cl_url
-                    tried_courtlistener = True
-                    # Update headers for CourtListener
-                    api_token = os.environ.get('COURTLISTENER_API_TOKEN')
-                    if api_token:
-                        headers['Authorization'] = f'Token {api_token}'
-                    log(f"Using CourtListener URL: {cl_url}")
-                    continue  # Retry with new URL
             
             if attempt < max_retries - 1:
                 backoff = initial_backoff * (2 ** attempt)
