@@ -5,12 +5,118 @@ import asyncio
 import logging
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from typing import List, Dict, Any, Optional, Tuple
 from openai import OpenAI
 
 from backend import db_postgres as db
 
 _executor = ThreadPoolExecutor(max_workers=4)
+
+# LRU Cache for frequently cited legal definitions (bypass DB for common queries)
+@lru_cache(maxsize=50)
+def get_cached_legal_definition(term: str) -> Optional[str]:
+    """
+    Cache common legal test definitions that are frequently cited.
+    These are well-established Federal Circuit standards that don't change.
+    """
+    common_definitions = {
+        "alice_mayo": """The Alice/Mayo framework for patent eligibility under 35 U.S.C. § 101:
+Step 1: Determine whether the claims are directed to a patent-ineligible concept (abstract idea, law of nature, or natural phenomenon).
+Step 2A: If yes, determine whether the claim elements, individually or as an ordered combination, transform the nature of the claim into a patent-eligible application.
+Step 2B: Search for an "inventive concept" that is sufficient to transform the abstract idea into a patent-eligible application.""",
+        
+        "obviousness": """The Graham v. John Deere framework for obviousness under 35 U.S.C. § 103:
+1. Determine the scope and content of the prior art
+2. Ascertain the differences between the prior art and the claims at issue
+3. Resolve the level of ordinary skill in the pertinent art
+4. Consider objective indicia of nonobviousness (secondary considerations)""",
+        
+        "claim_construction": """The claim construction standard under Phillips v. AWH Corp.:
+Claims are construed from the perspective of a person of ordinary skill in the art at the time of invention.
+Intrinsic evidence (claim language, specification, prosecution history) is primary.
+Extrinsic evidence (dictionaries, expert testimony) is secondary.""",
+        
+        "willful_infringement": """The Halo Electronics standard for willful infringement:
+Enhanced damages under § 284 require showing that the infringement was willful - 
+i.e., that the infringer acted despite an objectively high likelihood that its actions 
+constituted infringement of a valid patent, and this risk was either known or so obvious 
+that it should have been known."""
+    }
+    
+    # Normalize the term for lookup
+    term_normalized = term.lower().replace(" ", "_").replace("-", "_")
+    
+    for key, definition in common_definitions.items():
+        if key in term_normalized or term_normalized in key:
+            return definition
+    
+    return None
+
+def build_conversation_summary(conversation_id: str, max_turns: int = 5) -> str:
+    """
+    Build a condensed summary of the last N conversation turns.
+    This maintains legal context awareness across multi-turn conversations.
+    """
+    if not conversation_id:
+        return ""
+    
+    try:
+        messages = db.get_messages(conversation_id)
+        if not messages or len(messages) < 2:
+            return ""
+        
+        # Get last N turns (a turn = user message + assistant response)
+        recent_messages = messages[-(max_turns * 2):]
+        
+        summary_parts = []
+        current_topic = None
+        mentioned_cases = set()
+        mentioned_issues = set()
+        
+        for msg in recent_messages:
+            role = msg.get('role', '')
+            content = msg.get('content', '')[:500]  # Truncate long messages
+            
+            if role == 'user':
+                summary_parts.append(f"User asked: {content[:200]}")
+            elif role == 'assistant':
+                # Extract key legal elements from assistant responses
+                # Look for case names (pattern: word v. word)
+                case_pattern = r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+v\.\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+                cases = re.findall(case_pattern, content)
+                for case in cases:
+                    mentioned_cases.add(f"{case[0]} v. {case[1]}")
+                
+                # Look for legal issues (101, 102, 103, 112, claim construction, etc.)
+                if '101' in content or 'eligibility' in content.lower():
+                    mentioned_issues.add('patent eligibility (§ 101)')
+                if '103' in content or 'obviousness' in content.lower():
+                    mentioned_issues.add('obviousness (§ 103)')
+                if '102' in content or 'anticipation' in content.lower():
+                    mentioned_issues.add('anticipation (§ 102)')
+                if 'claim construction' in content.lower():
+                    mentioned_issues.add('claim construction')
+        
+        if not summary_parts and not mentioned_cases:
+            return ""
+        
+        summary = "LEGAL CONTEXT FROM PRIOR TURNS:\n"
+        
+        if mentioned_cases:
+            summary += f"Cases discussed: {', '.join(list(mentioned_cases)[:5])}\n"
+        
+        if mentioned_issues:
+            summary += f"Legal issues: {', '.join(mentioned_issues)}\n"
+        
+        if summary_parts:
+            summary += f"Recent context: {summary_parts[-1]}\n"
+        
+        return summary + "\n"
+    
+    except Exception as e:
+        logging.warning(f"Could not build conversation summary: {e}")
+        return ""
 
 
 def standardize_response(response: Dict[str, Any]) -> Dict[str, Any]:
@@ -166,6 +272,23 @@ XI. OPERATING PRINCIPLE
 If a statement could not survive scrutiny by a Federal Circuit judge or opposing counsel for lack of textual support, do not write it.
 
 Your credibility depends entirely on verbatim grounding and disciplined restraint.
+
+XII. SUGGESTED NEXT STEPS (REQUIRED)
+
+At the END of every substantive response (after the CITATION_MAP), you MUST provide exactly three brief, strategically relevant follow-up questions. Format them as:
+
+## Suggested Next Steps
+1. [First follow-up question focusing on logical legal progression]
+2. [Second follow-up question exploring related doctrine or issue]
+3. [Third follow-up question about practical application or distinguishing factors]
+
+These questions should help the practitioner:
+- If discussing Step 1 of Alice, suggest exploring Step 2
+- If discussing a holding, suggest examining the evidentiary record
+- If discussing claim construction, suggest exploring infringement analysis
+- If discussing one case, suggest comparing with related precedent
+
+Keep each question to one sentence. Make them actionable and specific to the case/issue discussed.
 """
 
 def build_context(pages: List[Dict]) -> str:
@@ -990,21 +1113,59 @@ async def generate_chat_response(
     if not client:
         return generate_fallback_response(pages, search_terms, message)
     
-    context = build_context(pages)
+    # Build context and conversation summary in parallel for speed
+    loop = asyncio.get_event_loop()
+    
+    async def build_context_async():
+        return await loop.run_in_executor(_executor, lambda: build_context(pages))
+    
+    async def build_summary_async():
+        return await loop.run_in_executor(_executor, lambda: build_conversation_summary(conversation_id))
+    
+    async def get_cached_definitions_async():
+        # Check if query mentions common legal tests
+        cached_def = None
+        query_lower = message.lower()
+        if 'alice' in query_lower or 'mayo' in query_lower or '101' in query_lower:
+            cached_def = get_cached_legal_definition('alice_mayo')
+        elif 'obviousness' in query_lower or 'obvious' in query_lower or '103' in query_lower:
+            cached_def = get_cached_legal_definition('obviousness')
+        elif 'claim construction' in query_lower or 'phillips' in query_lower:
+            cached_def = get_cached_legal_definition('claim_construction')
+        elif 'willful' in query_lower or 'enhanced damages' in query_lower:
+            cached_def = get_cached_legal_definition('willful_infringement')
+        return cached_def
+    
+    # Run context building, summary generation, and cache lookup in parallel
+    context, conv_summary, cached_definition = await asyncio.gather(
+        build_context_async(),
+        build_summary_async(),
+        get_cached_definitions_async()
+    )
+    
+    # Build enhanced system prompt with conversation context and cached definitions
+    enhanced_prompt = SYSTEM_PROMPT
+    
+    if conv_summary:
+        enhanced_prompt = conv_summary + "\n" + enhanced_prompt
+    
+    if cached_definition:
+        enhanced_prompt += f"\n\nREFERENCE FRAMEWORK:\n{cached_definition}"
+    
+    enhanced_prompt += "\n\nAVAILABLE OPINION EXCERPTS:\n" + context
     
     try:
-        loop = asyncio.get_event_loop()
         response = await asyncio.wait_for(
             loop.run_in_executor(
                 _executor,
                 lambda: client.chat.completions.create(
                     model="gpt-4o",
                     messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT + "\n\nAVAILABLE OPINION EXCERPTS:\n" + context},
+                        {"role": "system", "content": enhanced_prompt},
                         {"role": "user", "content": message}
                     ],
                     temperature=0.2,
-                    max_tokens=2000,
+                    max_tokens=2500,
                     timeout=60.0
                 )
             ),
@@ -1189,3 +1350,115 @@ async def generate_chat_response(
                 "return_branch": "exception"
             }
         })
+
+
+async def generate_chat_response_stream(
+    message: str,
+    opinion_ids: Optional[List[str]] = None,
+    conversation_id: Optional[str] = None,
+    party_only: bool = False
+):
+    """
+    Streaming version of generate_chat_response that yields SSE events.
+    Yields: 'data: {"type": "token", "content": "..."}\n\n' for each token
+            'data: {"type": "sources", "sources": [...]}\n\n' at the end
+            'data: {"type": "done"}\n\n' when complete
+    """
+    import json
+    
+    # First, do the search and context building (non-streaming part)
+    search_terms = message.split()
+    
+    if opinion_ids:
+        pages = []
+        for oid in opinion_ids:
+            opinion_pages = db.get_pages_for_opinion(oid)
+            pages.extend(opinion_pages)
+    else:
+        pages = db.search_pages(message, None, limit=20, party_only=party_only)
+        
+        # Fallback retrieval if needed
+        if len(pages) < 5 and len(message.split()) > 10:
+            short_query = " ".join(message.split()[:8])
+            more_pages = db.search_pages(short_query, None, limit=10, party_only=party_only)
+            seen_ids = {(p.get('opinion_id'), p.get('page_number')) for p in pages}
+            for p in more_pages:
+                key = (p.get('opinion_id'), p.get('page_number'))
+                if key not in seen_ids:
+                    pages.append(p)
+                    seen_ids.add(key)
+    
+    if not pages:
+        yield 'data: {"type": "token", "content": "NOT FOUND IN PROVIDED OPINIONS.\\n\\nNo matching opinions found in the database."}\n\n'
+        yield 'data: {"type": "sources", "sources": []}\n\n'
+        yield 'data: {"type": "done"}\n\n'
+        return
+    
+    client = get_openai_client()
+    if not client:
+        yield 'data: {"type": "token", "content": "AI service unavailable. Please try again later."}\n\n'
+        yield 'data: {"type": "done"}\n\n'
+        return
+    
+    # Build context with parallel operations
+    loop = asyncio.get_event_loop()
+    context = await loop.run_in_executor(_executor, lambda: build_context(pages))
+    conv_summary = await loop.run_in_executor(_executor, lambda: build_conversation_summary(conversation_id))
+    
+    # Check for cached legal definitions
+    cached_def = None
+    query_lower = message.lower()
+    if 'alice' in query_lower or 'mayo' in query_lower or '101' in query_lower:
+        cached_def = get_cached_legal_definition('alice_mayo')
+    elif 'obviousness' in query_lower or 'obvious' in query_lower or '103' in query_lower:
+        cached_def = get_cached_legal_definition('obviousness')
+    
+    # Build enhanced prompt
+    enhanced_prompt = SYSTEM_PROMPT
+    if conv_summary:
+        enhanced_prompt = conv_summary + "\n" + enhanced_prompt
+    if cached_def:
+        enhanced_prompt += f"\n\nREFERENCE FRAMEWORK:\n{cached_def}"
+    enhanced_prompt += "\n\nAVAILABLE OPINION EXCERPTS:\n" + context
+    
+    # Signal that we're starting to generate
+    yield 'data: {"type": "start"}\n\n'
+    
+    try:
+        # Use streaming API
+        stream = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": enhanced_prompt},
+                {"role": "user", "content": message}
+            ],
+            temperature=0.2,
+            max_tokens=2500,
+            stream=True
+        )
+        
+        full_response = ""
+        for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                token = chunk.choices[0].delta.content
+                full_response += token
+                # Escape for JSON
+                escaped_token = json.dumps(token)[1:-1]  # Remove quotes from json.dumps
+                yield f'data: {{"type": "token", "content": "{escaped_token}"}}\n\n'
+        
+        # Process the complete response to extract sources
+        markers = extract_cite_markers(full_response)
+        sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
+        
+        # Send sources at the end
+        sources_json = json.dumps(sources)
+        yield f'data: {{"type": "sources", "sources": {sources_json}}}\n\n'
+        
+        # Signal completion
+        yield 'data: {"type": "done"}\n\n'
+        
+    except Exception as e:
+        logging.error(f"Streaming error: {e}")
+        error_msg = json.dumps(str(e))[1:-1]
+        yield f'data: {{"type": "error", "message": "{error_msg}"}}\n\n'
+        yield 'data: {"type": "done"}\n\n'

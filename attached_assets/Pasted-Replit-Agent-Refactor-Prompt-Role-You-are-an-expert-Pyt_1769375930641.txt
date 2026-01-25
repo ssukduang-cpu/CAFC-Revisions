@@ -1,0 +1,22 @@
+Replit Agent Refactor Prompt
+Role: You are an expert Python and AI Engineer specializing in high-performance RAG (Retrieval-Augmented Generation).
+Task: Refactor the existing chat.py and ingestion.py logic to improve response speed, legal context retention, and user engagement.
+Technical Requirements:
+1. Implement Streaming Responses:
+• Update the LLM call to use streaming (e.g., stream=True in OpenAI or Anthropic).
+• Ensure the backend and frontend can handle server-sent events (SSE) so text appears in real-time to the user.
+2. Add State-Aware History:
+• Implement a ConversationSummaryBufferMemory or equivalent logic.
+• Instead of just passing the last message, condense the last 3-5 turns into a "Legal Context Summary" and prepend it to the system prompt to maintain awareness of the specific patent or legal issue being discussed.
+3. Implement a Follow-up Question Generator:
+• Append an instruction to the system prompt: "At the end of your response, provide exactly three brief, strategically relevant follow-up questions labeled as 'Suggested Next Steps'. These should focus on logical legal progression (e.g., if discussing Step 1 of Alice, suggest Step 2; if discussing a holding, suggest looking at the record's evidence)."
+4. Optimize Search Speed:
+• Use asyncio.gather to perform the database vector search and the summary generation in parallel.
+• Implement a basic LRU (Least Recently Used) Cache for frequently cited legal definitions (like the Alice/Mayo test) to bypass the database for common queries.
+5. Text Cleanup (Artifact Removal):
+• In ingestion.py, add a regex post-processor to the extract_pages function to identify and fix hyphenated word breaks (e.g., converting "Al- ice" to "Alice") before chunking.
+Go ahead and modify the files now. Let's start with chat.py.
+Why this specific instruction works for you
+• Hyphenation Fix: As a patent lawyer, you know "Al- ice" or "obvious- ness" in a search query can break a vector match. This forces the agent to clean the data during ingestion.
+• Parallelism: By using asyncio.gather, you significantly reduce the "time to first token," making the app feel snappy even on Replit's shared resources.
+• Legal Continuity: The "Summary Buffer" ensures that if you start by talking about Illumina v. Ariosa, the AI doesn't forget that context when you ask a follow-up about "the inventors' intent".

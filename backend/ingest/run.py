@@ -166,15 +166,50 @@ async def download_pdf_with_retry(
         "error": last_error
     }
 
+def cleanup_hyphenated_text(text: str) -> str:
+    """
+    Fix hyphenated word breaks that occur at line endings in PDFs.
+    E.g., "Al- ice" → "Alice", "obvious- ness" → "obviousness"
+    
+    This is critical for legal text where terms like "Alice", "obviousness",
+    "inequitable" are frequently broken across lines in PDFs.
+    """
+    import re
+    # Pattern: word fragment + hyphen + optional whitespace/newline + word fragment
+    # This handles cases like "Al-\nice", "Al- ice", "ob-\nvious-\nness"
+    pattern = r'(\w+)-\s*\n?\s*(\w+)'
+    
+    def rejoin_word(match):
+        part1 = match.group(1)
+        part2 = match.group(2)
+        # Only rejoin if it looks like a broken word (lowercase continuation)
+        # or if it's a known legal term pattern
+        if part2[0].islower() or len(part1) <= 3:
+            return part1 + part2
+        return match.group(0)  # Keep original if it doesn't look like a word break
+    
+    # Apply multiple times to handle chained breaks like "ob-\nvious-\nness"
+    result = text
+    for _ in range(3):
+        new_result = re.sub(pattern, rejoin_word, result)
+        if new_result == result:
+            break
+        result = new_result
+    
+    return result
+
 def extract_pages(pdf_path: str) -> Dict[str, Any]:
     """
     Extract text from PDF pages.
     Returns dict with 'pages' list and 'ocr_required' flag if text is too sparse.
+    Applies hyphenation cleanup to fix broken words.
     """
     reader = PdfReader(pdf_path)
     pages = []
     for page in reader.pages:
         text = page.extract_text() or ""
+        # Clean up hyphenated word breaks before storing
+        text = cleanup_hyphenated_text(text)
         pages.append(text)
     
     # Check if this is a scanned/image PDF (less than 100 chars total)

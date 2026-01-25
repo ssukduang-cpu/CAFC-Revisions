@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, AsyncGenerator
 import os
 import json
 import asyncio
@@ -11,7 +11,7 @@ import subprocess
 
 from backend import db_postgres as db
 from backend.scraper import scrape_opinions
-from backend.chat import generate_chat_response
+from backend.chat import generate_chat_response, generate_chat_response_stream
 
 app = FastAPI(title="Federal Circuit AI")
 
@@ -601,6 +601,75 @@ async def send_message(conversation_id: str, request: MessageRequest):
         "userMessage": serialize_for_json(convert_keys_to_camel(user_msg)) if user_msg else {},
         "assistantMessage": assistant_response
     }
+
+@app.post("/api/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """SSE streaming endpoint for real-time chat responses."""
+    conv_id = request.conversation_id
+    if not conv_id:
+        title = request.message[:60].strip()
+        if len(request.message) > 60:
+            title += "..."
+        conv_id = db.create_conversation(title)
+    
+    db.add_message(conv_id, "user", request.message)
+    
+    party_only = request.search_mode == "parties"
+    
+    async def generate():
+        full_response = ""
+        sources = []
+        
+        # First yield the conversation ID
+        yield f'data: {{"type": "conversation_id", "conversation_id": "{conv_id}"}}\n\n'
+        
+        async for chunk in generate_chat_response_stream(
+            message=request.message,
+            opinion_ids=request.selected_opinion_ids,
+            conversation_id=conv_id,
+            party_only=party_only
+        ):
+            # Accumulate full response for saving
+            if '"type": "token"' in chunk:
+                try:
+                    data = json.loads(chunk.replace('data: ', '').strip())
+                    if data.get('type') == 'token':
+                        full_response += data.get('content', '')
+                except:
+                    pass
+            elif '"type": "sources"' in chunk:
+                try:
+                    data = json.loads(chunk.replace('data: ', '').strip())
+                    if data.get('type') == 'sources':
+                        sources = data.get('sources', [])
+                except:
+                    pass
+            yield chunk
+        
+        # Save the complete message to conversation history
+        if full_response:
+            citation_data = {
+                "answer_markdown": full_response,
+                "sources": sources,
+                "action_items": [],
+                "debug": {}
+            }
+            db.add_message(
+                conv_id,
+                "assistant",
+                full_response,
+                json.dumps(citation_data)
+            )
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
