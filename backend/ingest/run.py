@@ -320,8 +320,9 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
         return {"success": False, "status": "error", "doc_id": doc_id, "error": error_msg}
     
     finally:
-        # Only delete PDF on successful ingestion - keep failed ones for debugging
-        if ingestion_success and os.path.exists(pdf_path):
+        # Keep PDFs after successful ingestion for "View in app" functionality
+        # Only delete PDFs that failed ingestion to save disk space
+        if not ingestion_success and os.path.exists(pdf_path):
             try:
                 os.remove(pdf_path)
             except:

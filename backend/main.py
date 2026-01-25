@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any, AsyncGenerator
 import os
@@ -533,6 +533,96 @@ async def admin_diagnostics():
         "environment": os.environ.get('NODE_ENV', 'unknown'),
         "database_url_set": bool(os.environ.get('DATABASE_URL'))
     }
+
+# PDF serving routes
+PDF_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "pdfs")
+
+@app.get("/pdf/{opinion_id}")
+async def serve_pdf_by_id(opinion_id: str, page: int = 1):
+    """
+    Serve PDF files by opinion ID.
+    Returns custom JSON error if file is missing.
+    """
+    import uuid
+    
+    # Validate UUID format to prevent path traversal attacks
+    try:
+        validated_uuid = uuid.UUID(opinion_id)
+        safe_opinion_id = str(validated_uuid)
+    except (ValueError, AttributeError):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "Invalid opinion ID format",
+                "status": "invalid_id",
+                "opinion_id": opinion_id[:50] if opinion_id else None
+            }
+        )
+    
+    pdf_filename = f"{safe_opinion_id}.pdf"
+    pdf_path = os.path.join(PDF_DIR, pdf_filename)
+    
+    # Try to look up the document for fallback URL
+    doc = None
+    try:
+        doc = db.get_document(safe_opinion_id)
+    except Exception:
+        # DB error - continue without doc metadata
+        pass
+    
+    if not os.path.exists(pdf_path):
+        # Return custom JSON error with fallback URL information
+        fallback_url = None
+        if doc:
+            # Prefer CourtListener URL, then original PDF URL
+            fallback_url = doc.get('courtlistener_url') or doc.get('pdf_url')
+        
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "PDF not yet downloaded",
+                "status": "retry_later",
+                "opinion_id": opinion_id,
+                "fallback_url": fallback_url
+            }
+        )
+    
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=pdf_filename,
+        headers={"Content-Disposition": f"inline; filename={pdf_filename}"}
+    )
+
+@app.get("/pdfs/{filename:path}")
+async def serve_pdf(filename: str):
+    """
+    Serve PDF files from the data/pdfs directory by filename.
+    Returns custom JSON error if file is missing.
+    """
+    # Sanitize filename to prevent directory traversal
+    safe_filename = os.path.basename(filename)
+    if not safe_filename.endswith('.pdf'):
+        safe_filename += '.pdf'
+    
+    pdf_path = os.path.join(PDF_DIR, safe_filename)
+    
+    if not os.path.exists(pdf_path):
+        # Return custom JSON error instead of generic 404
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "PDF not yet downloaded",
+                "status": "retry_later",
+                "filename": safe_filename
+            }
+        )
+    
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=safe_filename
+    )
 
 @app.get("/api/conversations")
 async def list_conversations():
