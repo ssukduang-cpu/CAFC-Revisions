@@ -115,6 +115,15 @@ function OpinionCard({ opinion, isSelected, onSelect, onIngest, isIngesting }: O
                 {section}
               </Badge>
             ))}
+            
+            {(opinion as any).lastError?.toLowerCase().includes('ocr') && (
+              <Badge 
+                variant="outline" 
+                className="text-[10px] px-1.5 py-0 h-5 border-amber-500/50 bg-amber-500/10 text-amber-700 font-medium"
+              >
+                OCR Required
+              </Badge>
+            )}
           </div>
         </div>
         

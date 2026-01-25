@@ -45,4 +45,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.setTimeout(120000);
     proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api` });
   });
+
+  // PDF serving route - proxy to Python backend
+  app.use("/pdf", (req: Request, res: Response, next: NextFunction) => {
+    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/pdf` });
+  });
 }
