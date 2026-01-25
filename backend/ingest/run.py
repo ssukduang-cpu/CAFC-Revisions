@@ -76,9 +76,16 @@ async def download_pdf_with_retry(
     actual_url = url
     tried_courtlistener = False
     
-    # For CourtListener /pdf/ URLs, fetch the actual download URL from their API
-    # The /pdf/ endpoint returns 202 requiring on-demand generation
-    if 'courtlistener.com/pdf/' in url:
+    # If we have a cluster_id, always try to get the storage URL first
+    # This avoids the 202 "PDF generation in progress" from /pdf/ endpoint
+    if cluster_id:
+        real_url = await get_actual_pdf_url(str(cluster_id))
+        if real_url:
+            log(f"Using CourtListener storage URL for cluster {cluster_id}")
+            actual_url = real_url
+            tried_courtlistener = True
+    # Fallback: For CourtListener /pdf/ URLs without cluster_id, extract it from URL
+    elif 'courtlistener.com/pdf/' in url:
         import re
         match = re.search(r'/pdf/(\d+)/', url)
         if match:
@@ -98,25 +105,20 @@ async def download_pdf_with_retry(
         if api_token:
             headers['Authorization'] = f'Token {api_token}'
     
-    max_202_retries = 5  # Extra retries for 202 (PDF generation in progress)
-    retry_202_count = 0
-    
     for attempt in range(max_retries):
         try:
             async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
                 response = await client.get(actual_url, headers=headers)
                 status_code = response.status_code
                 
-                # CourtListener returns 202 when PDF is being generated - wait longer
+                # CourtListener returns 202 when PDF is being generated - skip and retry later
                 if status_code == 202:
-                    retry_202_count += 1
-                    if retry_202_count <= max_202_retries:
-                        wait_time = 10 * retry_202_count  # 10s, 20s, 30s, 40s, 50s
-                        log(f"PDF generation in progress (202), waiting {wait_time}s... ({retry_202_count}/{max_202_retries})")
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        raise ValueError(f"PDF generation timed out after {max_202_retries} attempts")
+                    return {
+                        "success": False,
+                        "attempts": attempt + 1,
+                        "error": "PDF_GENERATION_PENDING",
+                        "retry_later": True
+                    }
                 
                 # On 4xx errors from CAFC, try CourtListener as fallback if we have cluster_id
                 if status_code >= 400 and cluster_id and not tried_courtlistener:
@@ -213,8 +215,12 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
         download_result = await download_pdf_with_retry(pdf_url, pdf_path, cluster_id=cluster_id)
         
         if not download_result["success"]:
-            error_msg = f"Download failed: {download_result.get('error', 'Unknown')}"
-            db.mark_document_error(doc_id, error_msg)
+            error_msg = download_result.get('error', 'Unknown')
+            # For 202 (PDF generation pending), don't mark as error - just skip for now
+            if download_result.get("retry_later"):
+                log(f"Skipping (PDF pending): {case_name[:50]}")
+                return {"success": False, "status": "retry_later", "doc_id": doc_id, "error": error_msg}
+            db.mark_document_error(doc_id, f"Download failed: {error_msg}")
             return {"success": False, "status": "download_failed", "doc_id": doc_id, "error": error_msg}
         
         sha256 = download_result.get("sha256")

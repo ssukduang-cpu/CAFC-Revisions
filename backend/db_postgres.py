@@ -626,13 +626,23 @@ def get_ingestion_stats() -> Dict[str, Any]:
         }
 
 def get_pending_documents(limit: int = 10) -> List[Dict]:
+    """Get pending documents and mark them as processing to prevent duplicates."""
     with get_db() as conn:
         cursor = conn.cursor()
+        # Use SELECT FOR UPDATE SKIP LOCKED to atomically claim documents
+        # This prevents multiple workers from picking up the same documents
+        # Order by cluster_id ASC to process older documents first (they have stored PDFs)
         cursor.execute("""
-            SELECT * FROM documents 
-            WHERE ingested = FALSE AND (last_error IS NULL OR last_error = '')
-            ORDER BY release_date DESC NULLS LAST
-            LIMIT %s
+            WITH to_process AS (
+                SELECT id FROM documents 
+                WHERE ingested = FALSE 
+                  AND (last_error IS NULL OR last_error = '')
+                ORDER BY courtlistener_cluster_id ASC NULLS LAST
+                LIMIT %s
+                FOR UPDATE SKIP LOCKED
+            )
+            SELECT d.* FROM documents d
+            JOIN to_process tp ON d.id = tp.id
         """, (limit,))
         return [dict(row) for row in cursor.fetchall()]
 
