@@ -70,15 +70,25 @@ async def download_pdf_with_retry(
     pdf_path: str,
     cluster_id: Optional[str] = None,
     max_retries: int = MAX_RETRIES,
-    initial_backoff: float = INITIAL_BACKOFF
+    initial_backoff: float = INITIAL_BACKOFF,
+    try_original_first: bool = True
 ) -> Dict[str, Any]:
     last_error = None
     actual_url = url
     tried_courtlistener = False
+    tried_original = False
     
-    # If we have a cluster_id, always try to get the storage URL first
-    # This avoids the 202 "PDF generation in progress" from /pdf/ endpoint
-    if cluster_id:
+    # Strategy: If we have a non-CourtListener URL (e.g., CAFC), try it first
+    # This helps avoid 202 "PDF generation pending" from CourtListener
+    is_original_cafc_url = url and 'cafc.uscourts.gov' in url
+    
+    if try_original_first and is_original_cafc_url:
+        # Start with original CAFC URL - CourtListener will be fallback
+        actual_url = url
+        tried_original = True
+        log(f"Trying CAFC URL first: {url[:80]}...")
+    elif cluster_id and not is_original_cafc_url:
+        # For CourtListener /pdf/ URLs, get the storage URL to avoid 202
         real_url = await get_actual_pdf_url(str(cluster_id))
         if real_url:
             log(f"Using CourtListener storage URL for cluster {cluster_id}")
@@ -111,19 +121,28 @@ async def download_pdf_with_retry(
                 response = await client.get(actual_url, headers=headers)
                 status_code = response.status_code
                 
-                # CourtListener returns 202 when PDF is being generated - skip and retry later
+                # CourtListener returns 202 when PDF is being generated
+                # If we haven't tried the original CAFC URL yet, try that first
                 if status_code == 202:
+                    if is_original_cafc_url and not tried_original:
+                        log(f"CourtListener 202, falling back to CAFC URL: {url[:80]}...")
+                        actual_url = url
+                        tried_original = True
+                        # Remove CourtListener auth for CAFC
+                        headers.pop('Authorization', None)
+                        continue
+                    # Tried both, return pending
                     return {
                         "success": False,
                         "attempts": attempt + 1,
-                        "error": "PDF_GENERATION_PENDING",
+                        "error": "PDF_GENERATION_PENDING_202",
                         "retry_later": True
                     }
                 
                 # On 4xx errors from CAFC, try CourtListener as fallback if we have cluster_id
-                if status_code >= 400 and cluster_id and not tried_courtlistener:
-                    log(f"CAFC {status_code}, trying CourtListener for cluster {cluster_id}...")
-                    cl_url = await get_actual_pdf_url(cluster_id)
+                if status_code >= 400 and not tried_courtlistener and cluster_id:
+                    log(f"URL returned {status_code}, trying CourtListener for cluster {cluster_id}...")
+                    cl_url = await get_actual_pdf_url(str(cluster_id))
                     if cl_url:
                         actual_url = cl_url
                         tried_courtlistener = True
