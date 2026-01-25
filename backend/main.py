@@ -503,6 +503,57 @@ async def build_and_load_manifest(count: int = 100):
 async def admin_ingest_status():
     return db.get_ingestion_stats()
 
+@app.post("/api/admin/reset_failed")
+async def admin_reset_failed(error_pattern: str = "202"):
+    """
+    Reset documents with matching error pattern so they can be retried.
+    Default resets the '202 PDF generation in progress' errors.
+    """
+    with db.get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE documents 
+            SET last_error = NULL, ingested = FALSE
+            WHERE last_error LIKE %s
+            RETURNING id
+        """, (f"%{error_pattern}%",))
+        reset_ids = [row["id"] for row in cursor.fetchall()]
+        conn.commit()
+    
+    return {
+        "success": True,
+        "reset_count": len(reset_ids),
+        "pattern_matched": error_pattern,
+        "message": f"Reset {len(reset_ids)} documents for retry"
+    }
+
+@app.get("/api/admin/error_summary")
+async def admin_error_summary():
+    """Get a summary of ingestion errors by category."""
+    with db.get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                CASE 
+                    WHEN last_error LIKE '%202%' THEN 'PDF generation pending (202)'
+                    WHEN last_error LIKE '%404%' THEN 'Not found (404)'
+                    WHEN last_error LIKE '%OCR%' THEN 'OCR required'
+                    WHEN last_error LIKE '%None%' THEN 'Download returned None'
+                    ELSE 'Other'
+                END as error_category,
+                COUNT(*) as count
+            FROM documents 
+            WHERE last_error IS NOT NULL
+            GROUP BY error_category
+            ORDER BY count DESC
+        """)
+        rows = cursor.fetchall()
+    
+    return {
+        "error_categories": [{"category": r["error_category"], "count": r["count"]} for r in rows],
+        "total_failed": sum(r["count"] for r in rows)
+    }
+
 @app.get("/api/admin/diagnostics")
 async def admin_diagnostics():
     """Detailed diagnostics for troubleshooting production issues."""
