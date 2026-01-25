@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Smart Backfill Script for CAFC Landmark Cases (1982-2014)
+Smart Backfill Script for CAFC Landmark Cases (1982-2024)
 
 This script implements a strategic backfill approach:
-1. Target specific landmark cases by citation/name
-2. Discover frequently-cited pre-2015 cases from existing corpus
-3. Prioritize ingestion based on citation frequency
+1. Target 200+ landmark cases organized by doctrine
+2. Discover frequently-cited cases from existing corpus
+3. Merge, dedupe, and prioritize by citation frequency
 """
 import asyncio
+import json
 import os
 import re
 import sys
@@ -19,8 +20,9 @@ import httpx
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from backend import db_postgres as db
 from backend.ingest.run import ingest_document
+from scripts.landmark_cases import get_all_curated_cases, LANDMARK_CASES_BY_DOCTRINE, count_curated_cases
 
-LANDMARK_CASES = [
+LEGACY_LANDMARK_CASES = [
     {
         "name": "Alice Corp. v. CLS Bank International",
         "citation": "573 U.S. 208",
@@ -238,34 +240,61 @@ def extract_citations_from_text(text: str) -> List[Tuple[str, str]]:
     return citations
 
 
-def discover_cited_cases(min_citations: int = 5) -> Dict[str, int]:
+def discover_cited_cases(min_citations: int = 3, limit_chunks: int = 5000) -> Dict[str, int]:
     """
-    Parse ingested documents to find frequently-cited pre-2015 cases.
-    Returns dict of citation -> count.
+    Parse ingested documents to find frequently-cited cases.
+    Scans full corpus to discover influential precedent.
+    Returns dict of citation -> count, sorted by frequency.
     """
-    log("Discovering frequently-cited cases from corpus...")
+    log(f"Discovering frequently-cited cases from corpus (scanning up to {limit_chunks} chunks)...")
     citation_counts = defaultdict(int)
+    case_name_counts = defaultdict(int)
     
     with db.get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT dc.text_content 
+            SELECT dc.text 
             FROM document_chunks dc
             JOIN documents d ON dc.document_id = d.id
             WHERE d.ingested = TRUE
-            LIMIT 500
-        """)
+            LIMIT %s
+        """, (limit_chunks,))
         
+        chunks_processed = 0
         for row in cursor.fetchall():
-            text = row["text_content"] or ""
+            text = row["text"] or ""
             citations = extract_citations_from_text(text)
-            for citation, _ in citations:
-                citation_counts[citation] += 1
+            for citation, ctype in citations:
+                if ctype in ("F.3d", "F.2d", "U.S."):
+                    citation_counts[citation] += 1
+                elif ctype == "case_name":
+                    case_name_counts[citation] += 1
+            chunks_processed += 1
+            if chunks_processed % 1000 == 0:
+                log(f"Processed {chunks_processed} chunks...")
     
-    frequent = {k: v for k, v in citation_counts.items() if v >= min_citations}
-    log(f"Found {len(frequent)} citations appearing {min_citations}+ times")
+    log(f"Processed {chunks_processed} chunks total")
     
-    return dict(sorted(frequent.items(), key=lambda x: x[1], reverse=True))
+    frequent_citations = {k: v for k, v in citation_counts.items() if v >= min_citations}
+    frequent_cases = {k: v for k, v in case_name_counts.items() if v >= min_citations}
+    
+    log(f"Found {len(frequent_citations)} reporter citations appearing {min_citations}+ times")
+    log(f"Found {len(frequent_cases)} case names appearing {min_citations}+ times")
+    
+    all_frequent = {**frequent_citations, **frequent_cases}
+    return dict(sorted(all_frequent.items(), key=lambda x: x[1], reverse=True))
+
+
+def save_discovered_cases(output_path: str = "data/discovered_cases.json"):
+    """Run citation discovery and save results to file."""
+    discovered = discover_cited_cases(min_citations=3, limit_chunks=10000)
+    
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w") as f:
+        json.dump(discovered, f, indent=2)
+    
+    log(f"Saved {len(discovered)} discovered cases to {output_path}")
+    return discovered
 
 
 async def add_case_to_database(result: Dict, landmark_info: Optional[Dict] = None) -> Optional[str]:
@@ -328,26 +357,44 @@ async def add_case_to_database(result: Dict, landmark_info: Optional[Dict] = Non
         return doc_id
 
 
-async def ingest_landmarks(dry_run: bool = False) -> Dict[str, any]:
+async def ingest_landmarks(dry_run: bool = False, doctrine: Optional[str] = None) -> Dict[str, any]:
     """
     Find and ingest landmark cases from CourtListener.
+    Uses the comprehensive curated list from landmark_cases.py (~96 cases).
+    
+    Args:
+        dry_run: If True, only search - don't ingest
+        doctrine: If specified, only process cases from that doctrine
     """
     results = {
         "found": [],
         "not_found": [],
         "ingested": [],
-        "failed": []
+        "failed": [],
+        "by_doctrine": {}
     }
     
-    log(f"Processing {len(LANDMARK_CASES)} landmark cases...")
+    all_landmarks = get_all_curated_cases()
     
-    for landmark in LANDMARK_CASES:
-        log(f"\nSearching for: {landmark['name']}")
+    if doctrine:
+        all_landmarks = [c for c in all_landmarks if c.get("doctrine") == doctrine]
+        log(f"Filtering to doctrine: {doctrine}")
+    
+    log(f"Processing {len(all_landmarks)} curated landmark cases...")
+    
+    for i, landmark in enumerate(all_landmarks):
+        pct = int((i / len(all_landmarks)) * 100)
+        doc_doctrine = landmark.get("doctrine", "unknown")
+        log(f"\n[{pct}%] [{doc_doctrine}] Searching for: {landmark['name']}")
         
         result = await find_landmark_on_courtlistener(landmark)
         
         if result:
             results["found"].append(landmark["name"])
+            
+            if doc_doctrine not in results["by_doctrine"]:
+                results["by_doctrine"][doc_doctrine] = {"found": 0, "ingested": 0, "failed": 0}
+            results["by_doctrine"][doc_doctrine]["found"] += 1
             
             if not dry_run:
                 doc_id = await add_case_to_database(result, landmark)
@@ -359,20 +406,25 @@ async def ingest_landmarks(dry_run: bool = False) -> Dict[str, any]:
                             ingest_result = await ingest_document(doc)
                             if ingest_result.get("success"):
                                 results["ingested"].append(landmark["name"])
+                                results["by_doctrine"][doc_doctrine]["ingested"] += 1
                                 log(f"Successfully ingested: {landmark['name']}")
                             else:
                                 results["failed"].append({
                                     "name": landmark["name"],
+                                    "doctrine": doc_doctrine,
                                     "error": ingest_result.get("error")
                                 })
+                                results["by_doctrine"][doc_doctrine]["failed"] += 1
                         else:
                             results["failed"].append({
                                 "name": landmark["name"],
+                                "doctrine": doc_doctrine,
                                 "error": "Document not found after insert"
                             })
                     except Exception as e:
                         results["failed"].append({
                             "name": landmark["name"],
+                            "doctrine": doc_doctrine,
                             "error": str(e)
                         })
         else:
@@ -380,6 +432,12 @@ async def ingest_landmarks(dry_run: bool = False) -> Dict[str, any]:
             log(f"Not found: {landmark['name']}")
         
         await asyncio.sleep(2)
+    
+    log(f"\n=== Landmark Ingestion Complete ===")
+    log(f"Found: {len(results['found'])}/{len(all_landmarks)}")
+    log(f"Ingested: {len(results['ingested'])}")
+    log(f"Failed: {len(results['failed'])}")
+    log(f"Not Found: {len(results['not_found'])}")
     
     return results
 
@@ -477,29 +535,50 @@ async def backfill_historical_cases(
 async def main():
     import argparse
     
-    parser = argparse.ArgumentParser(description="Smart Backfill for CAFC Landmark Cases")
-    parser.add_argument("--landmarks", action="store_true", help="Ingest landmark cases")
-    parser.add_argument("--discover", action="store_true", help="Discover frequently-cited cases")
+    parser = argparse.ArgumentParser(description="Smart Backfill for CAFC Landmark Cases (200+)")
+    parser.add_argument("--landmarks", action="store_true", help="Ingest curated landmark cases (~96)")
+    parser.add_argument("--doctrine", type=str, help="Filter landmarks by doctrine (eligibility, obviousness, claim_construction, etc.)")
+    parser.add_argument("--discover", action="store_true", help="Discover frequently-cited cases from corpus")
+    parser.add_argument("--save-discovered", action="store_true", help="Save discovered cases to data/discovered_cases.json")
     parser.add_argument("--historical", action="store_true", help="Fetch historical cases (1982-2014)")
-    parser.add_argument("--limit", type=int, default=100, help="Max cases to fetch")
+    parser.add_argument("--limit", type=int, default=100, help="Max cases to fetch for historical")
     parser.add_argument("--dry-run", action="store_true", help="Don't actually ingest")
     parser.add_argument("--delay", type=float, default=5.0, help="Delay between API calls (seconds)")
+    parser.add_argument("--list-doctrines", action="store_true", help="List available doctrines and case counts")
     
     args = parser.parse_args()
     
-    if args.discover:
-        citations = discover_cited_cases(min_citations=5)
-        print("\nTop 20 most cited cases:")
-        for i, (citation, count) in enumerate(list(citations.items())[:20]):
+    if args.list_doctrines:
+        print("\nAvailable Doctrines:")
+        total = 0
+        for doctrine, cases in LANDMARK_CASES_BY_DOCTRINE.items():
+            print(f"  {doctrine}: {len(cases)} cases")
+            total += len(cases)
+        print(f"\nTotal curated cases: {total}")
+        return
+    
+    if args.discover or args.save_discovered:
+        if args.save_discovered:
+            discovered = save_discovered_cases()
+        else:
+            discovered = discover_cited_cases(min_citations=3)
+        
+        print(f"\nTop 30 most cited cases/citations:")
+        for i, (citation, count) in enumerate(list(discovered.items())[:30]):
             print(f"  {i+1}. {citation}: {count} citations")
     
     if args.landmarks:
-        results = await ingest_landmarks(dry_run=args.dry_run)
+        results = await ingest_landmarks(dry_run=args.dry_run, doctrine=args.doctrine)
         print(f"\nLandmark Results:")
         print(f"  Found: {len(results['found'])}")
         print(f"  Not Found: {len(results['not_found'])}")
         print(f"  Ingested: {len(results['ingested'])}")
         print(f"  Failed: {len(results['failed'])}")
+        
+        if results.get("by_doctrine"):
+            print(f"\nBy Doctrine:")
+            for doc, stats in results["by_doctrine"].items():
+                print(f"  {doc}: {stats['found']} found, {stats['ingested']} ingested, {stats['failed']} failed")
         
         if results["not_found"]:
             print(f"\nMissing cases:")
@@ -515,8 +594,9 @@ async def main():
         print(f"  Added: {results.get('added', 0)}")
         print(f"  Skipped: {results.get('skipped', 0)}")
     
-    if not any([args.landmarks, args.discover, args.historical]):
+    if not any([args.landmarks, args.discover, args.historical, args.list_doctrines, args.save_discovered]):
         parser.print_help()
+        print(f"\n\nCurated landmark cases: {count_curated_cases()}")
 
 
 if __name__ == "__main__":
