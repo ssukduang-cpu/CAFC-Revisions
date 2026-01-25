@@ -133,6 +133,43 @@ export function ChatInterface() {
     return parseAnswerMarkdown(message);
   };
 
+  // Parse "Suggested Next Steps" from markdown and extract both the main content and suggestions
+  const parseSuggestedNextSteps = (markdown: string): { mainContent: string; suggestions: string[] } => {
+    // Look for "## Suggested Next Steps" section
+    const suggestionsMatch = markdown.match(/##\s*Suggested Next Steps\s*([\s\S]*?)(?:$|(?=\n##\s))/i);
+    
+    if (!suggestionsMatch) {
+      return { mainContent: markdown, suggestions: [] };
+    }
+    
+    // Extract the numbered list items from suggestions
+    const suggestionsBlock = suggestionsMatch[1];
+    const suggestions: string[] = [];
+    
+    // Match numbered items (1. question, 2. question, etc.)
+    const lines = suggestionsBlock.split('\n');
+    for (const line of lines) {
+      const match = line.match(/^\s*\d+\.\s*(.+)$/);
+      if (match) {
+        let question = match[1].trim();
+        // Make sure it ends with a question mark
+        if (!question.endsWith('?')) {
+          question += '?';
+        }
+        // Clean up any markdown formatting
+        question = question.replace(/\*\*/g, '').replace(/\*/g, '');
+        if (question.length > 5) {  // Filter out very short items
+          suggestions.push(question);
+        }
+      }
+    }
+    
+    // Remove the suggestions section from main content
+    const mainContent = markdown.replace(/##\s*Suggested Next Steps\s*[\s\S]*?(?:$|(?=\n##\s))/i, '').trim();
+    
+    return { mainContent, suggestions };
+  };
+
   const renderMarkdownWithSources = (markdown: string, sources: Source[]) => {
     // Split by citations [1], [2], bold **text**, and italics *text*
     const parts = markdown.split(/(\[\d+\]|\*\*[^*]+\*\*|\*[^*]+\*)/g);
@@ -429,11 +466,38 @@ export function ChatInterface() {
                       <div className="bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-md text-sm leading-relaxed">
                         <div className="whitespace-pre-wrap">{msg.content}</div>
                       </div>
-                    ) : answerMarkdown ? (
+                    ) : answerMarkdown ? (() => {
+                      const { mainContent, suggestions } = parseSuggestedNextSteps(answerMarkdown);
+                      return (
                       <div className="space-y-4 w-full">
                         <div className="text-sm leading-relaxed text-foreground">
-                          {renderMarkdownText(answerMarkdown, sources)}
+                          {renderMarkdownText(mainContent, sources)}
                         </div>
+                        
+                        {suggestions.length > 0 && (
+                          <div className="mt-4 pt-3 border-t border-border/30">
+                            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <Sparkles className="h-3 w-3" />
+                              Suggested Next Steps
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              {suggestions.slice(0, 3).map((suggestion, idx) => (
+                                <Button
+                                  key={idx}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto py-2 px-3 text-left justify-start text-xs text-muted-foreground hover:text-foreground hover:bg-primary/5 border border-border/40 hover:border-primary/30 rounded-lg transition-colors"
+                                  onClick={() => handleActionClick(suggestion)}
+                                  disabled={sendMessage.isPending}
+                                  data-testid={`suggested-step-${idx + 1}`}
+                                >
+                                  <span className="text-primary/60 mr-2">{idx + 1}.</span>
+                                  {suggestion}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         
                         {hasActionItems && (
                           <div className="mt-3 pt-3 border-t border-border/30">
@@ -519,7 +583,8 @@ export function ChatInterface() {
                           </div>
                         )}
                       </div>
-                    ) : (
+                      );
+                    })() : (
                       <div className="text-sm leading-relaxed text-foreground">
                         <div className="whitespace-pre-wrap">{msg.content}</div>
                       </div>
