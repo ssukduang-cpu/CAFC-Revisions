@@ -92,7 +92,17 @@ The system now uses CourtListener as the source of truth for CAFC precedential o
    - Uses cluster_id-based deduplication
    - Fallback: (appeal_number, pdf_url) if cluster_id missing
 
-3. Run batch ingestion:
+3. Run batch ingestion (two options):
+
+   **Option A: Background script (continuous processing)**
+   ```bash
+   python scripts/background_ingest.py
+   ```
+   - Processes all pending documents continuously
+   - Automatic CourtListener fallback when CAFC URLs return 404
+   - Handles batch processing with logging
+
+   **Option B: API batch (single batch)**
    ```bash
    curl -X POST "http://localhost:8000/api/admin/ingest_batch?limit=50"
    ```
@@ -106,6 +116,12 @@ The system now uses CourtListener as the source of truth for CAFC precedential o
    ```bash
    python scripts/smoke_test.py
    ```
+
+**PDF Download Fallback (Jan 2026):**
+- CAFC website PDFs often return 404 for historical documents
+- Ingestion automatically falls back to CourtListener storage (`storage.courtlistener.com`)
+- Uses `local_path` from CourtListener API to fetch cached PDFs
+- Status code-based error detection (4xx triggers fallback)
 
 **DEPRECATED: CAFC Website Scraping**
 The Playwright-based manifest builder (`scripts/build_manifest.py`) and direct CAFC scraper are deprecated. Use CourtListener for all new backfills.
