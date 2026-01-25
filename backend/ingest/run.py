@@ -98,15 +98,25 @@ async def download_pdf_with_retry(
         if api_token:
             headers['Authorization'] = f'Token {api_token}'
     
+    max_202_retries = 5  # Extra retries for 202 (PDF generation in progress)
+    retry_202_count = 0
+    
     for attempt in range(max_retries):
         try:
             async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
                 response = await client.get(actual_url, headers=headers)
                 status_code = response.status_code
                 
-                # CourtListener returns 202 when PDF is being generated - retry with delay
+                # CourtListener returns 202 when PDF is being generated - wait longer
                 if status_code == 202:
-                    raise ValueError("PDF generation in progress (202), retrying...")
+                    retry_202_count += 1
+                    if retry_202_count <= max_202_retries:
+                        wait_time = 10 * retry_202_count  # 10s, 20s, 30s, 40s, 50s
+                        log(f"PDF generation in progress (202), waiting {wait_time}s... ({retry_202_count}/{max_202_retries})")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        raise ValueError(f"PDF generation timed out after {max_202_retries} attempts")
                 
                 # On 4xx errors from CAFC, try CourtListener as fallback if we have cluster_id
                 if status_code >= 400 and cluster_id and not tried_courtlistener:
