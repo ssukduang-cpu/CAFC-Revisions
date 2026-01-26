@@ -812,6 +812,29 @@ async def chat_stream(request: ChatRequest):
         }
     )
 
+@app.get("/api/digest/recent")
+async def get_recent_digest():
+    """Get recently ingested cases discovered via web search."""
+    try:
+        recent = db.get_recent_web_search_ingests(limit=10)
+        return {
+            "success": True,
+            "recent_ingests": [
+                {
+                    "id": r.get("id"),
+                    "case_name": r.get("case_name") or r.get("full_case_name"),
+                    "cluster_id": r.get("cluster_id"),
+                    "search_query": r.get("search_query"),
+                    "ingested_at": r.get("ingested_at").isoformat() if r.get("ingested_at") else None,
+                    "document_id": str(r.get("document_id")) if r.get("document_id") else None
+                }
+                for r in recent
+            ]
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "recent_ingests": []}
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     conv_id = request.conversation_id
@@ -854,7 +877,9 @@ async def chat(request: ChatRequest):
         "debug": result.get("debug", {}),
         "return_branch": result.get("return_branch", "unknown"),
         "markers_count": result.get("markers_count", 0),
-        "sources_count": result.get("sources_count", 0)
+        "sources_count": result.get("sources_count", 0),
+        "web_search_triggered": result.get("web_search_triggered", False),
+        "newly_ingested_cases": result.get("newly_ingested_cases", [])
     }
 
 CLIENT_BUILD_DIR = os.path.join(os.path.dirname(__file__), "..", "client", "dist")

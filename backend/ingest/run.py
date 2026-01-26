@@ -347,6 +347,77 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
             except:
                 pass
 
+
+async def ingest_document_from_url(
+    pdf_url: str,
+    case_name: str,
+    cluster_id: Optional[int] = None,
+    courtlistener_url: Optional[str] = None,
+    source: str = "web_search"
+) -> Dict[str, Any]:
+    """
+    Create a new document record and ingest it from a URL.
+    Used by the web search pipeline to automatically ingest discovered cases.
+    
+    Args:
+        pdf_url: URL to download the PDF from
+        case_name: Case name (e.g., "H-W Technologies v. Overstock.com")
+        cluster_id: CourtListener cluster ID for deduplication
+        courtlistener_url: URL to the CourtListener opinion page
+        source: Source of the document (e.g., "web_search", "manual")
+        
+    Returns:
+        Dict with success status and document_id if successful
+    """
+    db.init_db()
+    
+    if cluster_id:
+        existing = db.check_document_exists_by_cluster_id(cluster_id)
+        if existing:
+            if existing.get("ingested"):
+                return {
+                    "success": True,
+                    "status": "already_exists",
+                    "document_id": existing.get("id"),
+                    "case_name": existing.get("case_name")
+                }
+            else:
+                doc = db.get_document(existing.get("id"))
+                if doc:
+                    result = await ingest_document(doc)
+                    result["document_id"] = existing.get("id")
+                    return result
+    
+    doc_data = {
+        "pdf_url": pdf_url,
+        "case_name": case_name,
+        "courtlistener_cluster_id": cluster_id,
+        "courtlistener_url": courtlistener_url,
+        "status": "Precedential",
+        "document_type": "OPINION",
+        "origin": source
+    }
+    
+    try:
+        doc_id = db.upsert_document(doc_data)
+        log(f"Created document record for: {case_name[:50]} (id={doc_id})")
+        
+        doc = db.get_document(doc_id)
+        if not doc:
+            return {"success": False, "error": "Failed to retrieve created document"}
+        
+        result = await ingest_document(doc)
+        result["document_id"] = doc_id
+        
+        return result
+        
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {str(e)}"
+        log(f"Error ingesting from URL: {error_msg}")
+        traceback.print_exc()
+        return {"success": False, "error": error_msg}
+
+
 async def run_batch_ingest(
     limit: int = 10,
     concurrency: int = 2,

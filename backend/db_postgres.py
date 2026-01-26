@@ -150,6 +150,22 @@ def init_db():
             ON messages(conversation_id)
         """)
         
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS web_search_ingests (
+                id BIGSERIAL PRIMARY KEY,
+                document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+                case_name TEXT,
+                cluster_id INTEGER,
+                search_query TEXT,
+                ingested_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_web_search_ingests_ingested_at 
+            ON web_search_ingests(ingested_at DESC)
+        """)
+        
         conn.commit()
 
 def get_status() -> Dict[str, Any]:
@@ -681,6 +697,45 @@ def get_opinion(opinion_id: str) -> Optional[Dict]:
 
 def upsert_opinion(data: Dict) -> str:
     return upsert_document(data)
+
+
+def record_web_search_ingest(document_id: str, case_name: str, cluster_id: int, search_query: str) -> int:
+    """Record a case that was discovered and ingested via web search."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO web_search_ingests (document_id, case_name, cluster_id, search_query)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """, (document_id, case_name, cluster_id, search_query))
+        result = cursor.fetchone()
+        return result["id"] if result else 0
+
+
+def get_recent_web_search_ingests(limit: int = 10) -> List[Dict]:
+    """Get recently ingested cases discovered via web search."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT wsi.*, d.case_name as full_case_name, d.pdf_url
+            FROM web_search_ingests wsi
+            LEFT JOIN documents d ON wsi.document_id = d.id
+            ORDER BY wsi.ingested_at DESC
+            LIMIT %s
+        """, (limit,))
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def check_document_exists_by_cluster_id(cluster_id: int) -> Optional[Dict]:
+    """Check if a document already exists by CourtListener cluster_id."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, case_name, ingested FROM documents 
+            WHERE courtlistener_cluster_id = %s
+        """, (cluster_id,))
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 def get_pages_for_opinion(opinion_id: str) -> List[Dict]:
     return get_pages_for_document(opinion_id)

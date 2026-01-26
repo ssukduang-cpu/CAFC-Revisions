@@ -50,6 +50,19 @@ Preferred communication style: Simple, everyday language.
 
 ### External Data Sources
 - **CourtListener API:** Primary source for fetching CAFC precedential opinions, providing `cluster_id` for deduplication and PDF download URLs.
+- **Tavily API:** Web search for discovering relevant case law when local database lacks coverage. Used via `TAVILY_API_KEY` secret.
+
+### Hybrid Web Search Integration
+- **Search-to-Ingest Pipeline:** When local FTS returns no results or user asks about a specific case not in database, automatically:
+  1. Search Tavily for relevant case citations (with domain filtering for legal sources)
+  2. Extract case names from web results using improved regex patterns
+  3. Look up cases in CourtListener by name to get cluster_id
+  4. Auto-ingest new cases (download PDF, extract text, create FTS chunks)
+  5. Re-query with enriched local context
+- **NewCaseDigest Component:** Frontend component showing recently ingested cases from web search (GET /api/digest/recent)
+- **Specific Case Detection:** When query contains "X v. Y" pattern and that case isn't in results, triggers web search even if other results exist
+- **Fuzzy Name Matching:** Handles plurals (Technologies → Technology) and stem matching for case name verification
+- **web_search_ingests Table:** Tracks cases discovered and ingested via web search
 
 ### Key Libraries
 - **`pdf-parse`:** For PDF text extraction.

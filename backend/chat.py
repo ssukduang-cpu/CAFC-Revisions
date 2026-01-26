@@ -10,8 +10,114 @@ from typing import List, Dict, Any, Optional, Tuple
 from openai import OpenAI
 
 from backend import db_postgres as db
+from backend import web_search
 
 _executor = ThreadPoolExecutor(max_workers=4)
+
+
+async def try_web_search_and_ingest(query: str, conversation_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Attempt to find relevant cases via web search when local results are insufficient.
+    If cases are found on CourtListener, ingest them and return new pages.
+    
+    This implements the Search-to-Ingest loop:
+    1. Search Tavily for case citations
+    2. Look up cases in CourtListener
+    3. Ingest any new cases found
+    4. Re-query local database with new content
+    """
+    try:
+        search_result = await web_search.find_and_prepare_cases(
+            query=query,
+            local_results=[],
+            confidence_threshold=0.0
+        )
+        
+        if not search_result.get("web_search_triggered"):
+            return {"web_search_triggered": False}
+        
+        if not search_result.get("success"):
+            return {
+                "web_search_triggered": True,
+                "success": False,
+                "error": search_result.get("error"),
+                "tavily_answer": search_result.get("tavily_answer", "")
+            }
+        
+        cases_to_ingest = search_result.get("cases_to_ingest", [])
+        if not cases_to_ingest:
+            return {
+                "web_search_triggered": True,
+                "success": False,
+                "tavily_answer": search_result.get("tavily_answer", ""),
+                "cases_to_ingest": []
+            }
+        
+        ingested_cases = []
+        for case_info in cases_to_ingest[:3]:
+            cluster_id = case_info.get("cluster_id")
+            if not cluster_id:
+                continue
+            
+            existing = db.check_document_exists_by_cluster_id(cluster_id)
+            if existing:
+                if existing.get("ingested"):
+                    ingested_cases.append({
+                        "case_name": existing.get("case_name"),
+                        "document_id": existing.get("id"),
+                        "already_existed": True
+                    })
+                continue
+            
+            try:
+                from backend.ingest import ingest_document_from_url
+                
+                ingest_result = await ingest_document_from_url(
+                    pdf_url=case_info.get("pdf_url"),
+                    case_name=case_info.get("case_name", "Unknown Case"),
+                    cluster_id=cluster_id,
+                    courtlistener_url=case_info.get("courtlistener_url"),
+                    source="web_search"
+                )
+                
+                if ingest_result.get("success"):
+                    doc_id = ingest_result.get("document_id")
+                    db.record_web_search_ingest(
+                        document_id=doc_id,
+                        case_name=case_info.get("case_name", "Unknown"),
+                        cluster_id=cluster_id,
+                        search_query=query
+                    )
+                    ingested_cases.append({
+                        "case_name": case_info.get("case_name"),
+                        "document_id": doc_id,
+                        "newly_ingested": True
+                    })
+                    logging.info(f"Web search ingested: {case_info.get('case_name')}")
+            except Exception as e:
+                logging.error(f"Failed to ingest {case_info.get('case_name')}: {e}")
+                continue
+        
+        if ingested_cases:
+            new_pages = db.search_pages(query, None, limit=15, party_only=False)
+            return {
+                "web_search_triggered": True,
+                "success": True,
+                "ingested_cases": ingested_cases,
+                "new_pages": new_pages,
+                "tavily_answer": search_result.get("tavily_answer", "")
+            }
+        
+        return {
+            "web_search_triggered": True,
+            "success": False,
+            "tavily_answer": search_result.get("tavily_answer", ""),
+            "cases_to_ingest": cases_to_ingest
+        }
+        
+    except Exception as e:
+        logging.error(f"Web search failed: {e}")
+        return {"web_search_triggered": False, "error": str(e)}
 
 # LRU Cache for frequently cited legal definitions (bypass DB for common queries)
 @lru_cache(maxsize=50)
@@ -314,6 +420,23 @@ ADVERSARIAL FRAMING EXAMPLES:
 - "What claim construction arguments might survive a Markman hearing?"
 
 Keep each question to one sentence. Make them actionable and specific to the case/issue discussed.
+
+XIII. SPECIALIZED LEGAL DOMAIN AWARENESS
+
+When the query involves specialized patent doctrines, apply additional domain knowledge:
+
+A. Certificate of Correction (35 U.S.C. §§ 254-255)
+For queries involving certificates of correction:
+- § 254: Corrects PTO mistakes (e.g., typographical errors in specification)
+- § 255: Corrects applicant mistakes "of a clerical or typographical nature, or of minor character"
+- Key issue: Whether correction constitutes "new matter" or broadening
+- Look for: H-W Technologies v. Overstock.com, Superior Indus. v. Masaba, and related precedent
+- Federal Circuit applies heightened scrutiny to corrections that affect claim scope
+
+B. Source Verification Requirement (STRICT)
+Every sentence in your response that makes a factual or legal assertion MUST be traceable to a specific indexed source via a citation marker [S#]. If you cannot find direct support in the provided excerpts, you MUST state: "NOT FOUND IN PROVIDED OPINIONS."
+
+Do NOT cite any fact, holding, or legal standard that cannot be directly mapped to a verbatim quote from the provided indexed chunks.
 """
 
 def build_context(pages: List[Dict]) -> str:
@@ -992,6 +1115,55 @@ async def generate_chat_response(
         if pages:
             search_terms = all_search_tokens
     
+    # Check if query references a specific case name (e.g., "H-W Technologies v. Overstock")
+    # and trigger web search if that case isn't in our database
+    specific_case_match = re.search(r'([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)\s+v\.?\s+([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)', message)
+    if specific_case_match and pages:
+        plaintiff = specific_case_match.group(1).strip()
+        defendant = specific_case_match.group(2).strip()
+        specific_case_name = f"{plaintiff} v. {defendant}"
+        
+        # Check if any of our results are from this specific case
+        case_names_in_results = [p.get('case_name', '').lower() for p in pages]
+        plaintiff_lower = plaintiff.lower().rstrip('s')  # Handle plural (Technologies -> Technology)
+        defendant_lower = defendant.lower().rstrip('s')
+        
+        # Also check with shorter name stems for fuzzy matching
+        plaintiff_stem = plaintiff_lower.replace('.', '').replace(',', '').split()[0] if plaintiff_lower else ''
+        defendant_stem = defendant_lower.replace('.', '').replace(',', '').split()[0] if defendant_lower else ''
+        
+        # Check if either party name appears in any of our result case names
+        found_specific_case = any(
+            (plaintiff_lower in name or defendant_lower in name or
+             (plaintiff_stem and plaintiff_stem in name) or 
+             (defendant_stem and defendant_stem in name))
+            for name in case_names_in_results
+        )
+        
+        if not found_specific_case:
+            logging.info(f"Specific case '{specific_case_name}' not found in local results, triggering web search")
+            # We have results, but they don't include the specific case the user asked about
+            # Trigger web search to find this specific case
+            web_search_result = await try_web_search_and_ingest(message, conversation_id)
+            
+            if web_search_result.get("success") and web_search_result.get("new_pages"):
+                # Successfully ingested new case, use those pages instead
+                pages = web_search_result["new_pages"]
+                search_terms = message.split()
+                logging.info(f"Web search ingested new case(s), now have {len(pages)} pages")
+            elif web_search_result.get("web_search_triggered"):
+                # Web search triggered but didn't ingest - include info in response
+                web_info = ""
+                if web_search_result.get("tavily_answer"):
+                    web_info = f"\n\n**Web Search Insight:**\n{web_search_result['tavily_answer'][:500]}..."
+                if web_search_result.get("cases_to_ingest"):
+                    case_names = [c.get("case_name", "Unknown") for c in web_search_result["cases_to_ingest"][:3]]
+                    web_info += f"\n\n**Found Potentially Relevant Cases:**\n- " + "\n- ".join(case_names)
+                    web_info += "\n\nThese cases may be ingested in future queries."
+                
+                if web_info:
+                    pass  # We'll still try with existing pages but add web info later
+    
     # Detect if the query looks like a question vs a simple party name lookup
     question_indicators = ['what', 'how', 'why', 'when', 'where', 'which', 'who', 
                            'holding', 'held', 'decide', 'rule', 'ruling', 'opinion',
@@ -1114,24 +1286,59 @@ async def generate_chat_response(
                 pages = all_pages[:15]
     
     if not pages:
-        return standardize_response({
-            "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo relevant excerpts were found. Try different search terms or ingest additional opinions.",
-            "sources": [],
-            "debug": {
-                "claims": [],
-                "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
-                "search_query": message,
-                "search_terms": search_terms,
-                "pages_count": 0,
-                "pages_sample": [],
-                "markers_count": 0,
-                "markers": [],
-                "sources_count": 0,
+        web_search_result = await try_web_search_and_ingest(message, conversation_id)
+        
+        if web_search_result.get("success") and web_search_result.get("new_pages"):
+            pages = web_search_result["new_pages"]
+            search_terms = message.split()
+            logging.info(f"Web search found and ingested {len(web_search_result.get('ingested_cases', []))} new cases, now have {len(pages)} pages")
+        elif web_search_result.get("web_search_triggered"):
+            web_info = ""
+            if web_search_result.get("tavily_answer"):
+                web_info = f"\n\n**Web Search Insight:**\n{web_search_result['tavily_answer'][:500]}..."
+            if web_search_result.get("cases_to_ingest"):
+                case_names = [c.get("case_name", "Unknown") for c in web_search_result["cases_to_ingest"][:3]]
+                web_info += f"\n\n**Potentially Relevant Cases (not yet indexed):**\n- " + "\n- ".join(case_names)
+            
+            return standardize_response({
+                "answer_markdown": f"NOT FOUND IN PROVIDED OPINIONS.\n\nNo relevant excerpts were found in our indexed database.{web_info}\n\nTry different search terms or ask about a specific case.",
                 "sources": [],
-                "raw_response": None,
-                "return_branch": "not_found_no_pages"
-            }
-        })
+                "web_search_triggered": True,
+                "debug": {
+                    "claims": [],
+                    "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                    "search_query": message,
+                    "search_terms": search_terms,
+                    "pages_count": 0,
+                    "pages_sample": [],
+                    "markers_count": 0,
+                    "markers": [],
+                    "sources_count": 0,
+                    "sources": [],
+                    "raw_response": None,
+                    "return_branch": "not_found_web_search_attempted",
+                    "web_search_result": web_search_result
+                }
+            })
+        else:
+            return standardize_response({
+                "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo relevant excerpts were found. Try different search terms or ingest additional opinions.",
+                "sources": [],
+                "debug": {
+                    "claims": [],
+                    "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                    "search_query": message,
+                    "search_terms": search_terms,
+                    "pages_count": 0,
+                    "pages_sample": [],
+                    "markers_count": 0,
+                    "markers": [],
+                    "sources_count": 0,
+                    "sources": [],
+                    "raw_response": None,
+                    "return_branch": "not_found_no_pages"
+                }
+            })
     
     client = get_openai_client()
     

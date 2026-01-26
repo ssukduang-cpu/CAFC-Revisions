@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useConversations, useCreateConversation, useDeleteConversation } from "@/hooks/useConversations";
 import { useStatus } from "@/hooks/useOpinions";
+import { NewCaseDigest } from "@/components/NewCaseDigest";
 
 export function Sidebar() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -138,6 +139,13 @@ export function Sidebar() {
           )}
         </div>
       </ScrollArea>
+
+      <NewCaseDigest 
+        className="mx-3 mb-2" 
+        onCaseClick={(documentId) => {
+          setShowOpinionLibrary(true);
+        }}
+      />
 
       <div className="p-3 space-y-2">
         <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-2">Resources</h3>
