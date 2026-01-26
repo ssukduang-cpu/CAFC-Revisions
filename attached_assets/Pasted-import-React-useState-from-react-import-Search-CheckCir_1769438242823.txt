@@ -1,0 +1,105 @@
+import React, { useState } from 'react';
+import { Search, CheckCircle, Loader2, Globe, Database } from 'lucide-react';
+
+const LegalSearch = () => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [status, setStatus] = useState('idle'); // idle, searching, partial, complete
+  const [stages, setStages] = useState({
+    local: 'pending', // pending, loading, done
+    web: 'pending'
+  });
+
+  const handleSearch = async () => {
+    if (!query) return;
+    
+    // Reset State
+    setResults([]);
+    setStatus('searching');
+    setStages({ local: 'loading', web: 'pending' });
+
+    try {
+      // 1. Instant Local Search
+      const localResponse = await fetch(`/api/search?q=${query}&mode=all`);
+      const localData = await localResponse.json();
+      
+      setResults(localData.results);
+      setStages(prev => ({ ...prev, local: 'done', web: 'loading' }));
+      setStatus('partial');
+
+      // 2. Web Search Trigger (if needed based on your logic)
+      // This is where you'd call a dedicated /api/web-search endpoint
+      // or wait for the web-integrated portion of your gathered response.
+      setStages(prev => ({ ...prev, web: 'done' }));
+      setStatus('complete');
+      
+    } catch (error) {
+      console.error("Search failed", error);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="flex gap-2 mb-8">
+        <input 
+          className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          placeholder="Enter case name or legal topic..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+        />
+        <button 
+          onClick={handleSearch}
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition"
+        >
+          <Search size={20} /> Search
+        </button>
+      </div>
+
+      {/* Progress Indicator */}
+      {status !== 'idle' && (
+        <div className="mb-8 grid grid-cols-2 gap-4">
+          <LoadingStep 
+            label="Local Repository" 
+            icon={<Database size={18} />} 
+            status={stages.local} 
+          />
+          <LoadingStep 
+            label="Legal Web Search" 
+            icon={<Globe size={18} />} 
+            status={stages.web} 
+          />
+        </div>
+      )}
+
+      {/* Results List */}
+      <div className="space-y-4">
+        {results.map((res, i) => (
+          <div key={i} className="p-4 border rounded-xl hover:shadow-md transition bg-white">
+            <h3 className="font-bold text-lg text-blue-900">{res.caseName}</h3>
+            <p className="text-gray-600 text-sm mt-1 line-clamp-2">{res.snippet}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const LoadingStep = ({ label, icon, status }) => {
+  const isDone = status === 'done';
+  const isLoading = status === 'loading';
+
+  return (
+    <div className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+      isDone ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'
+    }`}>
+      <div className={isDone ? 'text-green-600' : isLoading ? 'text-blue-600 animate-spin' : 'text-gray-400'}>
+        {isDone ? <CheckCircle size={20} /> : isLoading ? <Loader2 size={20} /> : icon}
+      </div>
+      <span className={`font-medium ${isDone ? 'text-green-800' : 'text-gray-600'}`}>{label}</span>
+    </div>
+  );
+};
+
+export default LegalSearch;
