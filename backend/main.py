@@ -264,7 +264,7 @@ async def search_endpoint(
     final_results = []
     for r in local_results:
         final_results.append({
-            "source": "local",
+            "source": "library",
             "documentId": str(r.get("document_id", "")),
             "caseName": r.get("case_name", ""),
             "appealNumber": r.get("appeal_number", ""),
