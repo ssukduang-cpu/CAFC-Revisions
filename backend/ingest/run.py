@@ -118,7 +118,9 @@ async def download_pdf_with_retry(
     
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+            # Disable SSL verification for CAFC URLs (they have certificate issues)
+            verify_ssl = 'cafc.uscourts.gov' not in actual_url
+            async with httpx.AsyncClient(timeout=120.0, follow_redirects=True, verify=verify_ssl) as client:
                 response = await client.get(actual_url, headers=headers)
                 status_code = response.status_code
                 
