@@ -58,8 +58,16 @@ Preferred communication style: Simple, everyday language.
 - **OpenAI API:** Accessed through Replit AI Integrations using `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL`.
 
 ### External Data Sources
-- **CourtListener API:** Primary source for fetching CAFC precedential opinions, providing `cluster_id` for deduplication and PDF download URLs.
+- **Harvard Iowa Dataset (v7.1):** Comprehensive CAFC precedential opinions dataset (2004-2024), used for building the complete manifest of ~5,968 precedential cases.
+- **CAFC Website:** Primary source for PDF downloads (cafc.uscourts.gov/opinions-orders/).
+- **CourtListener API:** Fallback source for PDF downloads when CAFC website returns 404, also provides `cluster_id` for deduplication.
 - **Tavily API:** Web search for discovering relevant case law when local database lacks coverage. Used via `TAVILY_API_KEY` secret.
+
+### Current Database State (as of January 2026)
+- **Total Documents:** 5,968 precedential CAFC opinions
+- **Ingested (Searchable):** 5,147 documents (86.2%)
+- **Total Pages:** 73,467 pages of full-text searchable content
+- **Failed:** 764 documents (PDFs no longer available on CAFC website - expected for older cases)
 
 ### Hybrid Web Search Integration
 - **Search-to-Ingest Pipeline:** When local FTS returns no results or user asks about a specific case not in database, automatically:
