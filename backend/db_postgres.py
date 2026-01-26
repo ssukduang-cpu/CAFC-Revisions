@@ -266,7 +266,9 @@ def get_documents(
     origin: Optional[str] = None,
     ingested: Optional[bool] = None,
     limit: int = 100,
-    offset: int = 0
+    offset: int = 0,
+    author: Optional[str] = None,
+    include_r36: bool = True
 ) -> List[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()
@@ -282,6 +284,11 @@ def get_documents(
         if ingested is not None:
             query += " AND ingested = %s"
             params.append(ingested)
+        if author:
+            query += " AND author_judge = %s"
+            params.append(author)
+        if not include_r36:
+            query += " AND (is_rule_36 = FALSE OR is_rule_36 IS NULL)"
         
         query += " ORDER BY release_date DESC NULLS LAST LIMIT %s OFFSET %s"
         params.extend([limit, offset])

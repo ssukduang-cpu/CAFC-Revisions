@@ -96,9 +96,16 @@ async def list_opinions(
     origin: Optional[str] = None,
     ingested: Optional[bool] = None,
     limit: int = 50,
-    offset: int = 0
+    offset: int = 0,
+    author: Optional[str] = None,
+    include_r36: Optional[str] = None
 ):
-    documents = db.get_documents(q=q, origin=origin, ingested=ingested, limit=limit, offset=offset)
+    r36_flag = include_r36 != "false" if include_r36 is not None else True
+    documents = db.get_documents(
+        q=q, origin=origin, ingested=ingested, 
+        limit=limit, offset=offset,
+        author=author, include_r36=r36_flag
+    )
     documents = serialize_for_json(documents)
     
     stats = db.get_ingestion_stats()
