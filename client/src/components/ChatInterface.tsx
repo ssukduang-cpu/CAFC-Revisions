@@ -7,69 +7,9 @@ import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { useConversation, useSendMessage, useCreateConversation, parseSources, parseAnswerMarkdown, parseActionItems } from "@/hooks/useConversations";
 import { useStatus } from "@/hooks/useOpinions";
+import { SearchProgress } from "@/components/SearchProgress";
 import type { Citation, Source } from "@/lib/api";
 import type { Message } from "@shared/schema";
-
-function LoadingStages() {
-  const [stage, setStage] = useState(0);
-  const [showWebSearch, setShowWebSearch] = useState(false);
-  
-  const stages = [
-    "Finding relevant precedent...",
-    "Analyzing citations...",
-    "Verifying quotes...",
-    "Preparing response..."
-  ];
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStage(s => {
-        if (s < stages.length - 1) {
-          return s + 1;
-        }
-        return s;
-      });
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
-  
-  // Show web search message after 12 seconds (when actual web search would be happening)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowWebSearch(true);
-    }, 12000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  return (
-    <div className="space-y-1">
-      {stages.map((text, i) => (
-        <div 
-          key={i}
-          className={cn(
-            "flex items-center gap-2 text-sm transition-all duration-300",
-            i < stage ? "text-muted-foreground/50" : i === stage ? "text-foreground" : "text-muted-foreground/30"
-          )}
-        >
-          {i < stage ? (
-            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-          ) : i === stage ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <div className="h-3.5 w-3.5" />
-          )}
-          <span>{text}</span>
-        </div>
-      ))}
-      {showWebSearch && (
-        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 animate-pulse mt-2 pt-2 border-t border-border/30">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          <span>Searching for new cases online...</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
@@ -647,12 +587,16 @@ export function ChatInterface() {
           )}
           
           {sendMessage.isPending && (
-            <div className="flex gap-3 justify-start">
-              <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Scale className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <LoadingStages />
+            <div className="flex flex-col gap-3 justify-start">
+              <SearchProgress isSearching={true} className="mb-2" />
+              <div className="flex gap-3">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Scale className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Preparing response...</span>
+                </div>
               </div>
             </div>
           )}
