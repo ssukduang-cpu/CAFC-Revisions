@@ -349,6 +349,30 @@ def count_document_chunks(doc_id: str) -> int:
         row = cur.fetchone()
         return row[0] if row else 0
 
+def save_page_immediately(doc_id: str, page_number: int, text: str):
+    """Insert a page and commit immediately. Resilient to Replit throttling."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO document_pages (document_id, page_number, text)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (document_id, page_number) DO UPDATE SET text = EXCLUDED.text
+        """, (doc_id, page_number, text))
+        conn.commit()
+
+def save_chunk_immediately(doc_id: str, chunk_index: int, page_start: int, page_end: int, text: str):
+    """Insert a chunk and commit immediately. Resilient to Replit throttling."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO document_chunks (document_id, chunk_index, page_start, page_end, text, text_search_vector)
+            VALUES (%s, %s, %s, %s, %s, to_tsvector('english', %s))
+            ON CONFLICT (document_id, chunk_index) DO UPDATE SET 
+                page_start = EXCLUDED.page_start, page_end = EXCLUDED.page_end, 
+                text = EXCLUDED.text, text_search_vector = EXCLUDED.text_search_vector
+        """, (doc_id, chunk_index, page_start, page_end, text, text))
+        conn.commit()
+
 def ingest_document_atomic(doc_id: str, pages: list, chunks: list, pdf_sha256: Optional[str] = None, file_size: int = 0):
     with get_db() as conn:
         cursor = conn.cursor()

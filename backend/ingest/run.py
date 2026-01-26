@@ -323,10 +323,28 @@ async def ingest_document(doc: Dict, fast_mode: bool = False) -> Dict[str, Any]:
                 "error": "Scanned/image PDF - OCR required"
             }
         
-        chunks = create_chunks(pages)
-        log(f"Created {len(chunks)} chunks")
+        # Clear any existing content before incremental insert
+        db.clear_document_content(doc_id)
         
-        db.ingest_document_atomic(doc_id, pages, chunks, sha256, file_size)
+        # Save each page immediately - resilient to Replit throttling
+        for page_num, page_text in enumerate(pages, 1):
+            db.save_page_immediately(doc_id, page_num, page_text)
+        log(f"Saved {num_pages} pages")
+        
+        # Create and save chunks incrementally
+        chunks = create_chunks(pages)
+        for chunk in chunks:
+            db.save_chunk_immediately(
+                doc_id, 
+                chunk["chunk_index"], 
+                chunk["page_start"], 
+                chunk["page_end"], 
+                chunk["text"]
+            )
+        log(f"Saved {len(chunks)} chunks")
+        
+        # Only mark as complete after all pages and chunks are saved
+        db.mark_document_ingested(doc_id, sha256, num_pages, file_size)
         
         log(f"Completed: {case_name[:50]} ({num_pages} pages, {len(chunks)} chunks)")
         ingestion_success = True
