@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, X, ExternalLink, Clock } from "lucide-react";
+import { Sparkles, X, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface WebSearchIngest {
@@ -17,6 +17,32 @@ interface WebSearchIngest {
 interface DigestResponse {
   success: boolean;
   recent_ingests: WebSearchIngest[];
+}
+
+const DISMISSED_KEY = "dismissed_case_digests";
+const AUTO_DISMISS_DELAY = 8000;
+
+function getDismissedIds(): Set<number> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(DISMISSED_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return new Set(parsed);
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return new Set();
+}
+
+function saveDismissedIds(ids: Set<number>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    // ignore storage errors
+  }
 }
 
 export function useRecentDigest() {
@@ -39,100 +65,79 @@ interface NewCaseDigestProps {
 
 export function NewCaseDigest({ className, onCaseClick }: NewCaseDigestProps) {
   const { data, isLoading } = useRecentDigest();
-  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
-  const [showAll, setShowAll] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<number>>(() => getDismissedIds());
+  const [visible, setVisible] = useState(true);
 
   const recentIngests = data?.recent_ingests || [];
   const visibleIngests = recentIngests.filter(ingest => !dismissed.has(ingest.id));
-  const displayIngests = showAll ? visibleIngests : visibleIngests.slice(0, 3);
+  const latestIngest = visibleIngests[0];
 
-  if (isLoading || visibleIngests.length === 0) {
+  const handleDismissAll = useCallback(() => {
+    const allIds = [...Array.from(dismissed), ...visibleIngests.map(i => i.id)];
+    const newDismissed = new Set(allIds);
+    setDismissed(newDismissed);
+    saveDismissedIds(newDismissed);
+    setVisible(false);
+  }, [dismissed, visibleIngests]);
+
+  useEffect(() => {
+    if (visibleIngests.length > 0) {
+      setVisible(true);
+      const timer = setTimeout(() => {
+        handleDismissAll();
+      }, AUTO_DISMISS_DELAY);
+      return () => clearTimeout(timer);
+    }
+  }, [visibleIngests.length, latestIngest?.id, handleDismissAll]);
+
+  if (isLoading || !visible || visibleIngests.length === 0 || !latestIngest) {
     return null;
   }
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
-  };
-
-  const handleDismiss = (id: number) => {
-    setDismissed(prev => new Set([...prev, id]));
-  };
-
   return (
-    <div className={cn("rounded-lg border bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 p-4", className)}>
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="h-4 w-4 text-blue-500" />
-        <h3 className="font-semibold text-sm">New Case Digest</h3>
-        <Badge variant="secondary" className="text-xs" data-testid="digest-count">
-          {visibleIngests.length} new
-        </Badge>
+    <div 
+      className={cn(
+        "flex items-center gap-3 p-2.5 rounded-lg border bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800/50 animate-in slide-in-from-bottom-2 duration-300",
+        className
+      )}
+      data-testid="new-case-digest"
+    >
+      <div className="flex items-center justify-center h-7 w-7 rounded-full bg-green-100 dark:bg-green-900/50 shrink-0">
+        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
       </div>
       
-      <div className="space-y-2">
-        {displayIngests.map((ingest) => (
-          <div
-            key={ingest.id}
-            className="flex items-start justify-between gap-2 p-2 rounded-md bg-white/50 dark:bg-gray-800/50"
-            data-testid={`digest-case-${ingest.id}`}
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span 
-                  className="font-medium text-sm truncate cursor-pointer hover:text-blue-600 hover:underline"
-                  onClick={() => onCaseClick?.(ingest.document_id, ingest.case_name)}
-                  data-testid={`digest-case-link-${ingest.id}`}
-                >
-                  {ingest.case_name}
-                </span>
-                <Badge variant="outline" className="text-xs shrink-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                  Web Search
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                <span>{formatTimeAgo(ingest.ingested_at)}</span>
-                {ingest.search_query && (
-                  <>
-                    <span>·</span>
-                    <span className="truncate">from: "{ingest.search_query.slice(0, 30)}..."</span>
-                  </>
-                )}
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0"
-              onClick={() => handleDismiss(ingest.id)}
-              data-testid={`digest-dismiss-${ingest.id}`}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        ))}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-green-800 dark:text-green-300">
+            Case Added
+          </span>
+          {visibleIngests.length > 1 && (
+            <Badge variant="secondary" className="text-[10px] h-4 px-1.5" data-testid="digest-count">
+              +{visibleIngests.length - 1} more
+            </Badge>
+          )}
+        </div>
+        <button
+          className="text-sm font-medium text-foreground truncate block hover:underline cursor-pointer max-w-[180px]"
+          onClick={() => onCaseClick?.(latestIngest.document_id, latestIngest.case_name)}
+          title={latestIngest.case_name}
+          data-testid={`digest-case-link-${latestIngest.id}`}
+        >
+          {latestIngest.case_name.length > 25 
+            ? latestIngest.case_name.slice(0, 25) + "..." 
+            : latestIngest.case_name}
+        </button>
       </div>
 
-      {visibleIngests.length > 3 && (
-        <Button
-          variant="link"
-          size="sm"
-          className="mt-2 h-auto p-0 text-xs"
-          onClick={() => setShowAll(!showAll)}
-          data-testid="digest-show-more"
-        >
-          {showAll ? "Show less" : `Show ${visibleIngests.length - 3} more`}
-        </Button>
-      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+        onClick={handleDismissAll}
+        data-testid="digest-dismiss"
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
     </div>
   );
 }
