@@ -225,17 +225,20 @@ async def integrity_check_endpoint():
 async def search_endpoint(
     q: str = Query(..., min_length=2),
     limit: int = 20,
-    mode: str = "all"  # "all" = full text + case names, "parties" = case names only
+    mode: str = "all",  # "all" = full text + case names, "parties" = case names only
+    author: Optional[str] = None,
+    exclude_r36: bool = False
 ):
-    """Optimized Search: Runs local DB and Web searches concurrently."""
+    """Optimized Search: Runs local DB and Web searches concurrently with filters."""
     if not q or len(q.strip()) < 2:
         return {"results": [], "query": q, "mode": mode}
     
     party_only = mode == "parties"
+    include_r36 = not exclude_r36
     
     # 1. Prepare tasks for parallel execution
     db_task = asyncio.create_task(
-        asyncio.to_thread(db.search_chunks, q, limit=limit, party_only=party_only)
+        asyncio.to_thread(db.search_chunks, q, limit=limit, party_only=party_only, author=author, include_r36=include_r36)
     )
     
     # 2. Trigger web search only if not in 'party_only' mode
@@ -280,7 +283,9 @@ async def search_endpoint(
             "pageStart": r.get("page_start", 1),
             "pageEnd": r.get("page_end", 1),
             "snippet": r.get("text", "")[:500],
-            "rank": r.get("rank", 0)
+            "rank": r.get("rank", 0),
+            "authorJudge": r.get("author_judge", ""),
+            "isRule36": r.get("is_rule_36", False)
         })
 
     # 5. Add web results as secondary references (avoid duplicates)
