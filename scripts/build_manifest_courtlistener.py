@@ -53,7 +53,9 @@ def get_dedupe_key(opinion: Dict[str, Any]) -> Tuple:
 
 def fetch_cafc_opinions_page(
     session: requests.Session, 
-    next_url: Optional[str] = None
+    next_url: Optional[str] = None,
+    filed_before: Optional[str] = None,
+    filed_after: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Fetch a page of CAFC opinions from CourtListener Search API.
@@ -74,6 +76,10 @@ def fetch_cafc_opinions_page(
             'stat_Published': 'on',
             'order_by': 'dateFiled desc',
         }
+        if filed_before:
+            params['filed_before'] = filed_before
+        if filed_after:
+            params['filed_after'] = filed_after
         resp = session.get(f"{BASE_URL}/search/", params=params, timeout=60)
     
     resp.raise_for_status()
@@ -167,7 +173,10 @@ def build_manifest(
     max_results: Optional[int] = None,
     fetch_details: bool = False,
     output_dir: str = None,
-    dry_run: bool = False
+    dry_run: bool = False,
+    filed_before: Optional[str] = None,
+    filed_after: Optional[str] = None,
+    append: bool = False
 ) -> ManifestStats:
     """
     Build manifest of CAFC precedential opinions from CourtListener.
@@ -177,6 +186,9 @@ def build_manifest(
         fetch_details: Whether to fetch individual opinion details for better PDF URLs
         output_dir: Output directory for manifest file
         dry_run: If True, only count records without writing to file
+        filed_before: Only fetch cases filed before this date (YYYY-MM-DD)
+        filed_after: Only fetch cases filed after this date (YYYY-MM-DD)
+        append: If True, append to existing manifest instead of overwriting
     
     Returns:
         ManifestStats with counts
@@ -197,13 +209,31 @@ def build_manifest(
     print(f"Court:         Federal Circuit (CAFC)")
     print(f"Status:        Published (Precedential) only")
     print(f"Type:          Opinions only (excluding orders/judgments)")
+    if filed_before:
+        print(f"Filed Before:  {filed_before}")
+    if filed_after:
+        print(f"Filed After:   {filed_after}")
     print(f"Mode:          {'DRY RUN (no file write)' if dry_run else 'LIVE (writing to file)'}")
+    print(f"Write Mode:    {'APPEND' if append else 'OVERWRITE'}")
     if not dry_run:
         print(f"Output:        {manifest_path}")
     print("=" * 70)
     
     if not dry_run:
         os.makedirs(output_dir, exist_ok=True)
+    
+    # Load existing manifest keys if appending
+    if append and os.path.exists(manifest_path):
+        print(f"\nLoading existing manifest for deduplication...")
+        with open(manifest_path, 'r') as f:
+            for line in f:
+                try:
+                    existing = json.loads(line.strip())
+                    key = get_dedupe_key(existing)
+                    seen_keys.add(key)
+                except:
+                    pass
+        print(f"  Loaded {len(seen_keys)} existing entries")
     
     page = 1
     total_count = None
@@ -212,14 +242,14 @@ def build_manifest(
     
     file_handle = None
     if not dry_run:
-        file_handle = open(manifest_path, 'w')
+        file_handle = open(manifest_path, 'a' if append else 'w')
     
     try:
         while True:
             print(f"\nFetching page {page}...")
             
             try:
-                data = fetch_cafc_opinions_page(session, next_url=next_url)
+                data = fetch_cafc_opinions_page(session, next_url=next_url, filed_before=filed_before, filed_after=filed_after)
             except requests.RequestException as e:
                 print(f"  ERROR fetching page {page}: {e}")
                 stats.errors += 1
@@ -360,6 +390,12 @@ Examples:
   
   # Build with limit
   python build_manifest_courtlistener.py --max-results 100
+  
+  # Append older cases (before Dec 2015) to existing manifest
+  python build_manifest_courtlistener.py --filed-before 2015-12-01 --append
+  
+  # Fetch cases from specific date range
+  python build_manifest_courtlistener.py --filed-after 2000-01-01 --filed-before 2015-12-01
 """
     )
     parser.add_argument(
@@ -382,13 +418,31 @@ Examples:
         action="store_true",
         help="Count records only, do not write manifest file"
     )
+    parser.add_argument(
+        "--filed-before",
+        type=str,
+        help="Only fetch cases filed before this date (YYYY-MM-DD)"
+    )
+    parser.add_argument(
+        "--filed-after",
+        type=str,
+        help="Only fetch cases filed after this date (YYYY-MM-DD)"
+    )
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="Append to existing manifest instead of overwriting"
+    )
     args = parser.parse_args()
     
     stats = build_manifest(
         max_results=args.max_results,
         fetch_details=args.fetch_details,
         output_dir=args.output,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        filed_before=args.filed_before,
+        filed_after=args.filed_after,
+        append=args.append
     )
     
     if stats.total_after_deduplication == 0 and stats.errors > 0:
