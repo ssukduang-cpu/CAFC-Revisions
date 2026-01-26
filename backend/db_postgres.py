@@ -2,6 +2,7 @@ import os
 import uuid
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2.pool import ThreadedConnectionPool
 from contextlib import contextmanager
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -9,14 +10,21 @@ import hashlib
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-def get_connection():
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL environment variable is not set")
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+# Global connection pool (initialize once, reuse connections)
+_pool = None
+
+def get_pool():
+    global _pool
+    if _pool is None:
+        if not DATABASE_URL:
+            raise RuntimeError("DATABASE_URL environment variable is not set")
+        _pool = ThreadedConnectionPool(1, 10, DATABASE_URL, cursor_factory=RealDictCursor)
+    return _pool
 
 @contextmanager
 def get_db():
-    conn = get_connection()
+    pool = get_pool()
+    conn = pool.getconn()
     try:
         yield conn
         conn.commit()
@@ -24,7 +32,7 @@ def get_db():
         conn.rollback()
         raise
     finally:
-        conn.close()
+        pool.putconn(conn)
 
 def init_db():
     with get_db() as conn:
