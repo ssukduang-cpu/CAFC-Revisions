@@ -517,37 +517,60 @@ def get_page_text(opinion_id: str, page_number: int) -> Optional[Dict]:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-def search_chunks(query: str, limit: int = 20, party_only: bool = False) -> List[Dict]:
-    """Search chunks with case name boosting - party names rank higher than content matches.
+def search_chunks(
+    query: str, 
+    limit: int = 20, 
+    party_only: bool = False,
+    author: Optional[str] = None,
+    include_r36: bool = True
+) -> List[Dict]:
+    """Search chunks with case name boosting and optional filters.
     
     Args:
         query: Search query
         limit: Max results
         party_only: If True, only search case names (not full text)
+        author: Filter by author judge name
+        include_r36: If False, exclude Rule 36 judgments
     """
     with get_db() as conn:
         cursor = conn.cursor()
         
+        # Build dynamic filter conditions
+        extra_filters = ""
+        extra_params = []
+        
+        if author:
+            extra_filters += " AND d.author_judge = %s"
+            extra_params.append(author)
+        
+        if not include_r36:
+            extra_filters += " AND (d.is_rule_36 = FALSE OR d.is_rule_36 IS NULL)"
+        
         if party_only:
             # Party-only search: only match case names, not full opinion text
-            cursor.execute("""
+            sql = f"""
                 SELECT DISTINCT ON (d.id)
                     c.id, c.document_id, c.chunk_index, c.page_start, c.page_end, c.text,
                     d.case_name, d.appeal_number, d.release_date, d.pdf_url,
+                    d.author_judge, d.is_rule_36,
                     1.0 as rank
                 FROM document_chunks c
                 JOIN documents d ON c.document_id = d.id
                 WHERE d.ingested = TRUE 
                   AND d.case_name ILIKE '%%' || %s || '%%'
+                  {extra_filters}
                 ORDER BY d.id, c.chunk_index
                 LIMIT %s
-            """, (query, limit))
+            """
+            cursor.execute(sql, (query, *extra_params, limit))
         else:
             # Full text search with case name boosting
-            cursor.execute("""
+            sql = f"""
                 SELECT 
                     c.id, c.document_id, c.chunk_index, c.page_start, c.page_end, c.text,
                     d.case_name, d.appeal_number, d.release_date, d.pdf_url,
+                    d.author_judge, d.is_rule_36,
                     (
                         ts_rank(c.text_search_vector, plainto_tsquery('english', %s)) +
                         CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
@@ -559,9 +582,11 @@ def search_chunks(query: str, limit: int = 20, party_only: bool = False) -> List
                     c.text_search_vector @@ plainto_tsquery('english', %s)
                     OR d.case_name ILIKE '%%' || %s || '%%'
                   )
+                  {extra_filters}
                 ORDER BY rank DESC
                 LIMIT %s
-            """, (query, query, query, query, limit))
+            """
+            cursor.execute(sql, (query, query, query, query, *extra_params, limit))
         
         return [dict(row) for row in cursor.fetchall()]
 
