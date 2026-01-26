@@ -22,6 +22,7 @@ PDF_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "pdfs")
 
 MAX_RETRIES = 3
 INITIAL_BACKOFF = 2.0
+WEB_SEARCH_MAX_RETRIES = 1  # Faster timeout for web search flow
 MIN_TEXT_LENGTH = 50
 CHUNK_SIZE_PAGES = 2
 
@@ -261,7 +262,7 @@ def create_chunks(pages: List[str], chunk_size: int = CHUNK_SIZE_PAGES) -> List[
     
     return chunks
 
-async def ingest_document(doc: Dict) -> Dict[str, Any]:
+async def ingest_document(doc: Dict, fast_mode: bool = False) -> Dict[str, Any]:
     doc_id = str(doc["id"])
     pdf_url = doc["pdf_url"]
     case_name = doc.get("case_name", "Unknown")
@@ -273,13 +274,16 @@ async def ingest_document(doc: Dict) -> Dict[str, Any]:
     pdf_path = os.path.join(PDF_DIR, f"{doc_id}.pdf")
     ingestion_success = False
     
+    # Use fewer retries in fast_mode (for web search) to avoid timeouts
+    retries = WEB_SEARCH_MAX_RETRIES if fast_mode else MAX_RETRIES
+    
     try:
         if doc.get("ingested"):
             log(f"Already ingested: {case_name[:50]}")
             ingestion_success = True
             return {"success": True, "status": "already_ingested", "doc_id": doc_id}
         
-        download_result = await download_pdf_with_retry(pdf_url, pdf_path, cluster_id=cluster_id)
+        download_result = await download_pdf_with_retry(pdf_url, pdf_path, cluster_id=cluster_id, max_retries=retries)
         
         if not download_result["success"]:
             error_msg = download_result.get('error', 'Unknown')
@@ -353,7 +357,8 @@ async def ingest_document_from_url(
     case_name: str,
     cluster_id: Optional[int] = None,
     courtlistener_url: Optional[str] = None,
-    source: str = "web_search"
+    source: str = "web_search",
+    fast_mode: bool = True
 ) -> Dict[str, Any]:
     """
     Create a new document record and ingest it from a URL.
@@ -406,7 +411,7 @@ async def ingest_document_from_url(
         if not doc:
             return {"success": False, "error": "Failed to retrieve created document"}
         
-        result = await ingest_document(doc)
+        result = await ingest_document(doc, fast_mode=fast_mode)
         result["document_id"] = doc_id
         
         return result

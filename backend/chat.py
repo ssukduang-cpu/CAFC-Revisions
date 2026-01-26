@@ -1390,15 +1390,30 @@ async def generate_chat_response(
             search_terms = message.split()
             logging.info(f"Web search found and ingested {len(web_search_result.get('ingested_cases', []))} new cases, now have {len(pages)} pages")
         elif web_search_result.get("web_search_triggered"):
-            web_info = ""
-            if web_search_result.get("tavily_answer"):
-                web_info = f"\n\n**Web Search Insight:**\n{web_search_result['tavily_answer'][:500]}..."
-            if web_search_result.get("cases_to_ingest"):
-                case_names = [c.get("case_name", "Unknown") for c in web_search_result["cases_to_ingest"][:3]]
-                web_info += f"\n\n**Potentially Relevant Cases (not yet indexed):**\n- " + "\n- ".join(case_names)
+            # Show Tavily answer prominently when we have it
+            tavily_answer = web_search_result.get("tavily_answer", "")
+            cases_to_ingest = web_search_result.get("cases_to_ingest", [])
+            ingested_cases = web_search_result.get("ingested_cases", [])
+            
+            # Build informative response from web search
+            if tavily_answer:
+                # Use Tavily answer as main content with disclaimer
+                web_info = f"**Based on web search** (not verified from indexed opinions):\n\n{tavily_answer[:1500]}"
+                
+                # Add failed cases info if any
+                failed_cases = [c for c in ingested_cases if c.get("status") != "completed"]
+                if cases_to_ingest or failed_cases:
+                    case_names = [c.get("case_name", "Unknown") for c in (cases_to_ingest or failed_cases)[:3]]
+                    web_info += f"\n\n**Relevant cases found** (PDFs not available for immediate indexing):\n- " + "\n- ".join(case_names)
+                    web_info += "\n\n*Ask about a specific case by name to search for it again.*"
+            else:
+                web_info = "No relevant information found."
+                if cases_to_ingest:
+                    case_names = [c.get("case_name", "Unknown") for c in cases_to_ingest[:3]]
+                    web_info += f"\n\n**Potentially relevant cases found:**\n- " + "\n- ".join(case_names)
             
             return standardize_response({
-                "answer_markdown": f"NOT FOUND IN PROVIDED OPINIONS.\n\nNo relevant excerpts were found in our indexed database.{web_info}\n\nTry different search terms or ask about a specific case.",
+                "answer_markdown": web_info,
                 "sources": [],
                 "web_search_triggered": True,
                 "debug": {
