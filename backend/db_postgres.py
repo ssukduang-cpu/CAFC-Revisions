@@ -39,7 +39,7 @@ def init_db():
                 release_date DATE,
                 origin TEXT,
                 document_type TEXT,
-                status TEXT,
+                status TEXT DEFAULT 'pending',
                 file_path TEXT,
                 ingested BOOLEAN DEFAULT FALSE,
                 pdf_sha256 TEXT,
@@ -47,13 +47,28 @@ def init_db():
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 last_error TEXT,
                 courtlistener_cluster_id INTEGER,
-                courtlistener_url TEXT
+                courtlistener_url TEXT,
+                error_message TEXT,
+                total_pages INTEGER,
+                file_size INTEGER
             )
+        """)
+        
+        cursor.execute("""
+            ALTER TABLE documents 
+            ADD COLUMN IF NOT EXISTS error_message TEXT,
+            ADD COLUMN IF NOT EXISTS total_pages INTEGER,
+            ADD COLUMN IF NOT EXISTS file_size INTEGER
         """)
         
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_documents_cluster_id 
             ON documents(courtlistener_cluster_id) WHERE courtlistener_cluster_id IS NOT NULL
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_documents_status 
+            ON documents(status)
         """)
         
         cursor.execute("""
@@ -176,6 +191,7 @@ def get_status() -> Dict[str, Any]:
         cursor.execute("SELECT COUNT(*) as ingested FROM documents WHERE ingested = TRUE")
         ingested = cursor.fetchone()["ingested"]
         return {"status": "ok", "opinions": {"total": total, "ingested": ingested}}
+
 
 def upsert_document(data: Dict) -> str:
     with get_db() as conn:
@@ -333,7 +349,7 @@ def count_document_chunks(doc_id: str) -> int:
         row = cur.fetchone()
         return row[0] if row else 0
 
-def ingest_document_atomic(doc_id: str, pages: list, chunks: list, pdf_sha256: Optional[str] = None):
+def ingest_document_atomic(doc_id: str, pages: list, chunks: list, pdf_sha256: Optional[str] = None, file_size: int = 0):
     with get_db() as conn:
         cursor = conn.cursor()
         try:
@@ -343,29 +359,59 @@ def ingest_document_atomic(doc_id: str, pages: list, chunks: list, pdf_sha256: O
             for chunk in chunks:
                 insert_chunk(doc_id, chunk["chunk_index"], chunk["page_start"], chunk["page_end"], chunk["text"], cursor)
             cursor.execute("""
-                UPDATE documents SET ingested = TRUE, pdf_sha256 = %s, updated_at = NOW(), last_error = NULL
+                UPDATE documents SET 
+                    ingested = TRUE, 
+                    pdf_sha256 = %s, 
+                    updated_at = NOW(), 
+                    last_error = NULL,
+                    status = 'completed',
+                    error_message = NULL,
+                    total_pages = %s,
+                    file_size = %s
                 WHERE id = %s
-            """, (pdf_sha256, doc_id))
+            """, (pdf_sha256, len(pages), file_size, doc_id))
             conn.commit()
         except Exception as e:
             conn.rollback()
             raise e
 
-def mark_document_ingested(doc_id: str, pdf_sha256: Optional[str] = None):
+def mark_document_ingested(doc_id: str, pdf_sha256: Optional[str] = None, total_pages: int = 0, file_size: int = 0):
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE documents SET ingested = TRUE, pdf_sha256 = %s, updated_at = NOW(), last_error = NULL
+            UPDATE documents SET 
+                ingested = TRUE, 
+                pdf_sha256 = %s, 
+                updated_at = NOW(), 
+                last_error = NULL,
+                status = 'completed',
+                error_message = NULL,
+                total_pages = %s,
+                file_size = %s
             WHERE id = %s
-        """, (pdf_sha256, doc_id))
+        """, (pdf_sha256, total_pages, file_size, doc_id))
 
 def mark_document_error(doc_id: str, error: str):
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE documents SET last_error = %s, updated_at = NOW()
+            UPDATE documents SET 
+                last_error = %s, 
+                updated_at = NOW(),
+                status = 'failed',
+                error_message = %s
             WHERE id = %s
-        """, (error, doc_id))
+        """, (error, error, doc_id))
+
+def mark_document_processing(doc_id: str):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE documents SET 
+                status = 'processing',
+                updated_at = NOW()
+            WHERE id = %s
+        """, (doc_id,))
 
 def get_pages_for_document(doc_id: str) -> List[Dict]:
     with get_db() as conn:
@@ -634,19 +680,38 @@ def get_ingestion_stats() -> Dict[str, Any]:
         total = cursor.fetchone()["total"]
         cursor.execute("SELECT COUNT(*) as ingested FROM documents WHERE ingested = TRUE")
         ingested = cursor.fetchone()["ingested"]
-        cursor.execute("SELECT COUNT(*) as failed FROM documents WHERE last_error IS NOT NULL")
-        failed = cursor.fetchone()["failed"]
+        
+        cursor.execute("""
+            SELECT status, COUNT(*) as count 
+            FROM documents 
+            GROUP BY status
+        """)
+        status_counts = {row["status"]: row["count"] for row in cursor.fetchall()}
+        
         cursor.execute("SELECT SUM(page_count) as total_pages FROM (SELECT COUNT(*) as page_count FROM document_pages GROUP BY document_id) sub")
         total_pages_result = cursor.fetchone()
         total_pages = total_pages_result["total_pages"] or 0
         
+        cursor.execute("""
+            SELECT id, case_name, appeal_number, release_date, status, error_message, total_pages, updated_at
+            FROM documents 
+            WHERE status = 'failed'
+            ORDER BY updated_at DESC NULLS LAST
+            LIMIT 20
+        """)
+        recent_failures = [dict(row) for row in cursor.fetchall()]
+        
         return {
             "total_documents": total,
             "ingested": ingested,
-            "pending": total - ingested,
-            "failed": failed,
+            "pending": status_counts.get("pending", 0),
+            "failed": status_counts.get("failed", 0),
+            "completed": status_counts.get("completed", 0),
+            "processing": status_counts.get("processing", 0),
+            "status_breakdown": status_counts,
             "total_pages": total_pages,
-            "percent_complete": round(ingested / total * 100, 1) if total > 0 else 0
+            "percent_complete": round(ingested / total * 100, 1) if total > 0 else 0,
+            "recent_failures": recent_failures
         }
 
 def get_pending_documents(limit: int = 10) -> List[Dict]:

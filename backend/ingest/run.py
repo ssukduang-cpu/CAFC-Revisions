@@ -273,6 +273,7 @@ async def ingest_document(doc: Dict, fast_mode: bool = False) -> Dict[str, Any]:
     os.makedirs(PDF_DIR, exist_ok=True)
     pdf_path = os.path.join(PDF_DIR, f"{doc_id}.pdf")
     ingestion_success = False
+    file_size = 0
     
     # Use fewer retries in fast_mode (for web search) to avoid timeouts
     retries = WEB_SEARCH_MAX_RETRIES if fast_mode else MAX_RETRIES
@@ -282,6 +283,8 @@ async def ingest_document(doc: Dict, fast_mode: bool = False) -> Dict[str, Any]:
             log(f"Already ingested: {case_name[:50]}")
             ingestion_success = True
             return {"success": True, "status": "already_ingested", "doc_id": doc_id}
+        
+        db.mark_document_processing(doc_id)
         
         download_result = await download_pdf_with_retry(pdf_url, pdf_path, cluster_id=cluster_id, max_retries=retries)
         
@@ -301,7 +304,8 @@ async def ingest_document(doc: Dict, fast_mode: bool = False) -> Dict[str, Any]:
             ingestion_success = True
             return {"success": True, "status": "unchanged", "doc_id": doc_id}
         
-        log(f"Extracting text from {download_result['size_bytes']} bytes...")
+        file_size = download_result.get('size_bytes', 0)
+        log(f"Extracting text from {file_size} bytes...")
         extraction_result = extract_pages(pdf_path)
         pages = extraction_result["pages"]
         num_pages = len(pages)
@@ -322,7 +326,7 @@ async def ingest_document(doc: Dict, fast_mode: bool = False) -> Dict[str, Any]:
         chunks = create_chunks(pages)
         log(f"Created {len(chunks)} chunks")
         
-        db.ingest_document_atomic(doc_id, pages, chunks, sha256)
+        db.ingest_document_atomic(doc_id, pages, chunks, sha256, file_size)
         
         log(f"Completed: {case_name[:50]} ({num_pages} pages, {len(chunks)} chunks)")
         ingestion_success = True
