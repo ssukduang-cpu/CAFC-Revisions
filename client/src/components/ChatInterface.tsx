@@ -12,6 +12,8 @@ import type { Message } from "@shared/schema";
 
 function LoadingStages() {
   const [stage, setStage] = useState(0);
+  const [showWebSearch, setShowWebSearch] = useState(false);
+  
   const stages = [
     "Finding relevant precedent...",
     "Analyzing citations...",
@@ -21,9 +23,22 @@ function LoadingStages() {
   
   useEffect(() => {
     const interval = setInterval(() => {
-      setStage(s => (s < stages.length - 1 ? s + 1 : s));
+      setStage(s => {
+        if (s < stages.length - 1) {
+          return s + 1;
+        }
+        return s;
+      });
     }, 2500);
     return () => clearInterval(interval);
+  }, []);
+  
+  // Show web search message after 12 seconds (when actual web search would be happening)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowWebSearch(true);
+    }, 12000);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -46,6 +61,12 @@ function LoadingStages() {
           <span>{text}</span>
         </div>
       ))}
+      {showWebSearch && (
+        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 animate-pulse mt-2 pt-2 border-t border-border/30">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>Searching for new cases online...</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -54,9 +75,18 @@ export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const [searchMode, setSearchMode] = useState<"all" | "parties">("all");
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [webSearchCases, setWebSearchCases] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { currentConversationId, setCurrentConversationId, setSelectedCitations, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
   const { data: status } = useStatus();
+  
+  // Auto-dismiss web search cases after 5 seconds
+  useEffect(() => {
+    if (webSearchCases.length > 0) {
+      const timer = setTimeout(() => setWebSearchCases([]), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [webSearchCases]);
   
   const { data: conversation, isLoading } = useConversation(currentConversationId);
   const sendMessage = useSendMessage();
@@ -90,8 +120,13 @@ export function ChatInterface() {
         setCurrentConversationId(convId);
       }
       
-      await sendMessage.mutateAsync({ conversationId: convId, content: messageContent, searchMode });
+      const result = await sendMessage.mutateAsync({ conversationId: convId, content: messageContent, searchMode });
       setPendingMessage(null); // Clear pending after success
+      
+      // Show web search cases if any were ingested
+      if (result.webSearchCases && result.webSearchCases.length > 0) {
+        setWebSearchCases(result.webSearchCases);
+      }
     } catch (error) {
       console.error("Failed to send message:", error);
       setInputValue(messageContent);
@@ -618,6 +653,24 @@ export function ChatInterface() {
               </div>
               <div className="flex flex-col gap-1">
                 <LoadingStages />
+              </div>
+            </div>
+          )}
+          
+          {webSearchCases.length > 0 && (
+            <div className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="h-7 w-7 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+              </div>
+              <div className="flex flex-col gap-1 py-1">
+                <p className="text-sm text-green-700 dark:text-green-400 font-medium">
+                  Learned {webSearchCases.length} new case{webSearchCases.length > 1 ? 's' : ''}:
+                </p>
+                <ul className="text-xs text-muted-foreground">
+                  {webSearchCases.slice(0, 3).map((name, i) => (
+                    <li key={i} className="truncate max-w-xs">{name}</li>
+                  ))}
+                </ul>
               </div>
             </div>
           )}

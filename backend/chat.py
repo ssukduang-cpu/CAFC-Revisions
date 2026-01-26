@@ -24,9 +24,11 @@ async def try_web_search_and_ingest(query: str, conversation_id: Optional[str] =
     1. Search Tavily for case citations
     2. Look up cases in CourtListener
     3. Ingest any new cases found
-    4. Re-query local database with new content
+    4. Wait for ingestion to complete with readable text
+    5. Re-query local database with new content
     """
     try:
+        logging.info(f"Starting web search for: {query[:80]}...")
         search_result = await web_search.find_and_prepare_cases(
             query=query,
             local_results=[],
@@ -54,56 +56,132 @@ async def try_web_search_and_ingest(query: str, conversation_id: Optional[str] =
             }
         
         ingested_cases = []
+        cases_found = []
+        
         for case_info in cases_to_ingest[:3]:
             cluster_id = case_info.get("cluster_id")
+            case_name = case_info.get("case_name", "Unknown Case")
+            cases_found.append(case_name)
+            
             if not cluster_id:
+                logging.warning(f"No cluster_id for case: {case_name}")
                 continue
             
+            # Check if already exists
             existing = db.check_document_exists_by_cluster_id(cluster_id)
             if existing:
                 if existing.get("ingested"):
                     ingested_cases.append({
                         "case_name": existing.get("case_name"),
                         "document_id": existing.get("id"),
-                        "already_existed": True
+                        "already_existed": True,
+                        "status": "completed"
                     })
+                    logging.info(f"Case already ingested: {case_name}")
                 continue
             
             try:
                 from backend.ingest import ingest_document_from_url
                 
+                logging.info(f"Learning case: {case_name}...")
+                
                 ingest_result = await ingest_document_from_url(
                     pdf_url=case_info.get("pdf_url"),
-                    case_name=case_info.get("case_name", "Unknown Case"),
+                    case_name=case_name,
                     cluster_id=cluster_id,
                     courtlistener_url=case_info.get("courtlistener_url"),
                     source="web_search"
                 )
                 
-                if ingest_result.get("success"):
-                    doc_id = ingest_result.get("document_id")
-                    db.record_web_search_ingest(
-                        document_id=doc_id,
-                        case_name=case_info.get("case_name", "Unknown"),
-                        cluster_id=cluster_id,
-                        search_query=query
-                    )
+                doc_id = ingest_result.get("document_id")
+                status = ingest_result.get("status", "unknown")
+                
+                if ingest_result.get("success") and status == "completed":
+                    # Verify ingestion by checking for readable chunks
+                    await asyncio.sleep(0.5)  # Brief pause for DB commit
+                    
+                    # Poll for ingestion completion with timeout
+                    max_wait = 5.0
+                    start_time = asyncio.get_event_loop().time()
+                    ingestion_verified = False
+                    
+                    while (asyncio.get_event_loop().time() - start_time) < max_wait:
+                        doc = db.get_document(doc_id) if doc_id else None
+                        if doc and doc.get("ingested"):
+                            # Verify we have chunks by document ID (more reliable than name search)
+                            chunk_count = db.count_document_chunks(doc_id) if doc_id else 0
+                            if chunk_count > 0:
+                                ingestion_verified = True
+                                break
+                        await asyncio.sleep(0.5)
+                    
+                    if ingestion_verified:
+                        db.record_web_search_ingest(
+                            document_id=doc_id,
+                            case_name=case_name,
+                            cluster_id=cluster_id,
+                            search_query=query
+                        )
+                        ingested_cases.append({
+                            "case_name": case_name,
+                            "document_id": doc_id,
+                            "newly_ingested": True,
+                            "status": "completed",
+                            "num_pages": ingest_result.get("num_pages", 0)
+                        })
+                        logging.info(f"Successfully ingested: {case_name} ({ingest_result.get('num_pages', 0)} pages)")
+                    else:
+                        logging.warning(f"Ingestion verification failed for: {case_name}")
+                        ingested_cases.append({
+                            "case_name": case_name,
+                            "document_id": doc_id,
+                            "status": "verification_failed"
+                        })
+                        
+                elif status == "ocr_required":
+                    logging.warning(f"OCR required for: {case_name}")
                     ingested_cases.append({
-                        "case_name": case_info.get("case_name"),
+                        "case_name": case_name,
                         "document_id": doc_id,
-                        "newly_ingested": True
+                        "status": "ocr_required",
+                        "error": "Scanned PDF - OCR not yet supported"
                     })
-                    logging.info(f"Web search ingested: {case_info.get('case_name')}")
+                elif status == "already_exists":
+                    ingested_cases.append({
+                        "case_name": case_name,
+                        "document_id": doc_id,
+                        "already_existed": True,
+                        "status": "completed"
+                    })
+                else:
+                    logging.error(f"Ingestion failed for {case_name}: {ingest_result.get('error', status)}")
+                    ingested_cases.append({
+                        "case_name": case_name,
+                        "status": status,
+                        "error": ingest_result.get("error")
+                    })
+                    
             except Exception as e:
-                logging.error(f"Failed to ingest {case_info.get('case_name')}: {e}")
+                logging.error(f"Failed to ingest {case_name}: {e}")
+                ingested_cases.append({
+                    "case_name": case_name,
+                    "status": "error",
+                    "error": str(e)
+                })
                 continue
         
-        if ingested_cases:
+        # Check if we have any successfully ingested cases
+        successful_ingests = [c for c in ingested_cases if c.get("status") == "completed"]
+        
+        if successful_ingests:
+            # Re-query with new content
             new_pages = db.search_pages(query, None, limit=15, party_only=False)
+            logging.info(f"Web search complete: {len(successful_ingests)} cases ingested, {len(new_pages)} pages retrieved")
             return {
                 "web_search_triggered": True,
                 "success": True,
                 "ingested_cases": ingested_cases,
+                "cases_found": cases_found,
                 "new_pages": new_pages,
                 "tavily_answer": search_result.get("tavily_answer", "")
             }
@@ -111,12 +189,16 @@ async def try_web_search_and_ingest(query: str, conversation_id: Optional[str] =
         return {
             "web_search_triggered": True,
             "success": False,
+            "ingested_cases": ingested_cases,
+            "cases_found": cases_found,
             "tavily_answer": search_result.get("tavily_answer", ""),
             "cases_to_ingest": cases_to_ingest
         }
         
     except Exception as e:
         logging.error(f"Web search failed: {e}")
+        import traceback
+        traceback.print_exc()
         return {"web_search_triggered": False, "error": str(e)}
 
 # LRU Cache for frequently cited legal definitions (bypass DB for common queries)
@@ -225,10 +307,11 @@ def build_conversation_summary(conversation_id: str, max_turns: int = 5) -> str:
         return ""
 
 
-def standardize_response(response: Dict[str, Any]) -> Dict[str, Any]:
+def standardize_response(response: Dict[str, Any], web_search_result: Optional[Dict] = None) -> Dict[str, Any]:
     """
     Standardize chat response by promoting debug fields to top-level.
     Ensures consistent schema: return_branch, markers_count, sources_count at top level.
+    Also promotes web_search info if provided.
     """
     debug = response.get("debug", {})
     
@@ -236,6 +319,20 @@ def standardize_response(response: Dict[str, Any]) -> Dict[str, Any]:
     response["return_branch"] = debug.get("return_branch", "unknown")
     response["markers_count"] = debug.get("markers_count", 0)
     response["sources_count"] = debug.get("sources_count", 0)
+    
+    # Promote web search info to top-level for UI consumption
+    if web_search_result:
+        response["web_search_triggered"] = web_search_result.get("web_search_triggered", False)
+        response["web_search_cases"] = [
+            c.get("case_name", "Unknown") for c in web_search_result.get("ingested_cases", [])
+            if c.get("status") == "completed"
+        ]
+    elif response.get("web_search_triggered"):
+        # Already set in response
+        pass
+    else:
+        response["web_search_triggered"] = False
+        response["web_search_cases"] = []
     
     return response
 
@@ -1707,10 +1804,38 @@ async def generate_chat_response_stream(
                     seen_ids.add(key)
     
     if not pages:
-        yield 'data: {"type": "token", "content": "NOT FOUND IN PROVIDED OPINIONS.\\n\\nNo matching opinions found in the database."}\n\n'
-        yield 'data: {"type": "sources", "sources": []}\n\n'
-        yield 'data: {"type": "done"}\n\n'
-        return
+        # Try web search to find and ingest relevant cases
+        yield 'data: {"type": "status", "message": "Searching for relevant cases..."}\n\n'
+        
+        try:
+            web_search_result = await try_web_search_and_ingest(message, conversation_id)
+            
+            if web_search_result.get("success") and web_search_result.get("new_pages"):
+                # Emit learning status for each case
+                for case in web_search_result.get("ingested_cases", []):
+                    if case.get("status") == "completed":
+                        case_name = case.get("case_name", "Unknown")
+                        escaped_name = case_name.replace('"', '\\"').replace('\n', ' ')
+                        yield f'data: {{"type": "learning", "case_name": "{escaped_name}"}}\n\n'
+                
+                pages = web_search_result["new_pages"]
+                yield 'data: {"type": "status", "message": "Found relevant cases. Analyzing..."}\n\n'
+            else:
+                # Web search didn't find anything useful
+                cases_found = web_search_result.get("cases_found", [])
+                web_info = ""
+                if cases_found:
+                    web_info = " Some cases were found but could not be indexed."
+                yield f'data: {{"type": "token", "content": "NOT FOUND IN PROVIDED OPINIONS.\\n\\nNo matching opinions found in the database.{web_info}"}}\n\n'
+                yield 'data: {"type": "sources", "sources": []}\n\n'
+                yield 'data: {"type": "done"}\n\n'
+                return
+        except Exception as e:
+            logging.error(f"Web search failed in streaming: {e}")
+            yield 'data: {"type": "token", "content": "NOT FOUND IN PROVIDED OPINIONS.\\n\\nNo matching opinions found in the database."}\n\n'
+            yield 'data: {"type": "sources", "sources": []}\n\n'
+            yield 'data: {"type": "done"}\n\n'
+            return
     
     client = get_openai_client()
     if not client:

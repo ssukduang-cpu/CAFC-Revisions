@@ -82,6 +82,8 @@ export interface IngestResult {
 export interface ChatResult {
   userMessage: Message;
   assistantMessage: MessageWithCitations;
+  webSearchTriggered?: boolean;
+  webSearchCases?: string[];
 }
 
 // API functions
@@ -162,5 +164,7 @@ export async function sendMessage(conversationId: string, content: string, searc
       ...data.assistantMessage,
       parsedCitations,
     },
+    webSearchTriggered: data.webSearchTriggered ?? false,
+    webSearchCases: data.webSearchCases ?? [],
   };
 }

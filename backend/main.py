@@ -740,7 +740,9 @@ async def send_message(conversation_id: str, request: MessageRequest):
     
     return {
         "userMessage": serialize_for_json(convert_keys_to_camel(user_msg)) if user_msg else {},
-        "assistantMessage": assistant_response
+        "assistantMessage": assistant_response,
+        "webSearchTriggered": result.get("web_search_triggered", False),
+        "webSearchCases": result.get("web_search_cases", [])
     }
 
 @app.post("/api/chat/stream")

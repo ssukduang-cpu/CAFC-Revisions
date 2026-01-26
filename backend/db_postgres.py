@@ -325,6 +325,14 @@ def clear_document_content(doc_id: str, cursor=None):
             cur.execute("DELETE FROM document_pages WHERE document_id = %s", (doc_id,))
             cur.execute("DELETE FROM document_chunks WHERE document_id = %s", (doc_id,))
 
+def count_document_chunks(doc_id: str) -> int:
+    """Count the number of chunks for a document by ID. Returns 0 if none."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM document_chunks WHERE document_id = %s", (doc_id,))
+        row = cur.fetchone()
+        return row[0] if row else 0
+
 def ingest_document_atomic(doc_id: str, pages: list, chunks: list, pdf_sha256: Optional[str] = None):
     with get_db() as conn:
         cursor = conn.cursor()
