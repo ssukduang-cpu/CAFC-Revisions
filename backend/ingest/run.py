@@ -13,7 +13,7 @@ import traceback
 from typing import Dict, Any, List, Optional
 
 import httpx
-from pypdf import PdfReader
+import fitz  # PyMuPDF - faster and more reliable than pypdf
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from backend import db_postgres as db
@@ -220,25 +220,24 @@ def cleanup_hyphenated_text(text: str) -> str:
 
 def extract_pages(pdf_path: str) -> Dict[str, Any]:
     """
-    Extract text from PDF pages.
+    Extract text from PDF pages using PyMuPDF (fitz).
     Returns dict with 'pages' list and 'ocr_required' flag if text is too sparse.
     Applies hyphenation cleanup to fix broken words.
     """
-    reader = PdfReader(pdf_path)
+    doc = fitz.open(pdf_path)
     pages = []
-    for page in reader.pages:
-        text = page.extract_text() or ""
-        # Clean up hyphenated word breaks before storing
+    for page in doc:
+        text = page.get_text("text") or ""
         text = cleanup_hyphenated_text(text)
         pages.append(text)
+    doc.close()
     
-    # Check if this is a scanned/image PDF (less than 100 chars total)
-    total_text = "".join(pages).strip()
-    if len(total_text) < 100:
-        log(f"WARNING: Scanned/image PDF detected - only {len(total_text)} chars extracted. OCR required.")
-        return {"pages": pages, "ocr_required": True, "total_chars": len(total_text)}
+    total_chars = sum(len(p) for p in pages)
+    if total_chars < 100:
+        log(f"WARNING: Scanned/image PDF detected - only {total_chars} chars extracted. OCR required.")
+        return {"pages": pages, "ocr_required": True, "total_chars": total_chars}
     
-    return {"pages": pages, "ocr_required": False, "total_chars": len(total_text)}
+    return {"pages": pages, "ocr_required": False, "total_chars": total_chars}
 
 def create_chunks(pages: List[str], chunk_size: int = CHUNK_SIZE_PAGES) -> List[Dict]:
     chunks = []

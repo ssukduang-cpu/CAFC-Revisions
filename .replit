@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["chromium", "gcc", "geckodriver", "gitFull", "lsof", "nano", "playwright-driver", "poppler_utils", "python3"]
+packages = ["chromium", "freetype", "gcc", "geckodriver", "gitFull", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "lsof", "mupdf", "nano", "openjpeg", "playwright-driver", "poppler_utils", "python3", "swig", "xcbuild", "gcc-unwrapped"]
 
 [[ports]]
 localPort = 5000
