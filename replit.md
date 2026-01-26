@@ -33,6 +33,14 @@ Preferred communication style: Simple, everyday language.
 - **PDF Processing:** `pdf-parse` library for text extraction, `cleanup_hyphenated_text()` for hyphenation cleanup.
 - **Ingestion Robustness:** Retry logic with exponential backoff, validation for empty/corrupt PDFs, SHA256 tracking to avoid reprocessing, batch processing, integrity checks, and a robust PDF download fallback mechanism to CourtListener.
 
+### Advanced Search Features (POST /api/search)
+- **Hybrid Ranking:** `ts_rank * (1.0 / (days_old / 365 + 1))` formula boosts recent documents.
+- **Phrase Search:** Quoted terms use `phraseto_tsquery` for exact phrase matching.
+- **Fuzzy Matching:** pg_trgm `similarity()` > 0.2 on case names for typo-tolerant search.
+- **Keyset Pagination:** Base64-encoded cursor with (score, release_date, uuid) tuple for stable ordering.
+- **Filters:** author_judge, originating_forum, exclude_r36 (Rule 36 judgments).
+- **Rate Limiting:** Leaky bucket algorithm, 10 requests/second capacity per client.
+
 ### AI Integration
 - **Provider:** OpenAI via Replit AI Integrations.
 - **Model:** GPT-4o for chat completions.
