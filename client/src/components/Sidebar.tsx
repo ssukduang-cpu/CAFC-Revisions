@@ -12,12 +12,19 @@ import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { useConversations, useCreateConversation, useDeleteConversation } from "@/hooks/useConversations";
 import { useStatus } from "@/hooks/useOpinions";
 import { NewCaseDigest } from "@/components/NewCaseDigest";
 
 export function Sidebar() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [excludeR36, setExcludeR36] = useState(false);
+  const [authorFilter, setAuthorFilter] = useState("");
   const { currentConversationId, setCurrentConversationId, setShowOpinionLibrary } = useApp();
   
   const { data: conversations, isLoading } = useConversations();
@@ -95,6 +102,61 @@ export function Sidebar() {
             data-testid="input-search-conversations"
           />
         </div>
+      </div>
+
+      <div className="px-3 py-2">
+        <button 
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-medium hover:text-sidebar-foreground/60 transition-colors w-full"
+          data-testid="button-toggle-filters"
+        >
+          {showFilters ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          <Filter className="h-3 w-3" />
+          <span>Refine Search</span>
+        </button>
+        
+        {showFilters && (
+          <div className="mt-3 space-y-3 p-3 bg-sidebar-accent/30 rounded-lg">
+            <div>
+              <Label className="text-[10px] uppercase font-medium text-sidebar-foreground/50">
+                Authoring Judge
+              </Label>
+              <Select value={authorFilter} onValueChange={setAuthorFilter}>
+                <SelectTrigger className="w-full mt-1 h-8 text-xs bg-sidebar-accent border-transparent">
+                  <SelectValue placeholder="All Judges" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Judges</SelectItem>
+                  <SelectItem value="Newman">Newman</SelectItem>
+                  <SelectItem value="Lourie">Lourie</SelectItem>
+                  <SelectItem value="Dyk">Dyk</SelectItem>
+                  <SelectItem value="Prost">Prost</SelectItem>
+                  <SelectItem value="Moore">Moore</SelectItem>
+                  <SelectItem value="Chen">Chen</SelectItem>
+                  <SelectItem value="Taranto">Taranto</SelectItem>
+                  <SelectItem value="Hughes">Hughes</SelectItem>
+                  <SelectItem value="Stoll">Stoll</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="exclude-r36"
+                checked={excludeR36}
+                onCheckedChange={(checked) => setExcludeR36(checked === true)}
+                className="border-sidebar-foreground/30"
+                data-testid="checkbox-exclude-r36"
+              />
+              <Label 
+                htmlFor="exclude-r36" 
+                className="text-xs text-sidebar-foreground/70 cursor-pointer"
+              >
+                Hide Rule 36 Affirmances
+              </Label>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="px-3 py-2">
