@@ -1187,6 +1187,8 @@ async def generate_chat_response(
             domain_terms.extend(['patent', 'obviousness', 'anticipation', 'novelty', 'prior'])
         if 'infringement' in message_lower:
             domain_terms.extend(['infringement', 'infringe', 'infringes', 'literal', 'doctrine', 'equivalents'])
+        if 'alice' in message_lower or 'mayo' in message_lower or 'eligibility' in message_lower or '101' in message_lower:
+            domain_terms.extend(['alice', 'mayo', 'eligibility', 'abstract', 'idea', 'ineligible', 'section', 'step'])
         
         # Combine meaningful tokens with domain terms (deduplicate)
         all_search_tokens = list(set(meaningful_tokens + domain_terms))
