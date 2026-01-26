@@ -1,0 +1,35 @@
+**Role:** Senior Full-Stack Engineer.
+**Project:** Specialized Legal Search Engine for a Patent Law Library.
+**Tech Stack:** - Backend: Python 3.11, FastAPI.
+- Primary DB: Managed PostgreSQL (Replit).
+- Search Engine: Elasticsearch 8.x (setup via Docker Compose in the Repl).
+- Testing: Pytest with Testcontainers for integration testing.
+
+**1. Database & Schema Alignment:**
+Use the existing PostgreSQL `documents` table. Ensure it has the following columns:
+- `id`: UUID (Primary Key)
+- `case_name`: Text
+- `content`: Text (Full-text source)
+- `author_judge`: Text (e.g., "Newman", "Dyk")
+- `originating_forum`: Text (e.g., "PTAB", "District Court")
+- `is_rule_36`: Boolean (Default: False)
+- `created_at`: Timestamp
+
+**2. Advanced Search Implementation (Elasticsearch):**
+- **Recency Boost:** Implement a Gaussian decay function (`gauss`) in a `function_score` query. Opinions from 2026 should rank higher than older ones if textual relevance is similar.
+- **Query Support:** Enable exact phrase queries (using `match_phrase`) and fuzzy matching (edit distance 2) for typo tolerance.
+- **Filters:** Implement mandatory filters for `author_judge`, `originating_forum`, and a toggle to `exclude_rule_36`.
+- **Pagination:** Implement cursor-based pagination using Elasticsearch's `search_after` parameter for stable results across 3,250+ documents.
+
+**3. API Requirements:**
+- **POST /search**: 
+  - Request: `{ "q": "string", "filters": { "author": "str", "forum": "str", "exclude_r36": bool }, "cursor": "string|null", "limit": int }`
+  - Response: `{ "results": [{ "id", "case_name", "author", "forum", "is_rule_36", "highlights": [] }], "next_cursor": "string|null" }`
+- **Indexing Service**: Provide a script `sync_to_es.py` that performs a bulk sync from Postgres to Elasticsearch.
+
+**4. Operations & Security:**
+- **Rate Limiting**: Implement a thread-safe Leaky Bucket rate limiter for the `/search` endpoint (e.g., 5 requests per second).
+- **Docker Compose**: Create a `docker-compose.yml` to run the Elasticsearch 8.x container locally within the Repl environment.
+- **Testing**: Include a `pytest` suite verifying that a recent document (2026) outranks an older document (2020) for the same search term.
+
+**Deliverables:** Full runnable backend code, `docker-compose.yml`, `pytest` suite, and a `README.md` with example `curl` commands for the filters.
