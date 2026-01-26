@@ -584,18 +584,18 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                 LIMIT %s
             """, (opinion_ids, query, limit))
         elif opinion_ids:
-            # Full text search within specific opinions
+            # Full text search within specific opinions - uses pre-computed text_search_vector
             cursor.execute("""
                 SELECT 
                     p.document_id as opinion_id, p.page_number, p.text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
                     d.courtlistener_url,
-                    ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) as rank
+                    ts_rank(p.text_search_vector, plainto_tsquery('english', %s)) as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
                 WHERE d.id::text = ANY(%s)
-                  AND to_tsvector('english', p.text) @@ plainto_tsquery('english', %s)
+                  AND p.text_search_vector @@ plainto_tsquery('english', %s)
                 ORDER BY rank DESC
                 LIMIT %s
             """, (query, opinion_ids, query, limit))
@@ -616,7 +616,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                 LIMIT %s
             """, (query, limit))
         else:
-            # Search both case name and page text, with case name matches boosted 10x
+            # Use pre-computed text_search_vector and trigram index for fast search
             cursor.execute("""
                 SELECT 
                     p.document_id as opinion_id, p.page_number, p.text,
@@ -624,14 +624,14 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
                     d.courtlistener_url,
                     (
-                        ts_rank(to_tsvector('english', p.text), plainto_tsquery('english', %s)) +
+                        ts_rank(p.text_search_vector, plainto_tsquery('english', %s)) +
                         CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
                     ) as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
                 WHERE d.ingested = TRUE 
                   AND (
-                    to_tsvector('english', p.text) @@ plainto_tsquery('english', %s)
+                    p.text_search_vector @@ plainto_tsquery('english', %s)
                     OR d.case_name ILIKE '%%' || %s || '%%'
                   )
                 ORDER BY rank DESC
