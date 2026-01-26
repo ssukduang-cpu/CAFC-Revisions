@@ -31,10 +31,17 @@ def extract_case_citations(text: str) -> List[Dict[str, str]]:
     Extract case names and citations from search result text.
     Returns list of dicts with case_name and citation fields.
     """
+    if not text:
+        return []
+    
+    # Only search the first 2500 chars to prevent regex CPU spikes
+    # Citations are usually at the top of documents
+    search_text = text[:2500]
+    
     extracted = []
     
     full_case_pattern = r'([A-Z][a-zA-Z0-9\s\.\-&,\'()]+?(?:Inc\.|Corp\.|LLC|L\.?C\.?|Co\.|Ltd\.)?)\s+v\.\s+([A-Z][a-zA-Z0-9\s\.\-&,\'()]+?(?:Inc\.|Corp\.|LLC|L\.?C\.?|Co\.|Ltd\.))(?:\s*,\s*(?:No\.\s*[\d\-]+))?(?:\s*,?\s*(\d{3}\s+F\.(?:2d|3d)\s+\d+|\d{3}\s+U\.S\.\s+\d+))?'
-    matches = re.findall(full_case_pattern, text)
+    matches = re.findall(full_case_pattern, search_text)
     
     for match in matches:
         plaintiff = match[0].strip().rstrip(',.')
@@ -55,7 +62,7 @@ def extract_case_citations(text: str) -> List[Dict[str, str]]:
         })
     
     simple_pattern = r'([A-Z][a-zA-Z\.\-]+(?:\s+[A-Z][a-zA-Z\.\-]+)*)\s+v\.\s+([A-Z][a-zA-Z\.\-]+(?:\s+[a-zA-Z\.\-]+)*)'
-    simple_matches = re.findall(simple_pattern, text)
+    simple_matches = re.findall(simple_pattern, search_text)
     for match in simple_matches:
         plaintiff = match[0].strip()
         defendant = match[1].strip()
@@ -75,7 +82,7 @@ def extract_case_citations(text: str) -> List[Dict[str, str]]:
             })
     
     fed_cir_pattern = r'(\d{3})\s+(F\.(?:2d|3d))\s+(\d+)'
-    cites = re.findall(fed_cir_pattern, text)
+    cites = re.findall(fed_cir_pattern, search_text)
     for vol, reporter, page in cites:
         cite_str = f"{vol} {reporter} {page}"
         if not any(c.get("citation") == cite_str for c in extracted):

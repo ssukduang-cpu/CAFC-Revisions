@@ -12,6 +12,7 @@ import subprocess
 from backend import db_postgres as db
 from backend.scraper import scrape_opinions
 from backend.chat import generate_chat_response, generate_chat_response_stream
+from backend.web_search import search_tavily
 
 app = FastAPI(title="Federal Circuit AI")
 
@@ -223,12 +224,25 @@ async def search_endpoint(
         return {"results": [], "query": q, "mode": mode}
     
     party_only = mode == "parties"
-    results = db.search_chunks(q, limit=limit, party_only=party_only)
-    results = serialize_for_json(results)
     
-    formatted_results = []
-    for r in results:
-        formatted_results.append({
+    # First, get local results (this should be fast with the new indexes)
+    try:
+        local_results = await asyncio.wait_for(
+            asyncio.to_thread(db.search_chunks, q, limit=limit, party_only=party_only),
+            timeout=5.0
+        )
+    except asyncio.TimeoutError:
+        return {"error": "Database search timed out", "results": [], "count": 0, "query": q}
+    except Exception as e:
+        return {"error": f"Database error: {str(e)}", "results": [], "count": 0, "query": q}
+    
+    local_results = serialize_for_json(local_results)
+    
+    # Format local results
+    final_results = []
+    for r in local_results:
+        final_results.append({
+            "source": "local",
             "documentId": str(r.get("document_id", "")),
             "caseName": r.get("case_name", ""),
             "appealNumber": r.get("appeal_number", ""),
@@ -240,10 +254,40 @@ async def search_endpoint(
             "rank": r.get("rank", 0)
         })
     
+    # Only trigger web search if local results are empty or low confidence
+    # This avoids unnecessary API calls when we have good local matches
+    max_rank = max((r.get("rank", 0) for r in local_results), default=0)
+    should_web_search = len(local_results) == 0 or (max_rank < 0.3 and not party_only)
+    
+    if should_web_search:
+        try:
+            web_data = await asyncio.wait_for(search_tavily(q, max_results=5), timeout=8.0)
+            web_results = web_data.get("extracted_cases", []) if isinstance(web_data, dict) else []
+            
+            # Add web results as fallbacks (only if not already in local results)
+            for w in web_results:
+                case_name = w.get("case_name", "")
+                if case_name and not any(f.get("caseName") == case_name for f in final_results):
+                    final_results.append({
+                        "source": "web",
+                        "documentId": "",
+                        "caseName": case_name,
+                        "appealNumber": "",
+                        "releaseDate": "",
+                        "pdfUrl": w.get("source_url", ""),
+                        "pageStart": 1,
+                        "pageEnd": 1,
+                        "snippet": f"Web Match: {w.get('citation') or 'Click to view'}",
+                        "rank": 0
+                    })
+        except (asyncio.TimeoutError, Exception):
+            # Web search failed but we still have local results - continue
+            pass
+    
     return {
         "query": q,
-        "results": formatted_results,
-        "count": len(formatted_results)
+        "results": final_results[:limit],
+        "count": len(final_results)
     }
 
 manifest_build_running = False
