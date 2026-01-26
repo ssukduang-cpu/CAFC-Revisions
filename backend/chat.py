@@ -1407,24 +1407,110 @@ async def generate_chat_response(
         raw_answer = response.choices[0].message.content or "No response generated."
         
         if "NOT FOUND IN PROVIDED OPINIONS" in raw_answer.upper():
-            return standardize_response({
-                "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nThe ingested opinions do not contain information relevant to your query. Try ingesting additional opinions or refining your search.",
-                "sources": [],
-                "debug": {
-                    "claims": [],
-                    "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
-                    "search_query": message,
-                    "search_terms": search_terms,
-                    "pages_count": len(pages),
-                    "pages_sample": [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]],
-                    "markers_count": 0,
-                    "markers": [],
-                    "sources_count": 0,
+            # AI couldn't find relevant info in local results - try web search as fallback
+            logging.info(f"AI returned NOT FOUND, attempting web search fallback for: {message[:100]}")
+            
+            try:
+                web_search_result = await try_web_search_and_ingest(message, conversation_id)
+                
+                if web_search_result.get("success") and web_search_result.get("new_pages"):
+                    # Successfully ingested new cases, retry with the new pages
+                    new_pages = web_search_result["new_pages"]
+                    logging.info(f"Web search fallback found {len(new_pages)} new pages, retrying query")
+                    
+                    # Build context using the standard format for consistency
+                    new_context = build_context(new_pages[:15])
+                    new_user_prompt = f"OPINION EXCERPTS:\n{new_context}\n\n---\n\nQUESTION: {message}"
+                    
+                    try:
+                        # Make new API call with fresh context
+                        retry_response = await asyncio.wait_for(
+                            asyncio.get_event_loop().run_in_executor(
+                                _executor,
+                                lambda: client.chat.completions.create(
+                                    model="gpt-4o",
+                                    messages=[
+                                        {"role": "system", "content": SYSTEM_PROMPT},
+                                        {"role": "user", "content": new_user_prompt}
+                                    ],
+                                    temperature=0.2,
+                                    max_tokens=2500,
+                                    timeout=60.0
+                                )
+                            ),
+                            timeout=90.0
+                        )
+                        
+                        retry_answer = retry_response.choices[0].message.content or "No response generated."
+                        
+                        # If still not found after retry, return with web search info (don't retry again)
+                        if "NOT FOUND IN PROVIDED OPINIONS" in retry_answer.upper():
+                            case_names = web_search_result.get("cases_found", [])
+                            web_info = ""
+                            if case_names:
+                                web_info = f"\n\n**New cases were ingested but no relevant excerpts found.**\n\nIngested: " + ", ".join(case_names[:3])
+                            
+                            return standardize_response({
+                                "answer_markdown": f"NOT FOUND IN PROVIDED OPINIONS.{web_info}\n\nThe topic may require more specialized case law. Try refining your search terms.",
+                                "sources": [],
+                                "web_search_triggered": True,
+                                "debug": {
+                                    "claims": [],
+                                    "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                                    "search_query": message,
+                                    "web_search_result": web_search_result,
+                                    "return_branch": "web_search_fallback_still_not_found"
+                                }
+                            })
+                        
+                        # Success! Update raw_answer and pages for downstream processing
+                        raw_answer = retry_answer
+                        pages = new_pages
+                        
+                    except Exception as retry_err:
+                        logging.error(f"Retry API call failed: {retry_err}")
+                        # Fall through to return NOT FOUND with web search info
+                        case_names = web_search_result.get("cases_found", [])
+                        return standardize_response({
+                            "answer_markdown": f"NOT FOUND IN PROVIDED OPINIONS.\n\nNew cases were discovered and ingested, but an error occurred. Please try your query again.",
+                            "sources": [],
+                            "web_search_triggered": True,
+                            "debug": {"return_branch": "web_search_retry_error", "error": str(retry_err)}
+                        })
+                else:
+                    # Web search didn't find anything either
+                    web_info = ""
+                    case_names = web_search_result.get("cases_found", [])
+                    if case_names:
+                        web_info = f"\n\n**Potentially relevant cases found but not yet indexed:**\n- " + "\n- ".join(case_names[:5])
+                    
+                    return standardize_response({
+                        "answer_markdown": f"NOT FOUND IN PROVIDED OPINIONS.{web_info}\n\nThe ingested opinions do not contain information relevant to your query. Try ingesting additional opinions or refining your search.",
+                        "sources": [],
+                        "web_search_triggered": True,
+                        "debug": {
+                            "claims": [],
+                            "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                            "search_query": message,
+                            "web_search_result": web_search_result,
+                            "return_branch": "llm_returned_not_found_web_search_no_results"
+                        }
+                    })
+                    
+            except Exception as web_err:
+                logging.error(f"Web search fallback failed: {web_err}")
+                # Return original NOT FOUND response if web search fails
+                return standardize_response({
+                    "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nThe ingested opinions do not contain information relevant to your query. Try ingesting additional opinions or refining your search.",
                     "sources": [],
-                    "raw_response": raw_answer,
-                    "return_branch": "llm_returned_not_found"
-                }
-            })
+                    "debug": {
+                        "claims": [],
+                        "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                        "search_query": message,
+                        "return_branch": "llm_returned_not_found_web_search_error",
+                        "web_search_error": str(web_err)
+                    }
+                })
         
         # Handle AMBIGUOUS QUERY response - pass through the clarification message
         if "AMBIGUOUS QUERY" in raw_answer.upper() or "MULTIPLE MATCHES FOUND" in raw_answer.upper():
