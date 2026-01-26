@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
@@ -216,29 +216,51 @@ async def integrity_check_endpoint():
 
 @app.get("/api/search")
 async def search_endpoint(
-    q: str,
+    q: str = Query(..., min_length=2),
     limit: int = 20,
     mode: str = "all"  # "all" = full text + case names, "parties" = case names only
 ):
+    """Optimized Search: Runs local DB and Web searches concurrently."""
     if not q or len(q.strip()) < 2:
         return {"results": [], "query": q, "mode": mode}
     
     party_only = mode == "parties"
     
-    # First, get local results (this should be fast with the new indexes)
+    # 1. Prepare tasks for parallel execution
+    db_task = asyncio.create_task(
+        asyncio.to_thread(db.search_chunks, q, limit=limit, party_only=party_only)
+    )
+    
+    # 2. Trigger web search only if not in 'party_only' mode
+    web_task = None
+    if not party_only:
+        web_task = asyncio.create_task(search_tavily(q, max_results=5))
+
+    # 3. Gather results with error handling
     try:
-        local_results = await asyncio.wait_for(
-            asyncio.to_thread(db.search_chunks, q, limit=limit, party_only=party_only),
-            timeout=5.0
-        )
+        if web_task:
+            local_results, web_data = await asyncio.wait_for(
+                asyncio.gather(db_task, web_task, return_exceptions=True),
+                timeout=15.0
+            )
+            # Handle exceptions from gather
+            if isinstance(local_results, Exception):
+                local_results = []
+            if isinstance(web_data, Exception):
+                web_data = {"success": False}
+        else:
+            local_results = await asyncio.wait_for(db_task, timeout=5.0)
+            web_data = {"success": False}
     except asyncio.TimeoutError:
-        return {"error": "Database search timed out", "results": [], "count": 0, "query": q}
+        logger.error("Search orchestration timed out")
+        local_results, web_data = [], {"success": False}
     except Exception as e:
-        return {"error": f"Database error: {str(e)}", "results": [], "count": 0, "query": q}
+        logger.error(f"Search orchestration failed: {e}")
+        local_results, web_data = [], {"success": False}
+
+    local_results = serialize_for_json(local_results) if local_results else []
     
-    local_results = serialize_for_json(local_results)
-    
-    # Format local results
+    # 4. Format local results
     final_results = []
     for r in local_results:
         final_results.append({
@@ -253,36 +275,24 @@ async def search_endpoint(
             "snippet": r.get("text", "")[:500],
             "rank": r.get("rank", 0)
         })
-    
-    # Only trigger web search if local results are empty or low confidence
-    # This avoids unnecessary API calls when we have good local matches
-    max_rank = max((r.get("rank", 0) for r in local_results), default=0)
-    should_web_search = len(local_results) == 0 or (max_rank < 0.3 and not party_only)
-    
-    if should_web_search:
-        try:
-            web_data = await asyncio.wait_for(search_tavily(q, max_results=5), timeout=8.0)
-            web_results = web_data.get("extracted_cases", []) if isinstance(web_data, dict) else []
-            
-            # Add web results as fallbacks (only if not already in local results)
-            for w in web_results:
-                case_name = w.get("case_name", "")
-                if case_name and not any(f.get("caseName") == case_name for f in final_results):
-                    final_results.append({
-                        "source": "web",
-                        "documentId": "",
-                        "caseName": case_name,
-                        "appealNumber": "",
-                        "releaseDate": "",
-                        "pdfUrl": w.get("source_url", ""),
-                        "pageStart": 1,
-                        "pageEnd": 1,
-                        "snippet": f"Web Match: {w.get('citation') or 'Click to view'}",
-                        "rank": 0
-                    })
-        except (asyncio.TimeoutError, Exception):
-            # Web search failed but we still have local results - continue
-            pass
+
+    # 5. Add web results as secondary references (avoid duplicates)
+    if isinstance(web_data, dict) and web_data.get("success"):
+        for case in web_data.get("extracted_cases", []):
+            case_name = case.get("case_name", "")
+            if case_name and not any(f.get("caseName") == case_name for f in final_results):
+                final_results.append({
+                    "source": "web",
+                    "documentId": "",
+                    "caseName": case_name,
+                    "appealNumber": "",
+                    "releaseDate": "",
+                    "pdfUrl": case.get("source_url", ""),
+                    "pageStart": 1,
+                    "pageEnd": 1,
+                    "snippet": f"Web Match: {case.get('citation') or 'Click to view'}",
+                    "rank": 0.5
+                })
     
     return {
         "query": q,

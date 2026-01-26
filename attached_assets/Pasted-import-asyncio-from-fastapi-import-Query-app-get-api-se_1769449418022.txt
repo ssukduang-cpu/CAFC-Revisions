@@ -1,0 +1,69 @@
+import asyncio
+from fastapi import Query
+
+@app.get("/api/search")
+async def search_endpoint(
+    q: str = Query(..., min_length=2),
+    limit: int = 20,
+    mode: str = "all"
+):
+    """
+    Optimized Search: Runs local DB and Web searches concurrently.
+    """
+    party_only = mode == "parties"
+    
+    # 1. Prepare tasks for parallel execution
+    # asyncio.create_task allows these to start immediately without blocking
+    db_task = asyncio.create_task(
+        asyncio.to_thread(db.search_chunks, q, limit=limit, party_only=party_only)
+    )
+    
+    # 2. Trigger web search only if not in 'party_only' mode
+    web_task = None
+    if not party_only:
+        web_task = asyncio.create_task(search_tavily(q, max_results=5))
+
+    # 3. Gather results with a hard timeout to prevent 'hanging'
+    try:
+        # We wait for both, but cap the wait time at 15 seconds
+        if web_task:
+            local_results, web_data = await asyncio.gather(db_task, web_task)
+        else:
+            local_results = await db_task
+            web_data = {"success": False}
+    except Exception as e:
+        logger.error(f"Search orchestration failed: {e}")
+        local_results, web_data = [], {"success": False}
+
+    # 4. Process and Merge
+    formatted_results = []
+    
+    # Add Local Results
+    for r in local_results:
+        formatted_results.append({
+            "source": "local",
+            "documentId": str(r.get("document_id", "")),
+            "caseName": r.get("case_name", ""),
+            "snippet": r.get("text", "")[:500],
+            "rank": r.get("rank", 0),
+            "pdfUrl": r.get("pdf_url", "")
+        })
+
+    # Add Web Results as secondary references
+    if web_data.get("success"):
+        for case in web_data.get("extracted_cases", []):
+            # Avoid duplicates if the case is already in local results
+            if not any(c["caseName"] == case.get("case_name") for c in formatted_results):
+                formatted_results.append({
+                    "source": "web",
+                    "caseName": case.get("case_name"),
+                    "snippet": f"Found via web search: {case.get('citation', '')}",
+                    "rank": 0.5,
+                    "pdfUrl": case.get("source_url", "")
+                })
+
+    return {
+        "query": q,
+        "results": formatted_results,
+        "count": len(formatted_results)
+    }
