@@ -134,6 +134,26 @@ def init_db():
             ON document_pages(document_id)
         """)
         
+        # Trigram extension and index for fast case name searches
+        cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_documents_case_name_trgm 
+            ON documents USING gin (case_name gin_trgm_ops)
+        """)
+        
+        # Add generated tsvector column to document_pages for fast full-text search
+        cursor.execute("""
+            ALTER TABLE document_pages 
+            ADD COLUMN IF NOT EXISTS text_search_vector TSVECTOR 
+            GENERATED ALWAYS AS (to_tsvector('english', coalesce(text, ''))) STORED
+        """)
+        
+        # GIN index on the pages vector for fast searches
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_document_pages_fts_vector 
+            ON document_pages USING GIN(text_search_vector)
+        """)
+        
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS conversations (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
