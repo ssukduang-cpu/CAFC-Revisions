@@ -41,10 +41,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Chat endpoints need longer timeout for web search + ingestion
-  app.use("/api/conversations/:id/messages", (req: Request, res: Response, next: NextFunction) => {
+  app.post("/api/conversations/:id/messages", (req: Request, res: Response, next: NextFunction) => {
     req.setTimeout(180000);  // 3 minutes for chat with web search
     res.setTimeout(180000);
-    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api` });
+    // Preserve original URL when proxying
+    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}` });
   });
 
   app.use("/api", (req: Request, res: Response, next: NextFunction) => {
