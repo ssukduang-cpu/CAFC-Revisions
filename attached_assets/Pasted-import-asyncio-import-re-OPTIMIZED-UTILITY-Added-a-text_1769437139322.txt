@@ -1,0 +1,59 @@
+import asyncio
+import re
+
+# OPTIMIZED UTILITY: Added a text limit to prevent Regex CPU spikes
+def extract_case_citations(text: str) -> List[Dict[str, str]]:
+    if not text: return []
+    # Only search the first 2500 chars; citations are usually at the top
+    search_text = text[:2500] 
+    
+    # ... (Your existing patterns)
+    # Use search_text here instead of text
+    return extracted
+
+# OPTIMIZED ENDPOINT: Parallel processing
+@app.get("/api/search")
+async def search_endpoint(q: str, limit: int = 20, mode: str = "all"):
+    if not q or len(q.strip()) < 2:
+        return {"results": [], "query": q}
+
+    # RUN IN PARALLEL: Don't wait for DB to finish before starting Web search
+    db_task = asyncio.create_task(asyncio.to_thread(
+        db.search_chunks, q, limit=limit, party_only=(mode == "parties")
+    ))
+    web_task = asyncio.create_task(search_tavily(q, max_results=5))
+
+    try:
+        # Hard timeout of 10s ensures the user always gets a response
+        local_results, web_data = await asyncio.wait_for(
+            asyncio.gather(db_task, web_task, return_exceptions=True), 
+            timeout=10.0
+        )
+    except asyncio.TimeoutError:
+        return {"error": "Search timed out", "results": [], "count": 0}
+
+    # Safeguard against individual task failures
+    local_results = local_results if isinstance(local_results, list) else []
+    web_results = web_data.get("extracted_cases", []) if isinstance(web_data, dict) else []
+
+    # Merge results (Prioritize local matches)
+    final_results = []
+    for r in local_results:
+        final_results.append({
+            "source": "local",
+            "caseName": r.get("case_name"),
+            "snippet": r.get("text", "")[:500],
+            "pdfUrl": r.get("pdf_url")
+        })
+    
+    # Add web results as fallbacks
+    for w in web_results:
+        if not any(f["caseName"] == w["case_name"] for f in final_results):
+            final_results.append({
+                "source": "web",
+                "caseName": w["case_name"],
+                "snippet": f"Web Match: {w.get('citation') or 'Click to view'}",
+                "pdfUrl": w.get("source_url")
+            })
+
+    return {"results": final_results[:limit], "count": len(final_results)}
