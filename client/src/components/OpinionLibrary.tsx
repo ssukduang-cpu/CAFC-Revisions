@@ -24,6 +24,7 @@ import { useApp } from "@/context/AppContext";
 import { useSyncOpinions, useIngestOpinion, useStatus } from "@/hooks/useOpinions";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { fetchOpinions } from "@/lib/api";
+import { SearchFilters } from "./SearchFilters";
 import type { Opinion } from "@shared/schema";
 
 const PAGE_SIZE = 100;
@@ -289,6 +290,8 @@ export function OpinionLibrary() {
   const [isLoading, setIsLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [selectedOpinion, setSelectedOpinion] = useState<Opinion | null>(null);
+  const [author, setAuthor] = useState("");
+  const [includeR36, setIncludeR36] = useState(true);
   
   const listRef = useListRef(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -326,7 +329,9 @@ export function OpinionLibrary() {
         const data = await fetchOpinions({
           limit: PAGE_SIZE,
           offset,
-          q: debouncedSearch || undefined
+          q: debouncedSearch || undefined,
+          author: author && author !== "all" ? author : undefined,
+          includeR36
         });
         allOpinions = [...allOpinions, ...data.opinions];
         setOpinions(allOpinions);
@@ -345,13 +350,13 @@ export function OpinionLibrary() {
     }
     
     setIsLoading(false);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, author, includeR36]);
 
   useEffect(() => {
     if (showOpinionLibrary) {
       loadAllOpinions();
     }
-  }, [showOpinionLibrary, debouncedSearch]);
+  }, [showOpinionLibrary, debouncedSearch, author, includeR36]);
 
   const handleSync = async () => {
     try {
@@ -431,6 +436,13 @@ export function OpinionLibrary() {
                   data-testid="input-search-opinions"
                 />
               </div>
+              
+              <SearchFilters
+                author={author}
+                setAuthor={setAuthor}
+                includeR36={includeR36}
+                setIncludeR36={setIncludeR36}
+              />
               
               <div className="flex items-center gap-2">
                 <Button 

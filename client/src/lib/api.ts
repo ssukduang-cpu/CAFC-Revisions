@@ -98,6 +98,8 @@ export async function fetchOpinions(options?: {
   offset?: number;
   ingested?: boolean;
   q?: string;
+  author?: string;
+  includeR36?: boolean;
 }): Promise<{ opinions: Opinion[]; total: number; ingested: number; hasMore: boolean; offset: number; limit: number }> {
   const params = new URLSearchParams();
   if (options?.status) params.set("status", options.status);
@@ -105,6 +107,8 @@ export async function fetchOpinions(options?: {
   if (options?.offset) params.set("offset", options.offset.toString());
   if (options?.ingested !== undefined) params.set("ingested", options.ingested.toString());
   if (options?.q) params.set("q", options.q);
+  if (options?.author) params.set("author", options.author);
+  if (options?.includeR36 !== undefined) params.set("include_r36", options.includeR36.toString());
   
   const url = `/api/opinions${params.toString() ? `?${params}` : ""}`;
   const res = await apiRequest("GET", url);
