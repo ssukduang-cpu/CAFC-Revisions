@@ -597,6 +597,185 @@ def search_chunks(
         
         return [dict(row) for row in cursor.fetchall()]
 
+
+def advanced_search(
+    query: str,
+    author: Optional[str] = None,
+    forum: Optional[str] = None,
+    exclude_r36: bool = False,
+    cursor_token: Optional[str] = None,
+    limit: int = 20
+) -> Dict[str, Any]:
+    """Advanced search with hybrid ranking, phrase/fuzzy support, and cursor pagination.
+    
+    Implements:
+    - Hybrid ranking: ts_rank * recency_boost
+    - Phrase search: quoted terms use phraseto_tsquery
+    - Fuzzy matching: pg_trgm similarity on case_name
+    - Keyset pagination: base64-encoded (timestamp, uuid) cursor
+    
+    Args:
+        query: Search query (supports quoted phrases)
+        author: Filter by author_judge
+        forum: Filter by originating_forum
+        exclude_r36: If True, exclude Rule 36 judgments
+        cursor_token: Base64-encoded cursor for pagination
+        limit: Max results per page
+        
+    Returns:
+        Dict with results list and next_cursor
+    """
+    import base64
+    import json
+    import re
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Detect phrase queries (quoted strings)
+        phrase_matches = re.findall(r'"([^"]+)"', query)
+        clean_query = re.sub(r'"[^"]*"', '', query).strip()
+        
+        # Require at least one search condition
+        if not clean_query and not phrase_matches:
+            return {'results': [], 'next_cursor': None}
+        
+        # Build filter conditions
+        filters = []
+        params = []
+        
+        if author:
+            filters.append("d.author_judge = %s")
+            params.append(author)
+        
+        if forum:
+            filters.append("d.originating_forum = %s")
+            params.append(forum)
+        
+        if exclude_r36:
+            filters.append("(d.is_rule_36 = FALSE OR d.is_rule_36 IS NULL)")
+        
+        filter_clause = (" AND " + " AND ".join(filters)) if filters else ""
+        
+        # Build search condition with phrase and fuzzy support
+        search_conditions = []
+        search_params = []
+        
+        # Full-text search on chunks
+        if clean_query:
+            search_conditions.append("c.text_search_vector @@ plainto_tsquery('english', %s)")
+            search_params.append(clean_query)
+        
+        # Phrase search
+        for phrase in phrase_matches:
+            search_conditions.append("c.text_search_vector @@ phraseto_tsquery('english', %s)")
+            search_params.append(phrase)
+        
+        # Fuzzy matching on case_name (pg_trgm)
+        if clean_query:
+            search_conditions.append("similarity(d.case_name, %s) > 0.2")
+            search_params.append(clean_query)
+        
+        search_clause = " OR ".join(search_conditions)
+        
+        # Parse cursor for keyset pagination (score, release_date, id)
+        cursor_score = None
+        cursor_ts = None
+        cursor_id = None
+        if cursor_token:
+            try:
+                decoded = base64.b64decode(cursor_token).decode('utf-8')
+                cursor_data_parsed = json.loads(decoded)
+                cursor_score = cursor_data_parsed.get('score')
+                cursor_ts = cursor_data_parsed.get('ts')
+                cursor_id = cursor_data_parsed.get('id')
+            except Exception:
+                pass
+        
+        # Build cursor WHERE clause
+        cursor_clause = ""
+        cursor_params = []
+        if cursor_score is not None and cursor_id:
+            if cursor_ts:
+                cursor_clause = "AND (hybrid_score, release_date, id::text) < (%s, %s::timestamp, %s)"
+                cursor_params = [cursor_score, cursor_ts, cursor_id]
+            else:
+                cursor_clause = "AND (hybrid_score, id::text) < (%s, %s)"
+                cursor_params = [cursor_score, cursor_id]
+        
+        # Main query with hybrid ranking
+        # Formula: ts_rank * (1.0 / (days_old / 365 + 1)) + fuzzy_bonus
+        sql = f"""
+            WITH ranked_results AS (
+                SELECT DISTINCT ON (d.id)
+                    d.id,
+                    d.case_name,
+                    d.author_judge,
+                    d.originating_forum,
+                    d.is_rule_36,
+                    d.release_date,
+                    c.text,
+                    c.page_start,
+                    (
+                        COALESCE(ts_rank(c.text_search_vector, plainto_tsquery('english', %s)), 0.01) 
+                        * (1.0 / (GREATEST(EXTRACT(DAYS FROM (NOW() - COALESCE(d.release_date, NOW()))) / 365.0, 0) + 1))
+                        + CASE WHEN similarity(d.case_name, %s) > 0.2 THEN 5.0 ELSE 0.0 END
+                    ) as hybrid_score
+                FROM document_chunks c
+                JOIN documents d ON c.document_id = d.id
+                WHERE d.ingested = TRUE
+                  AND ({search_clause})
+                  {filter_clause}
+                ORDER BY d.id, hybrid_score DESC
+            )
+            SELECT 
+                id, case_name, author_judge, originating_forum, is_rule_36, 
+                release_date, text as snippet, page_start, hybrid_score
+            FROM ranked_results
+            WHERE 1=1
+              {cursor_clause}
+            ORDER BY hybrid_score DESC, release_date DESC NULLS LAST, id DESC
+            LIMIT %s
+        """
+        
+        # Build params list
+        base_params = [clean_query or phrase_matches[0], clean_query or phrase_matches[0]] + search_params + params + cursor_params
+        base_params.append(limit + 1)
+        
+        cursor.execute(sql, tuple(base_params))
+        rows = cursor.fetchall()
+        
+        results = []
+        next_cursor = None
+        
+        for i, row in enumerate(rows):
+            if i >= limit:
+                # We got an extra row, so there's more data
+                last_row = rows[limit - 1]
+                cursor_data = {
+                    'score': float(last_row.get('hybrid_score', 0)),
+                    'ts': last_row['release_date'].isoformat() if last_row.get('release_date') else None,
+                    'id': str(last_row['id'])
+                }
+                next_cursor = base64.b64encode(json.dumps(cursor_data).encode()).decode()
+                break
+            
+            results.append({
+                'id': str(row['id']),
+                'case_name': row['case_name'],
+                'author': row['author_judge'],
+                'forum': row['originating_forum'],
+                'is_rule_36': row['is_rule_36'],
+                'highlights': (row.get('snippet') or '')[:300],
+                'score': float(row.get('hybrid_score', 0))
+            })
+        
+        return {
+            'results': results,
+            'next_cursor': next_cursor
+        }
+
+
 def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20, party_only: bool = False) -> List[Dict]:
     """Search pages with case name boosting or party-only mode.
     

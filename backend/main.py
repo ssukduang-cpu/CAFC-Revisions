@@ -1,15 +1,77 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, AsyncGenerator
 import os
 import json
 import asyncio
 import subprocess
+import time
+import threading
+import logging
 
 from backend import db_postgres as db
+
+logger = logging.getLogger(__name__)
+
+
+# Leaky Bucket Rate Limiter
+class LeakyBucketRateLimiter:
+    """Thread-safe leaky bucket rate limiter."""
+    
+    def __init__(self, rate: float = 10.0, capacity: float = 10.0):
+        self.rate = rate  # tokens per second
+        self.capacity = capacity
+        self.tokens = capacity
+        self.last_update = time.monotonic()
+        self.lock = threading.Lock()
+    
+    def allow(self) -> bool:
+        with self.lock:
+            now = time.monotonic()
+            elapsed = now - self.last_update
+            self.last_update = now
+            
+            # Add tokens based on elapsed time
+            self.tokens = min(self.capacity, self.tokens + elapsed * self.rate)
+            
+            if self.tokens >= 1.0:
+                self.tokens -= 1.0
+                return True
+            return False
+
+
+# Global rate limiter instance (10 requests/second)
+search_rate_limiter = LeakyBucketRateLimiter(rate=10.0, capacity=10.0)
+
+
+# Request/Response models for POST /search
+class SearchFilters(BaseModel):
+    author: Optional[str] = None
+    forum: Optional[str] = None
+    exclude_r36: bool = False
+
+
+class SearchRequest(BaseModel):
+    q: str = Field(..., min_length=2)
+    filters: Optional[SearchFilters] = None
+    cursor: Optional[str] = None
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class SearchResultItem(BaseModel):
+    id: str
+    case_name: str
+    author: Optional[str]
+    forum: Optional[str]
+    highlights: str
+
+
+class SearchResponse(BaseModel):
+    results: List[SearchResultItem]
+    next_cursor: Optional[str]
 from backend.scraper import scrape_opinions
 from backend.chat import generate_chat_response, generate_chat_response_stream
 from backend.web_search import search_tavily
@@ -220,6 +282,48 @@ async def integrity_check_endpoint():
         "stats": stats,
         "fts_health": fts_health
     }
+
+
+@app.post("/api/search", response_model=SearchResponse)
+async def post_search_endpoint(body: SearchRequest):
+    """Advanced search with hybrid ranking, phrase/fuzzy support, and cursor pagination.
+    
+    Features:
+    - Hybrid ranking: ts_rank * recency_boost
+    - Phrase search: wrap terms in quotes
+    - Fuzzy matching on case names
+    - Keyset cursor pagination
+    """
+    # Apply rate limiting
+    if not search_rate_limiter.allow():
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Max 10 requests/second.")
+    
+    try:
+        filters = body.filters or SearchFilters()
+        
+        result = db.advanced_search(
+            query=body.q,
+            author=filters.author,
+            forum=filters.forum,
+            exclude_r36=filters.exclude_r36,
+            cursor_token=body.cursor,
+            limit=body.limit
+        )
+        
+        return SearchResponse(
+            results=[SearchResultItem(
+                id=r['id'],
+                case_name=r['case_name'],
+                author=r.get('author'),
+                forum=r.get('forum'),
+                highlights=r.get('highlights', '')
+            ) for r in result['results']],
+            next_cursor=result.get('next_cursor')
+        )
+    except Exception as e:
+        logger.error(f"Search error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/search")
 async def search_endpoint(
