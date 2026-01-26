@@ -685,9 +685,8 @@ async def serve_pdf_by_id(opinion_id: str, page: int = 1):
         return JSONResponse(
             status_code=404,
             content={
-                "error": "PDF not yet downloaded",
-                "status": "retry_later",
-                "opinion_id": opinion_id,
+                "error": "Local copy missing",
+                "message": "This PDF isn't in local storage yet. You can view the original here:",
                 "fallback_url": fallback_url
             }
         )
