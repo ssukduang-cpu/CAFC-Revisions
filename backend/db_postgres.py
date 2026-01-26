@@ -437,6 +437,20 @@ def mark_document_processing(doc_id: str):
             WHERE id = %s
         """, (doc_id,))
 
+def cleanup_stale_processing(timeout_minutes: int = 20) -> int:
+    """Reset documents stuck in 'processing' for longer than timeout_minutes."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE documents 
+            SET status = 'failed', error_message = 'Ingestion timed out or process killed'
+            WHERE status = 'processing' 
+              AND updated_at < NOW() - INTERVAL '%s minutes'
+        """, (timeout_minutes,))
+        count = cursor.rowcount
+        conn.commit()
+        return count
+
 def get_pages_for_document(doc_id: str) -> List[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()

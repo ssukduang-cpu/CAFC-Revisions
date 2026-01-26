@@ -451,6 +451,11 @@ async def run_batch_ingest(
 ) -> Dict[str, Any]:
     db.init_db()
     
+    # Clean up any documents stuck in 'processing' for >20 minutes
+    stale_count = db.cleanup_stale_processing(timeout_minutes=20)
+    if stale_count > 0:
+        log(f"Reset {stale_count} stale processing documents")
+    
     documents = db.get_pending_documents(limit=limit)
     
     if not documents:
