@@ -61,7 +61,40 @@ export function useSendMessage() {
       if (!conversationId) throw new Error("No conversation selected");
       return sendMessage(conversationId, content, searchMode);
     },
-    onSuccess: (_, variables) => {
+    onMutate: async (variables) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["conversation", variables.conversationId] });
+      
+      // Snapshot the previous value
+      const previousConversation = queryClient.getQueryData<ConversationWithMessages>(["conversation", variables.conversationId]);
+      
+      // Optimistically add the user's message immediately
+      if (previousConversation) {
+        const optimisticMessage: Message = {
+          id: `temp-${Date.now()}`,
+          conversationId: variables.conversationId,
+          role: "user",
+          content: variables.content,
+          citations: null,
+          createdAt: new Date(),
+        };
+        
+        queryClient.setQueryData<ConversationWithMessages>(["conversation", variables.conversationId], {
+          ...previousConversation,
+          messages: [...previousConversation.messages, optimisticMessage],
+        });
+      }
+      
+      return { previousConversation };
+    },
+    onError: (err, variables, context) => {
+      // Roll back to the previous value on error
+      if (context?.previousConversation) {
+        queryClient.setQueryData(["conversation", variables.conversationId], context.previousConversation);
+      }
+    },
+    onSettled: (_, __, variables) => {
+      // Refetch to get the real data from the server
       queryClient.invalidateQueries({ queryKey: ["conversation", variables.conversationId] });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },

@@ -53,6 +53,7 @@ function LoadingStages() {
 export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const [searchMode, setSearchMode] = useState<"all" | "parties">("all");
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { currentConversationId, setCurrentConversationId, setSelectedCitations, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
   const { data: status } = useStatus();
@@ -61,7 +62,11 @@ export function ChatInterface() {
   const sendMessage = useSendMessage();
   const createConversation = useCreateConversation();
 
-  const messages = conversation?.messages || [];
+  const serverMessages = conversation?.messages || [];
+  // Show pending message while waiting for server response (for new conversations)
+  const messages = pendingMessage && !serverMessages.some(m => m.content === pendingMessage)
+    ? [...serverMessages, { id: 'pending', conversationId: currentConversationId || '', role: 'user' as const, content: pendingMessage, citations: null, createdAt: new Date() }]
+    : serverMessages;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -74,6 +79,7 @@ export function ChatInterface() {
     
     const messageContent = inputValue;
     setInputValue("");
+    setPendingMessage(messageContent); // Show message immediately
 
     try {
       let convId = currentConversationId;
@@ -85,9 +91,11 @@ export function ChatInterface() {
       }
       
       await sendMessage.mutateAsync({ conversationId: convId, content: messageContent, searchMode });
+      setPendingMessage(null); // Clear pending after success
     } catch (error) {
       console.error("Failed to send message:", error);
       setInputValue(messageContent);
+      setPendingMessage(null);
     }
   };
 
@@ -114,7 +122,7 @@ export function ChatInterface() {
   };
 
   const handleActionClick = async (action: string) => {
-    setInputValue(action);
+    setPendingMessage(action); // Show message immediately
     // Automatically send the action
     if (currentConversationId) {
       try {
@@ -123,8 +131,10 @@ export function ChatInterface() {
           content: action,
           searchMode
         });
+        setPendingMessage(null);
       } catch (error) {
         console.error('Failed to send action:', error);
+        setPendingMessage(null);
       }
     }
   };
