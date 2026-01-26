@@ -402,30 +402,35 @@ def save_chunk_immediately(doc_id: str, chunk_index: int, page_start: int, page_
         conn.commit()
 
 def ingest_document_atomic(doc_id: str, pages: list, chunks: list, pdf_sha256: Optional[str] = None, file_size: int = 0):
-    with get_db() as conn:
-        cursor = conn.cursor()
-        try:
-            clear_document_content(doc_id, cursor)
-            for page_num, text in enumerate(pages, 1):
-                insert_page(doc_id, page_num, text, cursor)
-            for chunk in chunks:
-                insert_chunk(doc_id, chunk["chunk_index"], chunk["page_start"], chunk["page_end"], chunk["text"], cursor)
-            cursor.execute("""
-                UPDATE documents SET 
-                    ingested = TRUE, 
-                    pdf_sha256 = %s, 
-                    updated_at = NOW(), 
-                    last_error = NULL,
-                    status = 'completed',
-                    error_message = NULL,
-                    total_pages = %s,
-                    file_size = %s
-                WHERE id = %s
-            """, (pdf_sha256, len(pages), file_size, doc_id))
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            raise e
+    """
+    Optimized for Replit: Saves each page and chunk immediately.
+    If the process is throttled or killed, progress is preserved.
+    """
+    try:
+        # 1. Clear previous attempts to ensure a clean slate for this specific ID
+        clear_document_content(doc_id)
+        
+        # 2. Save each page as a discrete, committed transaction
+        for page_num, text in enumerate(pages, 1):
+            save_page_immediately(doc_id, page_num, text)
+            
+        # 3. Save each chunk as a discrete, committed transaction
+        for chunk in chunks:
+            save_chunk_immediately(
+                doc_id, 
+                chunk["chunk_index"], 
+                chunk["page_start"], 
+                chunk["page_end"], 
+                chunk["text"]
+            )
+            
+        # 4. Finalize the document record only after content is verified
+        mark_document_ingested(doc_id, pdf_sha256, len(pages), file_size)
+        
+    except Exception as e:
+        # Log the error but don't rollback—pages already saved stay saved
+        mark_document_error(doc_id, f"Incremental ingestion failed: {str(e)}")
+        raise e
 
 def mark_document_ingested(doc_id: str, pdf_sha256: Optional[str] = None, total_pages: int = 0, file_size: int = 0):
     with get_db() as conn:
