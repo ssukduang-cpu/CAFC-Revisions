@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Users, FileText } from "lucide-react";
+import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Users, FileText, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
@@ -20,10 +20,10 @@ export function ChatInterface() {
   const { currentConversationId, setCurrentConversationId, setSelectedCitations, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
   const { data: status } = useStatus();
   
-  // Auto-dismiss web search cases after 5 seconds
+  // Auto-dismiss web search cases after 10 seconds
   useEffect(() => {
     if (webSearchCases.length > 0) {
-      const timer = setTimeout(() => setWebSearchCases([]), 5000);
+      const timer = setTimeout(() => setWebSearchCases([]), 10000);
       return () => clearTimeout(timer);
     }
   }, [webSearchCases]);
@@ -641,18 +641,30 @@ export function ChatInterface() {
           )}
           
           {webSearchCases.length > 0 && (
-            <div className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="h-7 w-7 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+            <div 
+              className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-2 duration-300 p-3 rounded-lg border border-green-500/30 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30"
+              data-testid="web-search-indicator"
+            >
+              <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                <Globe className="h-4 w-4 text-green-600 dark:text-green-400" />
               </div>
-              <div className="flex flex-col gap-1 py-1">
-                <p className="text-sm text-green-700 dark:text-green-400 font-medium">
-                  Learned {webSearchCases.length} new case{webSearchCases.length > 1 ? 's' : ''}:
+              <div className="flex flex-col gap-1">
+                <p className="text-sm text-green-700 dark:text-green-400 font-semibold flex items-center gap-2">
+                  <span>Web Search Complete</span>
+                  <span className="text-xs font-normal bg-green-500/20 px-1.5 py-0.5 rounded">
+                    +{webSearchCases.length} case{webSearchCases.length > 1 ? 's' : ''}
+                  </span>
                 </p>
-                <ul className="text-xs text-muted-foreground">
+                <ul className="text-xs text-muted-foreground space-y-0.5">
                   {webSearchCases.slice(0, 3).map((name, i) => (
-                    <li key={i} className="truncate max-w-xs">{name}</li>
+                    <li key={i} className="truncate max-w-xs flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
+                      {name}
+                    </li>
                   ))}
+                  {webSearchCases.length > 3 && (
+                    <li className="text-muted-foreground/60">+{webSearchCases.length - 3} more</li>
+                  )}
                 </ul>
               </div>
             </div>
