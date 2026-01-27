@@ -588,6 +588,15 @@ X. FAILURE MODES (MANDATORY RESPONSES)
 - Insufficient text to support a claim: NOT FOUND IN PROVIDED OPINIONS.
 - Retrieval provides zero excerpts: NOT FOUND IN PROVIDED OPINIONS.
 
+IMPORTANT EXCEPTION - Named Case Present But Topic Mismatch:
+If the user asks about a SPECIFIC CASE by name (e.g., "Does X v. Y discuss § 101?") AND excerpts from that case ARE provided, but the case does NOT discuss the requested topic:
+- Do NOT respond with "NOT FOUND IN PROVIDED OPINIONS"
+- Instead, respond with: "The case [Case Name] does not discuss [requested topic]. Based on the provided excerpts, this case addresses [actual topic covered]."
+- YOU MUST include at least one citation marker [1] referencing an excerpt that shows what the case DOES discuss
+- Example: "The case H-W Technology v. Overstock does not discuss § 101 eligibility. Instead, this case addresses claim indefiniteness under § 112. [1]"
+- The citation map at the end MUST include at least one verifiable quote from the excerpts about the actual topic
+- This ensures the user understands their requested case was found, and the alternative topic is grounded in actual excerpts
+
 XI. OPERATING PRINCIPLE
 
 If a statement could not survive scrutiny by a Federal Circuit judge or opposing counsel for lack of textual support, do not write it.
@@ -1418,7 +1427,8 @@ async def generate_chat_response(
         'patents', 'interpret', 'interpretation', 'ordinary', 'terms', 'term',
         'language', 'define', 'defines', 'defined', 'explain', 'explains', 'explained',
         'address', 'addresses', 'addressed', 'apply', 'applies', 'applied',
-        'establish', 'establishes', 'established', 'determine', 'determines'
+        'establish', 'establishes', 'established', 'determine', 'determines',
+        'discuss', 'discusses', 'discussed', 'regarding', 'concerning', 'about'
     }
     
     # Legal entity suffixes that should terminate defendant capture
@@ -1441,9 +1451,14 @@ async def generate_chat_response(
         plaintiff = match[0].strip()
         defendant = match[1].strip()
         
-        # Skip if plaintiff is a stop word (sentence starter, not a party name)
-        first_word = plaintiff.split()[0] if plaintiff else ''
-        if first_word in stop_words:
+        # Strip leading stop words from plaintiff (sentence starters like "Does", "What")
+        plaintiff_words = plaintiff.split()
+        while plaintiff_words and plaintiff_words[0] in stop_words:
+            plaintiff_words.pop(0)
+        plaintiff = ' '.join(plaintiff_words)
+        
+        # Skip if no plaintiff remains after stripping
+        if not plaintiff:
             continue
         
         # SYSTEMIC FIX: Apply hard anchor after entity suffix OR limit to 4 words max
@@ -1503,8 +1518,20 @@ async def generate_chat_response(
                     legal_terms.append('obviousness')
                 if 'infringement' in message.lower():
                     legal_terms.append('infringement')
+                if 'indefinite' in message.lower() or 'indefiniteness' in message.lower():
+                    legal_terms.append('indefinite')
+                if 'eligible' in message.lower() or 'eligibility' in message.lower() or '101' in message:
+                    legal_terms.append('eligible abstract')
+                if 'written description' in message.lower():
+                    legal_terms.append('written description')
+                if 'enablement' in message.lower():
+                    legal_terms.append('enablement')
+                if 'anticipat' in message.lower():  # anticipation, anticipated
+                    legal_terms.append('anticipation prior art')
                 if legal_terms:
                     search_terms.append(' '.join(legal_terms))
+                # Also try searching with just key legal words from case pages
+                search_terms.append('patent claim invalid')
                 
                 for search_term in search_terms:
                     if not search_term.strip():
@@ -1513,6 +1540,19 @@ async def generate_chat_response(
                     if named_case_pages:
                         logging.info(f"Found {len(named_case_pages)} pages from named case using: '{search_term[:50]}...'")
                         break
+                
+                # CRITICAL FIX: If no FTS matches but we found the case, get pages anyway
+                # This lets the AI explain what the case is actually about
+                if not named_case_pages and named_case_ids:
+                    logging.info(f"No FTS matches for named case, fetching first pages from {len(named_case_ids)} documents")
+                    # Get first few pages from the case using a broad search
+                    named_case_pages = db.search_pages('court patent', named_case_ids, limit=8, party_only=False)
+                    if not named_case_pages:
+                        # Ultra-fallback: just get any chunks from the documents
+                        named_case_pages = db.search_pages('', named_case_ids, limit=8, party_only=True)
+                    if named_case_pages:
+                        logging.info(f"Retrieved {len(named_case_pages)} fallback pages from named case")
+                        
                 if named_case_pages:
                     break
     
@@ -2187,6 +2227,8 @@ async def generate_chat_response(
         markers = extract_cite_markers(raw_answer)
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
         
+        # Strict grounding enforcement: require sources from normal citation flow
+        # Topic mismatch responses go through normal flow and must include proper citations
         if not sources:
             # Strict grounding enforcement: never return uncited raw model text.
             return standardize_response({

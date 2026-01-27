@@ -798,10 +798,14 @@ def find_documents_by_name(case_name: str, limit: int = 5) -> List[str]:
     """Find document IDs that match a case name.
     
     Returns list of document ID strings for use in FTS queries.
+    Improved: searches for both plaintiff AND defendant parts separately.
     """
+    import re
     with get_db() as conn:
         cursor = conn.cursor()
         normalized = normalize_case_name_query(case_name)
+        
+        # First try exact substring match
         cursor.execute("""
             SELECT id::text
             FROM documents
@@ -811,7 +815,44 @@ def find_documents_by_name(case_name: str, limit: int = 5) -> List[str]:
             ORDER BY release_date DESC
             LIMIT %s
         """, (normalized, limit))
-        return [row['id'] for row in cursor.fetchall()]
+        results = [row['id'] for row in cursor.fetchall()]
+        if results:
+            return results
+        
+        # If no match, try splitting on " v. " and matching both parts
+        if ' v. ' in case_name.lower():
+            parts = re.split(r'\s+v\.?\s+', case_name, maxsplit=1, flags=re.IGNORECASE)
+            if len(parts) == 2:
+                plaintiff = parts[0].strip()
+                defendant = parts[1].strip()
+                # Search for documents matching both plaintiff AND defendant
+                cursor.execute("""
+                    SELECT id::text
+                    FROM documents
+                    WHERE ingested = TRUE
+                      AND status NOT IN ('failed', 'duplicate')
+                      AND case_name ILIKE '%%' || %s || '%%'
+                      AND case_name ILIKE '%%' || %s || '%%'
+                    ORDER BY release_date DESC
+                    LIMIT %s
+                """, (plaintiff, defendant, limit))
+                results = [row['id'] for row in cursor.fetchall()]
+                if results:
+                    return results
+                
+                # Try just the plaintiff name
+                cursor.execute("""
+                    SELECT id::text
+                    FROM documents
+                    WHERE ingested = TRUE
+                      AND status NOT IN ('failed', 'duplicate')
+                      AND case_name ILIKE '%%' || %s || '%%'
+                    ORDER BY release_date DESC
+                    LIMIT %s
+                """, (plaintiff, limit))
+                return [row['id'] for row in cursor.fetchall()]
+        
+        return []
 
 def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20, party_only: bool = False, max_text_chars: int = 2000) -> List[Dict]:
     """Search pages with case name boosting or party-only mode.

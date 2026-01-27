@@ -24,10 +24,19 @@ Preferred communication style: Simple, everyday language.
      - Legal Interrogatives stop-list (40+ words: say, about, meaning, claim, construction, etc.) that terminate defendant capture
      - Entity suffix anchors (Corp., Inc., LLC, Ltd., GmbH, etc.) that terminate capture immediately after business entity suffixes
      - Hard 4-word limit after "v." unless entity suffix found sooner
+     - **Stop word stripping:** Leading interrogatives like "Does", "What", "How" are stripped from plaintiff name
      - DEBUG logging: "Parsed Party Name: [X]" for real-time verification
-  2. `find_documents_by_name()` locates matching document IDs with case name normalization (Corp./Corporation, Inc./Incorporated)
-  3. FTS search within matched documents using extracted legal terms (claim construction, intrinsic evidence, obviousness, etc.)
-  4. **Context Merge Persistence:** Named case pages are ALWAYS preserved across all search fallback paths:
+  2. `find_documents_by_name()` locates matching document IDs with:
+     - Case name normalization (Corp./Corporation, Inc./Incorporated)
+     - **Flexible matching:** Splits "X v. Y" and matches both parts separately when substring match fails
+     - Falls back to plaintiff-only search if full name doesn't match
+  3. FTS search within matched documents using extracted legal terms (claim construction, intrinsic evidence, obviousness, indefiniteness, enablement, etc.)
+  4. **Fallback page retrieval:** If FTS returns no results but case is found, retrieve pages using broad terms ("court patent")
+  5. **Topic Mismatch Handling:** When case is found but doesn't discuss requested topic:
+     - AI explains what the case DOES cover instead of returning "NOT FOUND"
+     - AI includes proper citation markers pointing to excerpts about what the case covers
+     - All responses go through normal strict citation enforcement (no bypass)
+  6. **Context Merge Persistence:** Named case pages are ALWAYS preserved across all search fallback paths:
      - Query expansion: Named case pages merged first, then expanded results
      - Manual token extraction: Named case pages merged first, then token results
      - Web search ingestion: Named case pages merged first, then web search results
