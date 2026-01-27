@@ -14,7 +14,6 @@ import type { Message } from "@shared/schema";
 export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const [searchMode, setSearchMode] = useState<"all" | "parties">("all");
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [webSearchCases, setWebSearchCases] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { currentConversationId, setCurrentConversationId, setSelectedCitations, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
@@ -32,11 +31,13 @@ export function ChatInterface() {
   const sendMessage = useSendMessage();
   const createConversation = useCreateConversation();
 
-  const serverMessages = conversation?.messages || [];
-  // Show pending message while waiting for server response (for new conversations)
-  const messages = pendingMessage && !serverMessages.some(m => m.content === pendingMessage)
-    ? [...serverMessages, { id: 'pending', conversationId: currentConversationId || '', role: 'user' as const, content: pendingMessage, citations: null, createdAt: new Date() }]
-    : serverMessages;
+  // Clear citations when conversation changes
+  useEffect(() => {
+    setSelectedCitations([]);
+  }, [currentConversationId, setSelectedCitations]);
+
+  // Messages come from React Query cache (includes optimistic updates from useSendMessage)
+  const messages = conversation?.messages || [];
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -49,7 +50,6 @@ export function ChatInterface() {
     
     const messageContent = inputValue;
     setInputValue("");
-    setPendingMessage(messageContent); // Show message immediately
 
     try {
       let convId = currentConversationId;
@@ -61,7 +61,6 @@ export function ChatInterface() {
       }
       
       const result = await sendMessage.mutateAsync({ conversationId: convId, content: messageContent, searchMode });
-      setPendingMessage(null); // Clear pending after success
       
       // Show web search cases if any were ingested
       if (result.webSearchCases && result.webSearchCases.length > 0) {
@@ -70,7 +69,6 @@ export function ChatInterface() {
     } catch (error) {
       console.error("Failed to send message:", error);
       setInputValue(messageContent);
-      setPendingMessage(null);
     }
   };
 
@@ -97,8 +95,7 @@ export function ChatInterface() {
   };
 
   const handleActionClick = async (action: string) => {
-    setPendingMessage(action); // Show message immediately
-    // Automatically send the action
+    // Send the action - optimistic update handled by useSendMessage
     if (currentConversationId) {
       try {
         await sendMessage.mutateAsync({
@@ -106,10 +103,8 @@ export function ChatInterface() {
           content: action,
           searchMode
         });
-        setPendingMessage(null);
       } catch (error) {
         console.error('Failed to send action:', error);
-        setPendingMessage(null);
       }
     }
   };

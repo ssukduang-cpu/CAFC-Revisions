@@ -29,7 +29,12 @@ import { NewCaseDigest } from "@/components/NewCaseDigest";
 
 export function Sidebar() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { currentConversationId, setCurrentConversationId, setShowOpinionLibrary } = useApp();
+  const { currentConversationId, setCurrentConversationId, setShowOpinionLibrary, setSelectedCitations } = useApp();
+  
+  const handleConversationSwitch = (convId: string) => {
+    setSelectedCitations([]);  // Clear old citations when switching
+    setCurrentConversationId(convId);
+  };
   
   const { data: conversations, isLoading } = useConversations();
   const { data: status } = useStatus();
@@ -43,6 +48,7 @@ export function Sidebar() {
 
   const handleNewConversation = async () => {
     try {
+      setSelectedCitations([]);  // Clear old citations for new conversation
       const conv = await createConversation.mutateAsync(undefined);
       setCurrentConversationId(conv.id);
     } catch (error) {
@@ -166,7 +172,7 @@ export function Sidebar() {
             filteredConversations.map((conv) => (
               <div
                 key={conv.id}
-                onClick={() => setCurrentConversationId(conv.id)}
+                onClick={() => handleConversationSwitch(conv.id)}
                 className={cn(
                   "w-full h-auto py-2.5 px-3 text-sm font-normal text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all text-left cursor-pointer group rounded-lg",
                   currentConversationId === conv.id && "bg-sidebar-accent text-sidebar-foreground"
