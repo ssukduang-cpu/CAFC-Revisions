@@ -761,6 +761,51 @@ async def admin_diagnostics():
         "database_url_set": bool(os.environ.get('DATABASE_URL'))
     }
 
+# Scheduled sync endpoints
+@app.post("/api/admin/scheduled_sync")
+async def run_scheduled_sync_endpoint(force: bool = False):
+    """
+    Run a sync to fetch and ingest new CAFC opinions from CourtListener.
+    
+    - By default, syncs from the last completed sync date
+    - Use force=true to sync from 30 days ago regardless of last sync
+    """
+    from backend.scheduled_sync import run_scheduled_sync
+    
+    result = await run_scheduled_sync(sync_type="manual", force=force)
+    return result
+
+@app.get("/api/admin/sync_history")
+async def get_sync_history_endpoint(limit: int = 10):
+    """Get recent sync history records."""
+    from backend.scheduled_sync import get_sync_history, get_next_scheduled_sync
+    
+    history = get_sync_history(limit=limit)
+    next_sync = get_next_scheduled_sync()
+    
+    return {
+        "history": history,
+        "next_scheduled_sync": next_sync
+    }
+
+@app.get("/api/admin/sync_status")
+async def get_sync_status_endpoint():
+    """Get current sync status and configuration."""
+    from backend.scheduled_sync import get_last_sync_date, get_latest_document_date, get_next_scheduled_sync
+    
+    has_token = bool(os.environ.get('COURTLISTENER_API_TOKEN'))
+    last_sync = get_last_sync_date()
+    latest_doc = get_latest_document_date()
+    next_sync = get_next_scheduled_sync()
+    
+    return {
+        "courtlistener_token_available": has_token,
+        "last_sync_date": last_sync,
+        "latest_document_date": latest_doc,
+        "next_scheduled_sync": next_sync,
+        "sync_enabled": has_token
+    }
+
 # PDF serving routes
 PDF_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "pdfs")
 

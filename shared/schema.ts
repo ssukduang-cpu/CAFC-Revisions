@@ -52,6 +52,19 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Sync history table - tracks scheduled sync runs
+export const syncHistory = pgTable("sync_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  syncType: text("sync_type").notNull(), // "scheduled", "manual"
+  status: text("status").notNull(), // "running", "completed", "failed"
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+  newOpinionsFound: integer("new_opinions_found").default(0),
+  newOpinionsIngested: integer("new_opinions_ingested").default(0),
+  errorMessage: text("error_message"),
+  lastSyncedDate: text("last_synced_date"), // The date range synced (e.g., "2025-01-20 to 2025-01-27")
+});
+
 // Relations
 export const opinionsRelations = relations(opinions, ({ many }) => ({
   chunks: many(chunks),
@@ -98,6 +111,11 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   createdAt: true,
 });
 
+export const insertSyncHistorySchema = createInsertSchema(syncHistory).omit({
+  id: true,
+  startedAt: true,
+});
+
 // Types
 export type Opinion = typeof opinions.$inferSelect;
 export type InsertOpinion = z.infer<typeof insertOpinionSchema>;
@@ -110,3 +128,6 @@ export type InsertConversation = z.infer<typeof insertConversationSchema>;
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+export type SyncHistory = typeof syncHistory.$inferSelect;
+export type InsertSyncHistory = z.infer<typeof insertSyncHistorySchema>;

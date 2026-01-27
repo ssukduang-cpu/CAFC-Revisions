@@ -1,153 +1,78 @@
 # CAFC Opinion Assistant
 
 ## Overview
-
-A full-stack legal research application that provides natural-language conversations with precedential CAFC (Court of Appeals for the Federal Circuit) opinions. The system scrapes, ingests, and indexes federal court opinions, then uses Retrieval-Augmented Generation (RAG) to deliver citation-backed answers derived directly from the opinion text. Its core purpose is to enable legal practitioners to query CAFC precedent with strict source verification, ensuring every claim is supported by verbatim quotes from ingested PDFs with proper citations.
+The CAFC Opinion Assistant is a full-stack legal research application designed to provide natural-language conversations with precedential opinions from the Court of Appeals for the Federal Circuit (CAFC). It scrapes, ingests, and indexes federal court opinions, utilizing Retrieval-Augmented Generation (RAG) to deliver citation-backed answers directly from the opinion text. Its primary purpose is to empower legal professionals to query CAFC precedent with strict source verification, ensuring all claims are supported by verbatim quotes from ingested PDFs with proper citations. The project aims to streamline legal research, enhance accuracy, and provide instant, verifiable insights into CAFC case law.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
 ### Frontend
-- **Framework:** React with TypeScript, built using Vite.
-- **UI Components:** shadcn/ui with Radix UI primitives.
-- **Styling:** Tailwind CSS, supporting light/dark modes.
+- **Framework & UI:** React with TypeScript (Vite), shadcn/ui (Radix UI primitives), Tailwind CSS (light/dark modes).
 - **State Management:** React Query for server state, React Context for application state.
 - **Routing:** Wouter.
-- **Layout:** Three-panel resizable interface (sidebar, chat, sources panel).
-- **UX Improvements:** Auto-opening sources panel, multi-stage loading indicators, onboarding banner, mobile-friendly design, expandable quotes, opinion library dashboard with virtualized lists and integrated PDF viewer, party-only search toggle.
-- **Chat Performance:** Server-Sent Events (SSE) for real-time token streaming, conversation context summarization for multi-turn coherence, suggested next steps, LRU cache for legal definitions, parallel processing for context building.
-- **Named Case Priority:** Two-stage search for specific case names (e.g., "Phillips v. AWH Corp."):
-  1. **Systemic Regex Boundary Protection:** Regex extracts case name with:
-     - Legal Interrogatives stop-list (40+ words: say, about, meaning, claim, construction, etc.) that terminate defendant capture
-     - Entity suffix anchors (Corp., Inc., LLC, Ltd., GmbH, etc.) that terminate capture immediately after business entity suffixes
-     - Hard 4-word limit after "v." unless entity suffix found sooner
-     - **Stop word stripping:** Leading interrogatives like "Does", "What", "How" are stripped from plaintiff name
-     - DEBUG logging: "Parsed Party Name: [X]" for real-time verification
-  2. `find_documents_by_name()` locates matching document IDs with:
-     - Case name normalization (Corp./Corporation, Inc./Incorporated)
-     - **Flexible matching:** Splits "X v. Y" and matches both parts separately when substring match fails
-     - Falls back to plaintiff-only search if full name doesn't match
-  3. FTS search within matched documents using extracted legal terms (claim construction, intrinsic evidence, obviousness, indefiniteness, enablement, etc.)
-  4. **Fallback page retrieval:** If FTS returns no results but case is found, retrieve pages using broad terms ("court patent")
-  5. **Topic Mismatch Handling:** When case is found but doesn't discuss requested topic:
-     - AI explains what the case DOES cover instead of returning "NOT FOUND"
-     - AI includes proper citation markers pointing to excerpts about what the case covers
-     - All responses go through normal strict citation enforcement (no bypass)
-  6. **Context Merge Persistence:** Named case pages are ALWAYS preserved across all search fallback paths:
-     - Query expansion: Named case pages merged first, then expanded results
-     - Manual token extraction: Named case pages merged first, then token results
-     - Web search ingestion: Named case pages merged first, then web search results
-     - DEBUG logging: "Context Merge Success - X named + Y expanded = Z total"
-     - Maximum 15 pages total with named case pages guaranteed to survive
+- **Layout:** Three-panel resizable interface (sidebar, chat, sources panel) with mobile-friendly design.
+- **Chat Enhancements:** Server-Sent Events (SSE) for real-time token streaming, conversation context summarization, suggested next steps, LRU cache for legal definitions, parallel processing for context building.
+- **Named Case Priority:** A multi-stage search process for specific case names, including regex-based extraction, normalization, flexible matching, fallback page retrieval, topic mismatch handling, and context merge persistence. Named case pages are always prioritized and preserved in search results.
 
 ### Backend
-- **Framework:** Python FastAPI.
-- **API Pattern:** RESTful endpoints under `/api/`.
-- **Key Features:** Opinion syncing and ingestion, batch ingestion with retry/validation, ingestion status and integrity checks, RAG-powered chat, conversation history management, admin endpoints for manifest building and batch ingestion control, PDF serving with security.
-- **Core Logic:** Strict citation enforcement, page-based retrieval, filtering for precedential opinions, smart disambiguation and context resolution for ambiguous queries, consistent API response schema.
-- **Citation Marker Fallback:** When AI provides substantive answer without CITATION_MAP format, system automatically generates sources from context pages used in RAG, ensuring responses always include verifiable sources.
-- **Smart NOT FOUND Detection:** Only triggers web search fallback when response PRIMARILY contains "NOT FOUND" (starts with it OR is short), not when AI includes a NOT FOUND caveat in an otherwise substantive response.
-- **OR-based FTS Queries:** Long queries (>100 chars) use OR-based to_tsquery instead of AND-based plainto_tsquery, extracting up to 12 key legal terms for flexible matching.
+- **Framework:** Python FastAPI with RESTful endpoints.
+- **Core Features:** Opinion syncing and ingestion, batch processing with retry/validation, ingestion status checks, RAG-powered chat, conversation history, admin tools, and secure PDF serving.
+- **Core Logic:** Strict citation enforcement, page-based retrieval, filtering for precedential opinions, smart disambiguation, consistent API responses.
+- **Citation & Source Generation:** Automatic generation of sources from RAG context pages when AI responses lack explicit citation markers, ensuring all answers are verifiable.
+- **Smart NOT FOUND Detection:** Triggers web search fallback only when responses are primarily "NOT FOUND".
+- **Advanced FTS Queries:** Uses OR-based `to_tsquery` for long queries, extracting up to 12 key legal terms for flexible matching.
 
 ### Data Layer
 - **Database:** PostgreSQL with Drizzle ORM.
 - **Schema:** Tables for opinions, chunks, conversations, and messages.
-- **Text Search:** PostgreSQL GIN index on `tsvector` columns for full-text search across chunked opinion text.
-- **PDF Processing:** `pdf-parse` library for text extraction, `cleanup_hyphenated_text()` for hyphenation cleanup.
-- **Ingestion Robustness:** Retry logic with exponential backoff, validation for empty/corrupt PDFs, SHA256 tracking to avoid reprocessing, batch processing, integrity checks, and a robust PDF download fallback mechanism to CourtListener.
-- **Hollow PDF Validation Gate:** Blocks ingestion of low-quality PDFs:
-  - Minimum 200 chars/page for multi-page documents (blocks scanned/image PDFs)
-  - Minimum 500 total characters for any document
-  - DEBUG logging: "Text Density Score: X chars, Y pages, Z chars/page"
-  - Audit script: `backend/audit_hollow_pdfs.py` identifies existing hollow documents
-- **OCR Recovery System:** Recovers text from scanned/image PDFs using OCR:
-  - Script: `backend/ocr_recovery.py` with pytesseract + pdf2image at 300 DPI
-  - Big 5 landmark case priority: Markman, Phillips, Vitronics, Alice, KSR
-  - Hollow document detection aligned with validation gate thresholds
-  - Status marking: 'recovered' (≥5000 chars) or 'ocr_partial' (less than 5000 chars)
-  - Dependency check: `python ocr_recovery.py --check-deps` verifies tesseract/poppler
-  - Usage: `python ocr_recovery.py --limit 10 --priority-only` for Big 5 cases
-- **Document Classification System:** Automatic classification during ingestion to prevent "Not Found" errors:
-  - `completed`: Full precedential opinion (searchable, has substantive holdings)
-  - `errata`: Erratum/correction documents (not searchable for holdings)
-  - `summary_affirmance`: Rule 36 judgments or summary affirmances (no written opinion)
-  - `order`: Court orders (procedural, not substantive opinions)
-  - `duplicate`: Redundant copies of existing documents (deduplicated by appeal number)
-  - Classification runs automatically on 1-2 page documents during ingestion
-  - Prevents chatbot from searching for holdings in non-opinion documents
+- **Text Search:** PostgreSQL GIN index for full-text search.
+- **PDF Processing:** `pdf-parse` for text extraction, `cleanup_hyphenated_text()` for hyphenation cleanup.
+- **Ingestion Robustness:** Retry logic, validation for corrupt PDFs, SHA256 tracking, batch processing, and a fallback PDF download mechanism.
+- **Hollow PDF Validation:** Blocks ingestion of low-quality PDFs based on character density per page.
+- **OCR Recovery:** System for recovering text from scanned/image PDFs using `pytesseract` and `pdf2image`, prioritizing landmark cases.
+- **Document Classification:** Automatic classification during ingestion (`completed`, `errata`, `summary_affirmance`, `order`, `duplicate`) to prevent searching in non-substantive documents.
 
-### Advanced Search Features (POST /api/search)
-- **Hybrid Ranking:** `ts_rank * (1.0 / (days_old / 365 + 1))` formula boosts recent documents.
-- **Phrase Search:** Quoted terms use `phraseto_tsquery` for exact phrase matching.
-- **Fuzzy Matching:** pg_trgm `similarity()` > 0.2 on case names for typo-tolerant search.
-- **Keyset Pagination:** Base64-encoded cursor with (score, release_date, uuid) tuple for stable ordering.
-- **Filters:** author_judge, originating_forum, exclude_r36 (Rule 36 judgments).
-- **Rate Limiting:** Leaky bucket algorithm, 10 requests/second capacity per client.
+### Advanced Search Features
+- **Hybrid Ranking:** Combines `ts_rank` with recency for boosted results.
+- **Phrase Search:** Supports exact phrase matching for quoted terms.
+- **Fuzzy Matching:** Uses `pg_trgm` for typo-tolerant case name search.
+- **Pagination:** Keyset pagination with a base64-encoded cursor.
+- **Filters:** Includes `author_judge`, `originating_forum`, and `exclude_r36`.
+- **Rate Limiting:** Leaky bucket algorithm for API requests.
 
 ### AI Integration
-- **Provider:** OpenAI via Replit AI Integrations.
-- **Model:** GPT-4o for chat completions.
-- **RAG Pattern:** Retrieved chunks injected into system prompt, enforcing verbatim quotes and "NOT FOUND IN PROVIDED OPINIONS" for unsupported claims.
-- **Token Safety:** tiktoken-based counting with 80k token limit on context, 2000 char limit on search results, 3-turn conversation history to prevent token overflow.
-- **Persona:** Patent Litigator, styling natural language output as Federal Circuit practitioner briefing with sections like "Bottom Line", "What the Court Held", and "Practice Note". Inline markers like `[S1]` for citations.
-- **Landmark Case System:** Curated list of 94 landmark cases organized by doctrine, with citation discovery features.
-- **Domain-Specific Search Enhancement:** Fallback search logic includes domain term expansion for patent law queries (reissue/recapture, claim construction, obviousness/anticipation, infringement/equivalents, Alice/Mayo/§101 eligibility). This improves recall for natural language questions about specific patent doctrines.
-- **AI-Powered Query Expansion:** When initial FTS search returns insufficient results (<3 pages for long queries), uses GPT-4o to generate 5 related legal keywords before database search. For example, "after-arising technology" expands to ["after-arising technology enablement", "unforeseeable advancements patent scope", "enablement requirement future inventions", "predictability enablement doctrine", "utility and enablement standard"]. This dramatically improves retrieval for conceptual or doctrinal queries that may not match verbatim case text.
-- **Agentic Reasoning & Reflection Loop:** Before every response, the system executes an internal reasoning process:
-  1. **Query Classification:** Identifies legal doctrine (§101, §102, §103, §112, claim construction)
-  2. **Search Strategy:** Lists key terms, synonyms, and relevant landmark cases (KSR, Alice, Phillips, Nautilus)
-  3. **Chain-of-Verification (CoVe):** Reflection pass checks relevance, recency, and substantive discussion quality
-  4. **Re-ranking Logic:** Prioritizes Supreme Court > En banc > Recent panels > Foundational cases
-  5. **Dynamic Synthesis:** Extracts RULE, REASONING, APPLICATION, and doctrinal EVOLUTION
-  - DEBUG logging: "Agentic Reasoning Plan" with doctrine/landmarks/context quality, "Reflection Pass" status
-- **2025 Hot Topics Reference:** Built-in reference data for recent developments:
-  - Obviousness: "Desirable vs. Best" (Honeywell v. 3G Licensing 2025), "Design choice" (USAA v. PNC Bank 2025)
-  - Eligibility, Claim Construction, Definiteness doctrine updates
+- **Provider:** OpenAI (via Replit AI Integrations) using GPT-4o.
+- **RAG Pattern:** Injects retrieved chunks into system prompts, enforces verbatim quotes, and explicitly states "NOT FOUND IN PROVIDED OPINIONS" for unsupported claims.
+- **Token Safety:** `tiktoken`-based counting, 80k token limit, 2000-character search result limit, 3-turn conversation history.
+- **Persona:** Patent Litigator, styling output with legal sections and inline citations.
+- **Landmark Case System:** Curated list of 94 landmark cases with citation discovery.
+- **Domain-Specific Search Enhancement:** Expands patent law queries with relevant domain terms for improved recall.
+- **AI-Powered Query Expansion:** Generates related legal keywords for database search when initial FTS yields insufficient results.
+- **Agentic Reasoning & Reflection:** Internal reasoning loop before every response, including query classification, search strategy, Chain-of-Verification (CoVe) for relevance and quality, re-ranking logic, and dynamic synthesis of legal principles.
 
 ## External Dependencies
 
 ### Database
-- **PostgreSQL:** Primary data store, accessed via `DATABASE_URL` and `psycopg2`.
+- **PostgreSQL:** Primary data store.
 
 ### AI Services
-- **OpenAI API:** Accessed through Replit AI Integrations using `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL`.
+- **OpenAI API:** For AI model interactions.
 
 ### External Data Sources
-- **Harvard Iowa Dataset (v7.1):** Comprehensive CAFC precedential opinions dataset (2004-2024), used for building the complete manifest of ~5,968 precedential cases.
-- **CAFC Website:** Primary source for PDF downloads (cafc.uscourts.gov/opinions-orders/).
-- **CourtListener API:** Fallback source for PDF downloads when CAFC website returns 404, also provides `cluster_id` for deduplication.
-- **Tavily API:** Web search for discovering relevant case law when local database lacks coverage. Used via `TAVILY_API_KEY` secret.
-
-### Current Database State (as of January 2026)
-- **Total Documents:** 5,086 precedential CAFC opinions
-- **Searchable:** 4,182 documents with 78,751 pages and 40,965 chunks
-- **Completed:** 4,179 documents with full text extraction
-- **Errata:** 82 documents (correction notices, not searchable for holdings)
-- **Orders:** 1 document (court order, not substantive opinion)
-- **Failed:** 105 documents (PDFs no longer available on any source)
-- **Duplicates:** 716 documents (deduplicated by appeal number, keeping most substantive version)
-- **OCR Recovered:** 2 documents (scanned PDFs processed via tesseract)
-- **OCR Partial:** 1 document (partial OCR recovery)
-- **HTML Ingestion:** Older cases (pre-2000s) where PDFs are unavailable can be ingested from law.resource.org HTML versions (e.g., Vitronics v. Conceptronic, Sri International v. Matsushita)
+- **Harvard Iowa Dataset (v7.1):** Used for the initial manifest of CAFC precedential opinions.
+- **CAFC Website:** Primary source for PDF downloads.
+- **CourtListener API:** Fallback for PDF downloads and provides `cluster_id` for deduplication.
+- **Tavily API:** For web search to discover new case law and aid in ingestion when local database lacks coverage.
 
 ### Hybrid Web Search Integration
-- **Search-to-Ingest Pipeline:** When local FTS returns no results or user asks about a specific case not in database, automatically:
-  1. Search Tavily for relevant case citations (with domain filtering for legal sources)
-  2. Extract case names from web results using improved regex patterns
-  3. Look up cases in CourtListener by name to get cluster_id
-  4. Auto-ingest new cases (download PDF, extract text, create FTS chunks)
-  5. Re-query with enriched local context
-- **NewCaseDigest Component:** Frontend component showing recently ingested cases from web search (GET /api/digest/recent)
-- **Specific Case Detection:** When query contains "X v. Y" pattern and that case isn't in results, triggers web search even if other results exist
-- **Fuzzy Name Matching:** Handles plurals (Technologies → Technology) and stem matching for case name verification
-- **web_search_ingests Table:** Tracks cases discovered and ingested via web search
+- **Search-to-Ingest Pipeline:** Automatically searches Tavily, extracts case names, looks up cases in CourtListener, and ingests new cases to enrich local context.
+- **Specific Case Detection:** Triggers web search for "X v. Y" patterns not found locally.
 
 ### Key Libraries
-- **`pdf-parse`:** For PDF text extraction.
-- **`axios`:** For HTTP requests (PDF downloads, API calls).
-- **`drizzle-orm` / `drizzle-kit`:** For database ORM and migrations.
-- **`@tanstack/react-query`:** For server state management in the frontend.
-- **`openai`:** OpenAI SDK for chat completions.
+- **`pdf-parse`:** PDF text extraction.
+- **`axios`:** HTTP requests.
+- **`drizzle-orm` / `drizzle-kit`:** Database ORM and migrations.
+- **`@tanstack/react-query`:** Frontend server state management.
+- **`openai`:** OpenAI SDK.
