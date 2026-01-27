@@ -549,11 +549,12 @@ B. Citation Map (REQUIRED - EXACT FORMAT)
 At the END of every substantive response, you MUST include a citation map in this EXACT format:
 
 CITATION_MAP:
-[1] <opinion_id> | Page <page_number> | "Exact verbatim quote from the opinion..."
-[2] <opinion_id> | Page <page_number> | "Another exact verbatim quote..."
+[1] <case_name> (<opinion_id>) | Page <page_number> | "Exact verbatim quote from the opinion..."
+[2] <case_name> (<opinion_id>) | Page <page_number> | "Another exact verbatim quote..."
 
 CRITICAL RULES FOR CITATION_MAP:
-- <opinion_id> must be the EXACT document ID from the excerpt header (e.g., "81e1529a-8a80-4811-a923-ca9f04f470d6")
+- <case_name> must be the case name from the excerpt header (e.g., "Amgen Inc. v. Sanofi" or "In re Wands")
+- <opinion_id> must be the EXACT document ID from the excerpt header in parentheses (e.g., "(81e1529a-8a80-4811-a923-ca9f04f470d6)")
 - <page_number> must be the numeric page number from the excerpt (e.g., "Page 11")
 - The quoted text MUST be an EXACT substring copied verbatim from the excerpt - no paraphrasing, no word changes
 - Every [N] citation used inline in your answer MUST have a corresponding entry in the CITATION_MAP
@@ -926,8 +927,8 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
     Supports two formats:
     1. CITATION_MAP format (new): 
        CITATION_MAP:
-       [1] opinion_id | page_number | "quote"
-       [2] opinion_id | page_number | "quote"
+       [1] case_name (opinion_id) | page_number | "quote"
+       [2] case_name (opinion_id) | page_number | "quote"
     
     2. Inline HTML comments (legacy):
        <!--CITE:opinion_id|page_number|"quote"-->
@@ -938,14 +939,16 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
     citation_map_match = re.search(r'CITATION_MAP:\s*\n?((?:\[\d+\][^\n]+\n?)+)', response_text, re.IGNORECASE)
     if citation_map_match:
         map_text = citation_map_match.group(1)
-        # Parse each line: [1] opinion_id | Page page_number | "quote"
-        # Use .+ for quote to handle special characters, with $ or end-of-string
-        line_pattern = r'\[(\d+)\]\s*([^|]+)\|\s*([^|]+)\|\s*"(.+)"'
+        # Parse each line: [1] case_name (opinion_id) | Page page_number | "quote"
+        # Also handles: [1] case_name | Page page_number | "quote" (without opinion_id)
+        # Use .+ for quote to handle special characters
+        line_pattern = r'\[(\d+)\]\s*([^(|]+)(?:\(([^)]+)\))?\s*\|\s*([^|]+)\|\s*"(.+)"'
         for match in re.finditer(line_pattern, map_text):
             citation_num = int(match.group(1))
-            opinion_id = match.group(2).strip()
-            page_str = match.group(3).strip()
-            quote = match.group(4).strip()
+            case_name = match.group(2).strip()
+            opinion_id = (match.group(3) or "").strip()  # May be empty if not provided
+            page_str = match.group(4).strip()
+            quote = match.group(5).strip()
             
             # Parse page number (could be "page 5", "p. 5", or just "5")
             page_match = re.search(r'(\d+)', page_str)
@@ -957,6 +960,7 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
             position = ref_match.start() if ref_match else 0
             
             markers.append({
+                "case_name": case_name,
                 "opinion_id": opinion_id,
                 "page_number": page_number,
                 "quote": quote,
@@ -997,32 +1001,71 @@ def build_sources_from_markers(
     seen_keys: Dict[Tuple[str, int, str], str] = {}
     sid_counter = 1
 
-    # Index the pages we already have by (opinion_id, page_number)
+    # Index the pages we already have by (opinion_id, page_number) AND (case_name normalized, page_number)
     pages_by_opinion: Dict[Tuple[str, int], Dict] = {}
+    pages_by_case: Dict[Tuple[str, int], Dict] = {}
+    case_to_opinion_id: Dict[str, str] = {}  # Map case_name -> opinion_id for fallback DB lookup
+    
     for page in pages:
-        key = (page.get("opinion_id"), page.get("page_number"))
-        if key[0] and key[1]:
-            pages_by_opinion[key] = page
+        case_name_lower = (page.get("case_name") or "").lower().strip()
+        page_num_key = page.get("page_number")
+        opinion_id = page.get("opinion_id")
+        
+        if opinion_id and page_num_key:
+            pages_by_opinion[(opinion_id, page_num_key)] = page
+        if case_name_lower and page_num_key:
+            pages_by_case[(case_name_lower, page_num_key)] = page
+        if case_name_lower and opinion_id:
+            case_to_opinion_id[case_name_lower] = opinion_id
 
     for marker in markers:
         quote = (marker.get("quote") or "").strip()
-        opinion_id = (marker.get("opinion_id") or "").strip()
+        case_name = (marker.get("case_name") or "").strip()
+        opinion_id = (marker.get("opinion_id") or "").strip()  # Now extracted from marker
         page_num = int(marker.get("page_number") or 0)
 
-        if not opinion_id or page_num < 1 or not quote:
+        if page_num < 1 or not quote:
+            continue
+        if not opinion_id and not case_name:
             continue
 
-        # 1) Try to find the cited page in the search results we already have
-        page = pages_by_opinion.get((opinion_id, page_num))
+        page = None
+        
+        # 1) PREFERRED: Look up by opinion_id if provided (deterministic)
+        if opinion_id:
+            page = pages_by_opinion.get((opinion_id, page_num))
+            
+            # 1b) If not in cache, fetch from DB by opinion_id (unconditional fallback)
+            if not page:
+                try:
+                    fetched = db.get_page_text(opinion_id, page_num)
+                    if fetched and fetched.get("text"):
+                        page = fetched
+                except Exception:
+                    page = None
 
-        # 2) If not found, fetch that specific page from the DB (new helper)
-        if not page:
-            try:
-                fetched = db.get_page_text(opinion_id, page_num)
-                if fetched and fetched.get("text"):
-                    page = fetched
-            except Exception:
-                page = None
+        # 2) Fallback to case_name lookup if opinion_id not provided or failed
+        if not page and case_name:
+            case_name_lower = case_name.lower().strip()
+            page = pages_by_case.get((case_name_lower, page_num))
+            
+            # 2b) Try partial matching on case name
+            if not page:
+                for (cn_key, pn_key), p in pages_by_case.items():
+                    if page_num == pn_key and (case_name_lower in cn_key or cn_key in case_name_lower):
+                        page = p
+                        break
+            
+            # 2c) Try DB fallback using mapped opinion_id from case_name
+            if not page:
+                mapped_opinion_id = case_to_opinion_id.get(case_name_lower)
+                if mapped_opinion_id:
+                    try:
+                        fetched = db.get_page_text(mapped_opinion_id, page_num)
+                        if fetched and fetched.get("text"):
+                            page = fetched
+                    except Exception:
+                        page = None
 
         # 3) Last resort: scan pages we already have and accept one where quote verifies
         if not page:
