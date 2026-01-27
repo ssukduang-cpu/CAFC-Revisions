@@ -51,6 +51,13 @@ Preferred communication style: Simple, everyday language.
   - Minimum 500 total characters for any document
   - DEBUG logging: "Text Density Score: X chars, Y pages, Z chars/page"
   - Audit script: `backend/audit_hollow_pdfs.py` identifies existing hollow documents
+- **OCR Recovery System:** Recovers text from scanned/image PDFs using OCR:
+  - Script: `backend/ocr_recovery.py` with pytesseract + pdf2image at 300 DPI
+  - Big 5 landmark case priority: Markman, Phillips, Vitronics, Alice, KSR
+  - Hollow document detection aligned with validation gate thresholds
+  - Status marking: 'recovered' (≥5000 chars) or 'ocr_partial' (less than 5000 chars)
+  - Dependency check: `python ocr_recovery.py --check-deps` verifies tesseract/poppler
+  - Usage: `python ocr_recovery.py --limit 10 --priority-only` for Big 5 cases
 
 ### Advanced Search Features (POST /api/search)
 - **Hybrid Ranking:** `ts_rank * (1.0 / (days_old / 365 + 1))` formula boosts recent documents.
