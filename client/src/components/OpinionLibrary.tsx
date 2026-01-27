@@ -217,128 +217,136 @@ export function OpinionLibrary() {
   if (!showOpinionLibrary) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      <header className="h-14 border-b flex items-center justify-between px-4 bg-card/80 backdrop-blur-sm shrink-0">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowOpinionLibrary(false)}
-            className="gap-2"
-            data-testid="button-back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Chat
-          </Button>
-          <div className="h-6 w-px bg-border" />
-          <div className="flex items-center gap-2">
-            <Scale className="h-5 w-5 text-primary" />
-            <h1 className="font-semibold">Opinion Library</h1>
-          </div>
-        </div>
-        
-        <a href="/admin" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <Info className="h-4 w-4" />
-          <span>Database Info</span>
-        </a>
-      </header>
-
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
-        <div className="p-4 border-b space-y-3 bg-card/30">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by case name or appeal number..." 
-              className="pl-9 h-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              data-testid="input-search-opinions"
-            />
+    <div className="fixed inset-0 z-50 bg-background overflow-hidden">
+      <div className="h-full w-full flex flex-col">
+        <header className="h-14 border-b flex items-center justify-between px-4 bg-card/80 backdrop-blur-sm shrink-0">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowOpinionLibrary(false)}
+              className="gap-2"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Back to Chat</span>
+              <span className="sm:hidden">Back</span>
+            </Button>
+            <div className="h-6 w-px bg-border hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <Scale className="h-5 w-5 text-primary" />
+              <h1 className="font-semibold text-sm sm:text-base">Opinion Library</h1>
+            </div>
           </div>
           
-          <div className="flex items-center justify-between">
-            <Button 
-              onClick={handleSync}
-              disabled={syncOpinions.isPending}
-              variant="outline"
-              size="sm"
-              className="gap-1.5 h-8"
-              data-testid="button-sync-opinions"
-            >
-              {syncOpinions.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              Sync from CAFC
-            </Button>
+          <a href="/admin" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <Info className="h-4 w-4" />
+            <span className="hidden sm:inline">Database Info</span>
+          </a>
+        </header>
+
+        <div className="flex-1 flex flex-col min-h-0 max-w-4xl mx-auto w-full">
+          <div className="p-3 sm:p-4 border-b space-y-3 bg-card/30 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search by case name or appeal number..." 
+                className="pl-9 h-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                data-testid="input-search-opinions"
+              />
+            </div>
             
-            <div className="text-sm text-muted-foreground">
-              {status?.opinions.ingested ?? 0} searchable opinions
+            <div className="flex items-center justify-between gap-2">
+              <Button 
+                onClick={handleSync}
+                disabled={syncOpinions.isPending}
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-8 text-xs sm:text-sm"
+                data-testid="button-sync-opinions"
+              >
+                {syncOpinions.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Sync from CAFC</span>
+                <span className="sm:hidden">Sync</span>
+              </Button>
+              
+              <div className="text-xs sm:text-sm text-muted-foreground">
+                {status?.opinions.ingested ?? 0} searchable
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="flex-1 overflow-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : opinions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground p-6">
-              <p className="text-sm mb-4">
-                {searchTerm ? "No opinions match your search" : "No opinions synced yet"}
-              </p>
-              {!searchTerm && (
-                <Button onClick={handleSync} disabled={syncOpinions.isPending} size="sm">
-                  Sync from CAFC
+          
+          <div 
+            className="flex-1 overflow-y-auto overscroll-contain"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center h-48">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : opinions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 text-muted-foreground p-6">
+                <p className="text-sm mb-4">
+                  {searchTerm ? "No opinions match your search" : "No opinions synced yet"}
+                </p>
+                {!searchTerm && (
+                  <Button onClick={handleSync} disabled={syncOpinions.isPending} size="sm">
+                    Sync from CAFC
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="pb-4">
+                {opinions.map((opinion) => (
+                  <OpinionCard
+                    key={opinion.id}
+                    opinion={opinion}
+                    onIngest={handleIngest}
+                    isIngesting={ingestingId === opinion.id}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {totalPages > 1 && (
+            <div className="p-3 sm:p-4 border-t flex items-center justify-between shrink-0 bg-background">
+              <div className="text-xs sm:text-sm text-muted-foreground">
+                <span className="hidden sm:inline">Page {currentPage} of {totalPages} ({total} total)</span>
+                <span className="sm:hidden">{currentPage}/{totalPages}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="gap-1 h-8 px-2 sm:px-3"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Previous</span>
                 </Button>
-              )}
-            </div>
-          ) : (
-            <div>
-              {opinions.map((opinion) => (
-                <OpinionCard
-                  key={opinion.id}
-                  opinion={opinion}
-                  onIngest={handleIngest}
-                  isIngesting={ingestingId === opinion.id}
-                />
-              ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="gap-1 h-8 px-2 sm:px-3"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </div>
-        
-        {totalPages > 1 && (
-          <div className="p-4 border-t flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages} ({total} total)
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="gap-1"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="gap-1"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
