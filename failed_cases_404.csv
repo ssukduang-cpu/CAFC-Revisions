@@ -1,593 +1,116 @@
-case_name,pdf_url,release_date,error_type
-"Duncan McCoy Alex Dorsett, and Alex-Duncan Shrimp Chef, Inc. v. Mitsuboshi Cutlery, Inc., and Admiral Craft Equipment Corporation",https://storage.courtlistener.com/pdf/705975/,,Download failed: [Errno -2] Name or service not known
-"Jan K. Voda, M.D. v. Cordis Corporation",https://storage.courtlistener.com/pdf/796820/,,404 Not Found
-"Fresenius Usa, Inc. v. Baxter International, Inc.",https://storage.courtlistener.com/pdf/208066/,,404 Not Found
-"In Re MAXPOWER SEMICONDUCTOR, INC. [ORDER]",https://cafc.uscourts.gov/opinions-orders/21-146.ORDER.9-8-2021_1830622.pdf,2021-09-08,404 Not Found
-"TASER INTERNATIONAL, INC. V. PHAZZER ELECTRONICS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/17-2637.Opinion.10-26-2018.pdf,2018-10-26,404 Not Found
-ALL-OF-INNOVATION GMBH V IANCU [RULE 36 JUDGMENT],https://cafc.uscourts.gov/opinions-orders/16-2736.Rule_36_Judgment.7-13-2018.1.pdf,2018-07-13,404 Not Found
-LAND OF LINCOLN MUTUAL HEALTH v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/17-1224.Opinion.6-14-2018.pdf,2018-06-14,404 Not Found
-NY AND PRESBYTERIAN HOSPITAL v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/17-1180.Opinion.1-30-2018.1.PDF,2018-01-31,404 Not Found
-IN RE: ERIK BRUNETTI [OPINION],https://cafc.uscourts.gov/opinions-orders/15-1109.Opinion.12-13-2017.1.PDF,2017-12-15,404 Not Found
-IN RE: STEPAN COMPANY [OPINION],https://cafc.uscourts.gov/opinions-orders/16-1811.Opinion.8-23-2017.1.PDF,2017-08-25,404 Not Found
-"IN RE: ETHICON, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/15-1696.Opinion.12-29-2016.1.PDF,2017-01-03,404 Not Found
-IN RE: EFTHYMIOPOULOS [OPINION],https://cafc.uscourts.gov/opinions-orders/16-1003.Opinion.10-14-2016.1.PDF,2016-10-18,404 Not Found
-IN RE: QUEEN'S UNIVERSITY AT KINGSTON [OPINION],https://cafc.uscourts.gov/opinions-orders/15-145.Opinion.3-3-2016.1.PDF,2016-03-07,404 Not Found
-"PROLITEC, INC. v. SCENTAIR TECHNOLOGIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/15-1020.Opinion.12-1-2015.1.PDF,2015-12-04,404 Not Found
-"DELORME PUBLISHING CO., INC. v. ITC [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1572.Opinion.11-9-2015.1.PDF,2015-11-12,404 Not Found
-IN RE: MORSA [OPINION],https://cafc.uscourts.gov/opinions-orders/15-1107.Opinion.10-15-2015.1.PDF,2015-10-19,404 Not Found
-IN RE POSCO [ORDER],https://cafc.uscourts.gov/opinions-orders/Posco%2015-112%20%287%2022%2015%29%20Order.pdf,2015-07-22,404 Not Found
-"EPLUS, INC. v. LAWSON SOFTWARE, INC. [REVISED MAJORITY OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1506.Order.6-15-2015.1.PDF,2015-06-18,404 Not Found
-"Eplus, Inc. v. Lawson Software, Inc.",https://storage.courtlistener.com/pdf/2809789/,2015-06-18,404 Not Found
-"Teva Pharmaceuticals USA, Inc. v. Sandoz, Inc.",https://storage.courtlistener.com/pdf/2809785/,2015-06-18,404 Not Found
-"Eplus, Inc. v. Lawson Software, Inc.",https://storage.courtlistener.com/pdf/2809788/,2015-06-18,404 Not Found
-"Richard Williamson v. Citrix Online, LLC",https://storage.courtlistener.com/pdf/2808717/,2015-06-16,404 Not Found
-"Ariosa Diagnostics, Inc. v. Sequenom, Inc.",https://storage.courtlistener.com/pdf/2807836/,2015-06-12,404 Not Found
-KANEKA CORPORATION v. XIAMEN KINGDOMWAY [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1373.Opinion.6-8-2015.1.PDF,2015-06-10,404 Not Found
-"Schaeffler Group USA, Inc. v. United States",https://storage.courtlistener.com/pdf/2801753/,2015-05-19,404 Not Found
-"AKAMAI TECHNOLOGIES, INC. v. LIMELIGHT NETWORKS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/9-1372.Opinion.5-11-2015.1.PDF,2015-05-13,404 Not Found
-"Akamai Technologies, Inc. v. Limelight Networks, Inc.",https://storage.courtlistener.com/pdf/2800400/,2015-05-13,404 Not Found
-"BIOGEN MA, INC v. JAPANESE FOUNDATION FOR [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1525.Opinion.5-5-2015.1.PDF,2015-05-07,404 Not Found
-PAT HUVAL RESTAURANT & OYSTER v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1250.Opinion.5-5-2015.1.PDF,2015-05-07,404 Not Found
-EON CORP. IP HOLDINGS LLC v. AT&T MOBILITY LLC [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1392.Opinion.5-4-2015.1.PDF,2015-05-06,404 Not Found
-TAKEDA PHARMACEUTICALS U.S.A. v. HIKMA AMERICAS INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/15-1139.Opinion.5-4-2015.1.PDF,2015-05-06,404 Not Found
-"SUKUMAR v. NAUTILUS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1205.Opinion.4-30-2015.1.PDF,2015-05-04,404 Not Found
-HAYNES v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/15-7014.Opinion.4-27-2015.1.PDF,2015-04-29,404 Not Found
-IN RE: TAM [ORDER],https://cafc.uscourts.gov/opinions-orders/14-1203.Order_.4-24-2015.1.PDF,2015-04-27,404 Not Found
-"INFO-HOLD, INC. v. APPLIED MEDIA TECH. CORP. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1528.Opinion.4-21-2015.1.PDF,2015-04-24,404 Not Found
-"INFO-HOLD, INC. v. MUZAK LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1167.Opinion.4-21-2015.1.PDF,2015-04-24,404 Not Found
-"SUFI NETWORK SERVICES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-5032.Opinion.4-22-2015.1.PDF,2015-04-24,404 Not Found
-"GIORGIO FOODS, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1304.Opinion.4-22-2015.1.PDF,2015-04-24,404 Not Found
-"PALLADIAN PARTNERS, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-5125.Opinion.4-20-2015.1.PDF,2015-04-22,404 Not Found
-TOOMER v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7045.Opinion.4-16-2015.1.PDF,2015-04-21,404 Not Found
-"IN RE: TRIVITA, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1383.Opinion.4-14-2015.1.PDF,2015-04-17,404 Not Found
-INEOS USA LLC v. BERRY PLASTICS CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1540.Opinion.4-14-2015.1.PDF,2015-04-16,404 Not Found
-"OPLUS TECHNOLOGIES, LTD. v. VIZIO, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1297.Opinion.4-8-2015.1.PDF,2015-04-10,404 Not Found
-AUTOMATED MERCHANDISING v. LEE [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1728.Opinion.4-8-2015.1.PDF,2015-04-10,404 Not Found
-MASSACHUSETTS MUTUAL LIFE INS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5019.Opinion.4-7-2015.1.PDF,2015-04-09,404 Not Found
-"INSITE VISION INCORPORATED v. SANDOZ, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1065.Opinion.4-7-2015.1.PDF,2015-04-09,404 Not Found
-ASTRAZENECA AB v. APOTEX CORP. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1221.Opinion.4-2-2015.1.PDF,2015-04-07,404 Not Found
-SHINNECOCK INDIAN NATION v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5015.Opinion.4-3-2015.1.PDF,2015-04-07,404 Not Found
-"PRAIRIE COUNTY, MONTANA v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-5060.Opinion.4-1-2015.1.PDF,2015-04-06,404 Not Found
-"VASUDEVAN SOFTWARE, INC. v. TIBCO SOFTWARE, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1096.Opinion.4-1-2015.1.PDF,2015-04-03,404 Not Found
-HOPI TRIBE v. U.S. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5018.Opinion.3-31-2015.1.PDF,2015-04-02,404 Not Found
-INTELLECTUAL VENTURES II LLC v. JPMORGAN CHASE & CO. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1724.Opinion.3-30-2015.1.PDF,2015-04-01,404 Not Found
-"APOTEX INC. v. DAIICHI SANKYO, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1282.Opinion.3-27-2015.1.PDF,2015-03-31,404 Not Found
-"EXELA PHARMA SCIENCES, LLC v. LEE [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1206.Opinion.3-23-2015.1.PDF,2015-03-26,404 Not Found
-"KENNAMETAL, INC. v. INGERSOLL CUTTING TOOL COMPANY [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1350.Opinion.3-23-2015.1.PDF,2015-03-25,404 Not Found
-CADENCE PHARMACEUTICALS INC. v. EXELA PHARMA SCIENCES LLC [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1184.Opinion.3-19-2015.1.PDF,2015-03-23,404 Not Found
-SENJU PHARMACEUTICAL CO. v. LUPIN LIMITED [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1630.Opinion.3-18-2015.1.PDF,2015-03-20,404 Not Found
-"TWO-WAY MEDIA LLC v. AT&T, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1302.Opinion.3-17-2015.1.PDF,2015-03-19,404 Not Found
-MOBILEMEDIA IDEAS LLC v. APPLE INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1060.Opinion.3-12-2015.1.PDF,2015-03-17,404 Not Found
-ENZO BIOCHEM INC. v. APPLERA CORP. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1321.Opinion.3-12-2015.1.PDF,2015-03-16,404 Not Found
-GARCIA v. DHS [OPINION],https://cafc.uscourts.gov/opinions-orders/14-3048.Opinion.3-11-2015.1.PDF,2015-03-13,404 Not Found
-GPX INTERNATIONAL TIRE CORP. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1188.Opinion.3-11-2015.1.PDF,2015-03-13,404 Not Found
-"BANNUM, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-5085.Opinion.3-10-2015.1.PDF,2015-03-12,404 Not Found
-"AMERGEN ENERGY COMPANY, LLC v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-5067.Opinion.3-9-2015.1.PDF,2015-03-11,404 Not Found
-CGI FEDERAL INC. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5143.Opinion.3-6-2015.1.PDF,2015-03-10,404 Not Found
-"EIDOS DISPLAY, LLC v. AU OPTRONICS CORPORATION [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1254.Opinion.3-6-2015.1.PDF,2015-03-10,404 Not Found
-WINGARD v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7017.Opinion.3-6-2015.1.PDF,2015-03-10,404 Not Found
-G4S TECHNOLOGY LLC v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5078.Opinion.3-2-2015.1.PDF,2015-03-06,404 Not Found
-"OTAY MESA PROPERTY, L.P. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5122.Opinion.3-3-2015.1.PDF,2015-03-06,404 Not Found
-RELIABLE CONTRACTING GROUP v. DVA [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1326.Opinion.3-4-2015.1.PDF,2015-03-06,404 Not Found
-"COUTURE v. PLAYDOM, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1480.Opinion.2-26-2015.1.PDF,2015-03-02,404 Not Found
-"GILEAD SCIENCES, INC. v. LEE [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1159.Opinion.2-24-2015.1.PDF,2015-02-26,404 Not Found
-MINISTERIO ROCA SOLIDA v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5058.Opinion.2-24-2015.1.PDF,2015-02-26,404 Not Found
-DIXON v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7050.Opinion.2-18-2015.1.PDF,2015-02-20,404 Not Found
-KERNER v. INTERIOR [OPINION],https://cafc.uscourts.gov/opinions-orders/14-3012.Opinion.2-18-2015.1.PDF,2015-02-20,404 Not Found
-EM LOGGING v. DEPARTMENT OF AGRICULTURE [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1227.Opinion.2-18-2015.1.PDF,2015-02-20,404 Not Found
-HERRING v. MSPB [OPINION],https://cafc.uscourts.gov/opinions-orders/13-3170.Opinion.2-13-2015.1.PDF,2015-02-18,404 Not Found
-"PACING TECHNOLOGIES, LLC v. GARMIN INTERNATIONAL, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1396.Opinion.2-13-2015.1.PDF,2015-02-18,404 Not Found
-"FENNER INVESTMENTS, LTD. v. CELLCO PARTNERSHIP [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1640.Opinion.2-10-2015.1.PDF,2015-02-12,404 Not Found
-UNITED ACCESS TECHNOLOGIES v. CENTURYTEL BROADBAND SERVICES [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1347.Opinion.2-10-2015.1.PDF,2015-02-12,404 Not Found
-"K-CON BUILDING SYSTEMS, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-5062.Opinion.2-10-2015.1.PDF,2015-02-12,404 Not Found
-SOVERAIN SOFTWARE LLC v. VICTORIA'S SECRET [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1649.Opinion.2-10-2015.1.PDF,2015-02-12,404 Not Found
-"IN RE CUOZZO SPEED TECHNOLOGIES, LLC [ERRATA]",https://cafc.uscourts.gov/opinions-orders/14-1301.Errata.2-9-2015.1.PDF,2015-02-11,404 Not Found
-HELFERICH PATENT LICENSING v. THE NEW YORK TIMES [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1196.Opinion.2-6-2015.1.PDF,2015-02-10,404 Not Found
-APEX EXPORTS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1234.Opinion.2-3-2015.1.PDF,2015-02-05,404 Not Found
-GAYLORD v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5020.Opinion.2-2-2015.1.PDF,2015-02-04,404 Not Found
-BEST KEY TEXTILES CO. LTD. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1327.Opinion.1-30-2015.1.PDF,2015-02-03,404 Not Found
-PAPST LICENSING v. FUJIFILM CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1110.Opinion.1-29-2015.1.PDF,2015-02-02,404 Not Found
-DONGTAI PEAK HONEY INDUSTRY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1479.Opinion.1-28-2015.1.PDF,2015-01-30,404 Not Found
-IN RE: IMES [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1206.Opinion.1-27-2015.1.PDF,2015-01-29,404 Not Found
-DOWNHOLE PIPE & EQUIPMENT v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1225.Opinion.1-27-2015.1.PDF,2015-01-29,404 Not Found
-SHENYANG YUANDA v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1386.Opinion.1-16-2015.1.PDF,2015-01-21,404 Not Found
-MOFFITT v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7071.Opinion.1-16-2015.1.PDF,2015-01-21,404 Not Found
-"NEUROREPAIR, INC. v. NATH LAW GROUP [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1073.Opinion.1-12-2015.1.PDF,2015-01-15,404 Not Found
-IN RE: THE NEWBRIDGE CUTLERY COMPANY [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1535.Opinion.1-13-2015.1.PDF,2015-01-15,404 Not Found
-HIGBIE v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5042.Opinion.1-12-2015.1.PDF,2015-01-14,404 Not Found
-BARD PERIPHERAL VASCULAR v. W.L. GORE & ASSOCIATES [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1114.Opinion.1-7-2015.1.PDF,2015-01-13,404 Not Found
-DELANO FARMS COMPANY v. CALIFORNIA TABLE GRAPE COMM. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1030.Opinion.1-7-2015.1.PDF,2015-01-09,404 Not Found
-SCHWALIER v. DEFENSE [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1113.Opinion.1-6-2015.1.PDF,2015-01-08,404 Not Found
-SANCHEZ-NAVARRO v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7039.Opinion.12-22-2014.1.PDF,2014-12-24,404 Not Found
-FLEMING v. ESCORT INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1331.Opinion.12-22-2014.1.PDF,2014-12-24,404 Not Found
-THAI PLASTIC BAGS INDUSTRIES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1237.Opinion.12-22-2014.1.PDF,2014-12-24,404 Not Found
-CONTENT EXTRACTION v. WELLS FARGO BANK [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1588.Opinion.12-19-2014.1.PDF,2014-12-23,404 Not Found
-AQUA SHIELD v. INTERPOOL POOL COVER TEAM [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1263.Opinion.12-18-2014.1.PDF,2014-12-22,404 Not Found
-BELIMO AUTOMATION A.G. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1165.Opinion.12-16-2014.1.PDF,2014-12-19,404 Not Found
-"ABB TURBO SYSTEMS AG v. TURBOUSA, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1356.Opinion.12-15-2014.1.PDF,2014-12-17,404 Not Found
-UNIVERSITY OF UTAH RESEARCH v. AMBRY GENETICS CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1361.Opinion.12-15-2014.1.PDF,2014-12-17,404 Not Found
-IN RE: ST. HELENA HOSPITAL [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1009.Opinion.12-12-2014.1.PDF,2014-12-16,404 Not Found
-PROMEGA CORP v. LIFE TECH [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1011.Opinion.12-11-2014.1.PDF,2014-12-15,404 Not Found
-SIKORSKY AIRCRAFT CORPORATION v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5096.Opinion.12-8-2014.1.PDF,2014-12-10,404 Not Found
-BIAFORA v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5130.Opinion.12-8-2014.1.PDF,2014-12-10,404 Not Found
-BLUBAUGH v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7119.Opinion.12-5-2014.1.PDF,2014-12-09,404 Not Found
-JAPANESE FOUNDATION v. LEE [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1678.Opinion.12-5-2014.1.PDF,2014-12-09,404 Not Found
-"GRK CANADA, LTD. v. US [ORDER]",https://cafc.uscourts.gov/opinions-orders/13-1255.Order.12-8-2014.1.PDF,2014-12-08,404 Not Found
-"MEMORYLINK CORP. v. MOTOROLA SOLUTIONS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1186.Opinion.12-3-2014.1.PDF,2014-12-05,404 Not Found
-"DDR HOLDINGS, LLC v. HOTELS.COM, L.P. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1505.Opinion.12-3-2014.1.PDF,2014-12-05,404 Not Found
-SANDOZ INC. v. AMGEN INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1693.Opinion.12-3-2014.1.PDF,2014-12-05,404 Not Found
-"TYCO HEALTHCARE GRP. LP v. ETHICON ENDO-SURGERY, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1324.Opinion.12-1-2014.1.PDF,2014-12-04,404 Not Found
-"ERICSSON, INC. v. D-LINK SYSTEMS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1625.Opinion.12-2-2014.1.PDF,2014-12-04,404 Not Found
-KOEHN v. SECRETARY OF HEALTH AND HUMAN [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5054.Opinion.12-2-2014.1.PDF,2014-12-04,404 Not Found
-"PAR PHARMACEUTICAL, INC. v. TWI PHARMACEUTICALS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1391.Opinion.11-26-2014.1.PDF,2014-12-03,404 Not Found
-HOME MERIDIAN INTERNATIONAL v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1251.Opinion.11-25-2014.1.PDF,2014-12-01,404 Not Found
-HARTFORD FIRE INSURANCE CO. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1585.Opinion.11-25-2014.1.PDF,2014-12-01,404 Not Found
-IN RE: HOWARD [ERRATA],https://cafc.uscourts.gov/opinions-orders/14-1137.Errata.11-21-2014.1.PDF,2014-11-21,404 Not Found
-BERLIN v. LABOR [OPINION],https://cafc.uscourts.gov/opinions-orders/14-3031.Opinion.11-18-2014.1.PDF,2014-11-20,404 Not Found
-"ROCHE VITAMINS, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1568.Opinion.11-18-2014.1.PDF,2014-11-20,404 Not Found
-O'BRYAN v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7027.Opinion.11-17-2014.1.PDF,2014-11-20,404 Not Found
-"E.DIGITAL CORPORATION v. FUTUREWEI TECHNOLOGIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1019.Opinion.11-17-2014.1.PDF,2014-11-19,404 Not Found
-ALCAN FOOD PACKAGING v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1003.Opinion.11-14-2014.1.PDF,2014-11-18,404 Not Found
-ANTARES PHARMA INC. v. MEDAC PHARMA INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1648.Opinion.11-13-2014.1.PDF,2014-11-17,404 Not Found
-"ULTRAMERCIAL, INC. v. HULU, LLC [OPINION] 2014)",https://cafc.uscourts.gov/opinions-orders/10-1544.Opinion.11-12-2014.1.PDF,2014-11-14,404 Not Found
-"AZURE NETWORKS, LLC v. CSR, PLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1459.Opinion.11-4-2014.1.PDF,2014-11-06,404 Not Found
-"WILLIAMSON v. CITRIX ONLINE, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1130.Opinion.11-3-2014.1.PDF,2014-11-05,404 Not Found
-WROCKLAGE v. DHS [OPINION],https://cafc.uscourts.gov/opinions-orders/13-3159.Opinion.10-16-2014.1.PDF,2014-10-21,404 Not Found
-IRIS CORPORATION v. JAPAN AIRLINES CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/10-1051.Opinion.10-17-2014.1.PDF,2014-10-21,404 Not Found
-"ANTICANCER, INC. v. PFIZER, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1056.Opinion.10-16-2014.1.PDF,2014-10-20,404 Not Found
-WORLD CLASS TECHNOLOGY CORP v. ORMCO CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1679.Opinion.10-16-2014.1.PDF,2014-10-20,404 Not Found
-"BRISTOL-MYERS SQUIBB COMPANY v. TEVA PHARMACEUTICALS USA, INC [ORDER]",https://cafc.uscourts.gov/opinions-orders/13-1306.Order.10-16-2014.1.PDF,2014-10-20,404 Not Found
-"CARDSOFT, LLC v. VERIFONE, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1135.Opinion.10-15-2014.1.PDF,2014-10-17,404 Not Found
-"VICTORIA'S SECRET DIRECT, LLC v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1468.Opinion.10-14-2014.1.PDF,2014-10-16,404 Not Found
-"SSL SERVICES, LLC v. CITRIX SYSTEMS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1419.Opinion.10-9-2014.1.PDF,2014-10-14,404 Not Found
-"ROBERT BOSCH, LLC v. SNAP-ON INCORPORATED [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1040.Opinion.10-9-2014.1.PDF,2014-10-14,404 Not Found
-"EMD MILLIPORE CORPORATION v. ALLPURE TECHNOLOGIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1140.Opinion.9-25-2014.1.PDF,2014-09-29,404 Not Found
-"AMERICAN CALCAR, INC. v. AMERICAN HONDA MOTOR CO. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1061.Opinion.9-23-2014.1.PDF,2014-09-26,404 Not Found
-UPI SEMICONDUCTOR CORPORATION v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1157.Opinion.9-23-2014.1.PDF,2014-09-25,404 Not Found
-BENEFIT FUNDING SYSTEMS v. ADVANCE AMERICA CASH [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1122.Opinion.9-22-2014.1.PDF,2014-09-25,404 Not Found
-CARROLL v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7008.Opinion.9-22-2014.1.PDF,2014-09-24,404 Not Found
-SCA HYGIENE PRODUCTS v. FIRST QUALITY BABY PRODUCTS [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1564.Opinion.9-15-2014.1.PDF,2014-09-17,404 Not Found
-"VIRNETX, INC. v. CISCO SYSTEMS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1489.Opinion.9-12-2014.1.PDF,2014-09-16,404 Not Found
-"U.S. v. TREK LEATHER, INC. [EN BANC OPINION]",https://cafc.uscourts.gov/opinions-orders/11-1527.Other.9-12-2014.1.PDF,2014-09-16,404 Not Found
-JANG v. BOSTON SCIENTIFIC CORPORATION [MOTION PANEL ORDER],https://cafc.uscourts.gov/opinions-orders/14-134.Motion_Panel_Order.9-12-2014.1.PDF,2014-09-16,404 Not Found
-"MUKAND, LTD. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1425.Opinion.9-12-2014.1.PDF,2014-09-16,404 Not Found
-"SRA INTERNATIONAL, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-5050.Opinion.9-11-2014.1.PDF,2014-09-15,404 Not Found
-BERAUD v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7125.Opinion.9-10-2014.1.PDF,2014-09-12,404 Not Found
-PEER BEARING COMPANY - CHANGSH v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1001.Opinion.9-10-2014.1.PDF,2014-09-12,404 Not Found
-JOYNER v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7126.Opinion.9-10-2014.1.PDF,2014-09-12,404 Not Found
-DEVLIN v. OPM [OPINION],https://cafc.uscourts.gov/opinions-orders/14-3018.Opinion.9-9-2014.1.PDF,2014-09-12,404 Not Found
-"INTERVAL LICENSING LLC v. AOL, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1282.Opinion.9-9-2014.1.PDF,2014-09-10,404 Not Found
-"MICHAELS STORES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1051.Opinion.9-8-2014.1.PDF,2014-09-10,404 Not Found
-SCIENTIFIC PLASTIC PRODUCTS v. BIOTAGE AB [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1219.Opinion.9-5-2014.1.PDF,2014-09-10,404 Not Found
-QINGDAO SEA-LINE TRADING CO. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1581.Opinion.9-8-2014.1.PDF,2014-09-10,404 Not Found
-YOUNG v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7116.Opinion.9-4-2014.1.PDF,2014-09-08,404 Not Found
-EPOS TECHNOLOGIES LTD. v. PEGASUS TECHNOLOGIES LTD. [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1330.Opinion.9-3-2014.1.PDF,2014-09-05,404 Not Found
-"BUYSAFE, INC. v. GOOGLE, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1575.Opinion.8-29-2014.1.PDF,2014-09-03,404 Not Found
-CRONIN v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5061.Opinion.8-26-2014.1.PDF,2014-08-28,404 Not Found
-STAUFFER v. BROOKS BROTHERS [ERRATA],https://cafc.uscourts.gov/opinions-orders/13-1180.Errata.8-26-2014.1.PDF,2014-08-27,404 Not Found
-FERRING B.V. v. WATSON LABORATORIES INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1416.Opinion.8-20-2014.1.PDF,2014-08-22,404 Not Found
-"MFORMATION TECHNOLOGIES, INC. v. RESEARCH IN MOTION LTD. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1679.Opinion.8-20-2014.1.PDF,2014-08-22,404 Not Found
-"FERRING B.V. v. WATSON LABORATORIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1377.Opinion.8-20-2014.1.PDF,2014-08-22,404 Not Found
-ABBVIE INC. v. KENNEDY INST. OF RHEUMATOLOGY [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1545.Opinion.8-15-2014.1.PDF,2014-08-21,404 Not Found
-"APOTEX INC. v. UCB, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1674.Opinion.8-13-2014.1.PDF,2014-08-15,404 Not Found
-STATE OF VERMONT v. MPHJ TECHNOLOGY INVESTMENTS [MOTION PANEL ORDER],https://cafc.uscourts.gov/opinions-orders/14-1481.Motion_Panel_Order.8-7-2014.1.PDF,2014-08-11,404 Not Found
-JOHNSON v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7104.Opinion.8-4-2014.1.PDF,2014-08-06,404 Not Found
-"SCRIPTPRO, LLC v. INNOVATION ASSOCIATES [ERRATA]",https://cafc.uscourts.gov/opinions-orders/13-1561.Errata.8-6-2014.1.PDF,2014-08-06,404 Not Found
-TYCO HEALTHCARE GROUP v. MUTUAL PHARMACEUTICAL CO [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1386.Opinion.7-31-2014.1.PDF,2014-08-06,404 Not Found
-MARTIN v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7097.Opinion.8-1-2014.1.PDF,2014-08-05,404 Not Found
-"AMDOCS LIMITED v. OPENET TELECOM, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1212.Opinion.7-30-2014.1.PDF,2014-08-01,404 Not Found
-STOCKTON EAST WATER DISTRICT v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5078.Opinion.7-31-2014.1.PDF,2014-08-01,404 Not Found
-US v. C.H. ROBINSON COMPANY [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1168.Opinion.7-24-2014.1.PDF,2014-07-28,404 Not Found
-MOORE v. DOJ [OPINION],https://cafc.uscourts.gov/opinions-orders/13-8001.Opinion.7-23-2014.1.PDF,2014-07-25,404 Not Found
-IN RE: NOKIA INC. [ORDER],https://cafc.uscourts.gov/opinions-orders/14-133.Order.7-23-2014.1.PDF,2014-07-24,404 Not Found
-RUSICK v. GIBSON [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7105.Opinion.7-21-2014.1.PDF,2014-07-23,404 Not Found
-ROBERTSON v. GIBSON [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7103.Opinion.7-17-2014.1.PDF,2014-07-21,404 Not Found
-ERICKSON v. USPS [OPINION],https://cafc.uscourts.gov/opinions-orders/8-3216.Opinion.7-16-2014.1.PDF,2014-07-18,404 Not Found
-"ALIGN TECHNOLOGY, INC. v. ITC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1240.Opinion.7-17-2014.1.PDF,2014-07-18,404 Not Found
-"ARLINGTON INDUSTRIES, INC. v. BRIDGEPORT FITTINGS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1357.Opinion.7-15-2014.1.PDF,2014-07-17,404 Not Found
-"STONCOR GROUP, INC. v. SPECIALTY COATINGS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1448.Opinion.7-14-2014.1.PDF,2014-07-16,404 Not Found
-LEMUS v. DOJ [ORDER],https://cafc.uscourts.gov/opinions-orders/14-8005.Order.7-15-2014.1.PDF,2014-07-16,404 Not Found
-VERIDYNE CORPORATION v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5011.Opinion.7-10-2014.1.PDF,2014-07-15,404 Not Found
-GOLDEN BRIDGE TECHNOLOGY v. APPLE INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1496.Opinion.7-10-2014.1.PDF,2014-07-14,404 Not Found
-"MEDISIM LTD. v. BESTMED, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1451.Opinion.7-10-2014.1.PDF,2014-07-14,404 Not Found
-"DIGITECH IMAGE TECHNOLOGIES v. ELECTRONICS FOR IMAGING, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1600.Opinion.7-9-2014.1.PDF,2014-07-11,404 Not Found
-ANDERSON v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5117.Opinion.7-9-2014.1.PDF,2014-07-11,404 Not Found
-"H-W TECHNOLOGY, L.C. v. OVERSTOCK.COM, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1054.Opinion.7-9-2014.1.PDF,2014-07-11,404 Not Found
-TROY v. SAMSON MANUFACTURING CORP. [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1565.Opinion.7-9-2014.1.PDF,2014-07-11,404 Not Found
-"VIRTUALAGILITY INC. v. SALESFORCE.COM, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1232.Opinion.7-8-2014.1.PDF,2014-07-10,404 Not Found
-DEPENDABLE PACKAGING v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1300.Opinion.7-7-2014.1.PDF,2014-07-09,404 Not Found
-"X2Y ATTENUATORS, LLC v. ITC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1340.Opinion.7-2-2014.1.PDF,2014-07-07,404 Not Found
-"RETRACTABLE TECHNOLOGIES, INC. v. BECTON DICKINSON AND COMPANY [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1567.Opinion.7-3-2014.1.PDF,2014-07-07,404 Not Found
-"R.T. FOODS, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1188.Opinion.7-1-2014.1.PDF,2014-07-03,404 Not Found
-"MADSTAD ENGINEERING, INC. v. PATO [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1511.Opinion.6-27-2014.1.PDF,2014-07-01,404 Not Found
-"ABBVIE DEUTSCHLAND GMBH & CO. v. JANSSEN BIOTECH, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1338.Opinion.6-27-2014.1.PDF,2014-07-01,404 Not Found
-"HILL-ROM SERVICES, INC. v. STRYKER CORPORATION [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1450.Opinion.6-25-2014.1.PDF,2014-06-27,404 Not Found
-"CEATS, INC. v. CONTINENTAL AIRLINES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1529.Opinion.6-20-2014.1.PDF,2014-06-24,404 Not Found
-"CHEMSOL, LLC v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1402.Opinion.6-20-2014.1.PDF,2014-06-24,404 Not Found
-"IN RE: NORDIC NATURALS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1492.Opinion.6-19-2014.1.PDF,2014-06-23,404 Not Found
-"RIDDELL, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1384.Opinion.6-18-2014.1.PDF,2014-06-20,404 Not Found
-"AUGME TECHNOLOGIES, INC. v. YAHOO! INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1121.Opinion.6-18-2014.1.PDF,2014-06-20,404 Not Found
-FEDMET RESOURCES CORP. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1539.Opinion.6-18-2014.1.PDF,2014-06-20,404 Not Found
-GEMALTO S.A. v. HTC CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1397.Opinion.6-17-2014.1.PDF,2014-06-19,404 Not Found
-"TRITON TECH OF TEXAS, LLC v. NINTENDO OF AMERICA, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1476.Opinion.6-10-2014.1.PDF,2014-06-13,404 Not Found
-MARCUM LLP v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5001.Opinion.6-10-2014.1.PDF,2014-06-13,404 Not Found
-ESSAR STEEL LIMITED v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1416.Opinion.6-10-2014.1.PDF,2014-06-12,404 Not Found
-"WILSON, v. GIBSON [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-7037.Opinion.6-5-2014.1.PDF,2014-06-10,404 Not Found
-LIFTIN v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5103.Opinion.6-6-2014.1.PDF,2014-06-10,404 Not Found
-INRE: DINSMORE [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1637.Opinion.6-6-2014.1.PDF,2014-06-10,404 Not Found
-Q. I. PRESS CONTROLS v. LEE [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1630.Opinion.6-5-2014.1.PDF,2014-06-09,404 Not Found
-STC.UNM v. INTEL CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1241.Opinion.6-3-2014.1.PDF,2014-06-06,404 Not Found
-"SOURCE VAGABOND SYSTEMS v. HYDRAPAK, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1270.Opinion.6-2-2014.1.PDF,2014-06-05,404 Not Found
-"KRAUSER v. BIOHORIZONS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1461.Opinion.6-2-2014.1.PDF,2014-06-04,404 Not Found
-BIERY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5082.Opinion.6-2-2014.1.PDF,2014-06-04,404 Not Found
-"IN RE: RAMBUS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1192.Opinion.6-2-2014.1.PDF,2014-06-04,404 Not Found
-"EMPRESA CUBANA DEL TABACO v. GENERAL CIGAR CO., INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1465.Opinion.6-2-2014.1.PDF,2014-06-04,404 Not Found
-CONSUMER WATCHDOG v. WISCONSIN ALUMNI RESEARCH [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1377.Opinion.6-2-2014.1.PDF,2014-06-04,404 Not Found
-"KINGDOMWARE TECHNOLOGIES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5042.Opinion.5-29-2014.1.PDF,2014-06-03,404 Not Found
-MACLEAN-FOGG COMPANY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1187.Opinion.5-29-2014.1.PDF,2014-06-03,404 Not Found
-"LIFESTYLE ENTERPRISE, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1323.Opinion.5-29-2014.1.PDF,2014-06-02,404 Not Found
-"K/S HIMPP v. HEAR-WEAR TECHNOLOGIES, LLC [ERRATA]",https://cafc.uscourts.gov/opinions-orders/13-1549.Errata.5-30-2014.1.PDF,2014-05-30,404 Not Found
-SPICER v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7142.Opinion.5-28-2014.1.PDF,2014-05-30,404 Not Found
-"SUFI NETWORK SERVICES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5039.Opinion.5-27-2014.1.PDF,2014-05-29,404 Not Found
-MUELLER COMERCIAL DE MEXICO v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1391.Opinion.5-27-2014.1.PDF,2014-05-29,404 Not Found
-"SUFFOLK TECHNOLOGIES, LLC v. AOL INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1392.Opinion.5-22-2014.1.PDF,2014-05-27,404 Not Found
-TOBINICK v. OLMARKER [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1499.Opinion.5-15-2014.1.PDF,2014-05-19,404 Not Found
-INRE: GELLER [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1412.Opinion.5-9-2014.1.PDF,2014-05-13,404 Not Found
-DECKERS CORPORATION v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1356.Opinion.5-9-2014.1.PDF,2014-05-13,404 Not Found
-"INTOUCH TECHNOLOGIES, INC. v. VGO COMMUNICATIONS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1201.Opinion.5-7-2014.1.PDF,2014-05-09,404 Not Found
-MONSANTO COMPANY v. E.I. DU PONT DE NEMOURS [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1349.Opinion.5-7-2014.1.PDF,2014-05-09,404 Not Found
-"ORACLE AMERICA, INC. v. GOOGLE INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1021.Opinion.5-7-2014.1.PDF,2014-05-09,404 Not Found
-GENERAL ELECTRIC COMPANY v. WILKINS [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1170.Opinion.5-6-2014.1.PDF,2014-05-08,404 Not Found
-IN RE: ROSLIN INSTITUTE (EDINBURGH) [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1407.Opinion.5-6-2014.1.PDF,2014-05-08,404 Not Found
-INRE: PACKARD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1204.Opinion.5-2-2014.1.PDF,2014-05-06,404 Not Found
-MATTHEWS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5109.Opinion.4-30-2014.1.PDF,2014-05-05,404 Not Found
-"GE LIGHTING SOLUTIONS, LLC v. AGILIGHT, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1267.Opinion.4-28-2014.1.PDF,2014-05-01,404 Not Found
-SHELL OIL COMPANY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5051.Opinion.4-24-2014.1.PDF,2014-04-28,404 Not Found
-"APPLE INC. v. MOTOROLA, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1548.Opinion.4-23-2014.1.PDF,2014-04-25,404 Not Found
-VAILLANCOURT v. BECTON DICKINSON & COMPANY [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1408.Opinion.4-21-2014.1.PDF,2014-04-24,404 Not Found
-GILBERT v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7056.Opinion.4-22-2014.1.PDF,2014-04-24,404 Not Found
-"INRE: DOMINION DEALER SOLUTIONS, LLC [MOTION PANEL ORDER]",https://cafc.uscourts.gov/opinions-orders/14-109.Motion_Panel_Order.4-22-2014.1.PDF,2014-04-24,404 Not Found
-ST. JUDE MEDICAL v. VOLCANO CORPORATION [MOTION PANEL ORDER],https://cafc.uscourts.gov/opinions-orders/14-1183.Motion_Panel_Order.4-22-2014.1.PDF,2014-04-24,404 Not Found
-IN RE: PROCTER & GAMBLE COMPANY [MOTION PANEL ORDER],https://cafc.uscourts.gov/opinions-orders/14-121.Motion_Panel_Order.4-22-2014.1.PDF,2014-04-24,404 Not Found
-FINE FURNITURE v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1158.Opinion.4-18-2014.1.PDF,2014-04-23,404 Not Found
-CHECO v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7059.Opinion.4-21-2014.1.PDF,2014-04-23,404 Not Found
-"BRAINTREE LABORATORIES, INC. v. NOVEL LABORATORIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1438.Opinion.4-18-2014.1.PDF,2014-04-22,404 Not Found
-"GILEAD SCIENCES, INC. v. NATCO PHARMA LIMITED [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1418.Opinion.4-18-2014.1.PDF,2014-04-22,404 Not Found
-SANOFI-AVENTIS DEUTSCHLAND v. GLENMARK PHARMACEUTICALS [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1489.Opinion.4-17-2014.1.PDF,2014-04-21,404 Not Found
-DSM DESOTECH INC. v. 3D SYSTEMS CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1298.Opinion.4-16-2014.1.PDF,2014-04-18,404 Not Found
-BOWERS v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7087.Opinion.4-15-2014.1.PDF,2014-04-17,404 Not Found
-INTERNATIONAL CUSTOM PRODUCTS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1176.Opinion.4-10-2014.1.PDF,2014-04-14,404 Not Found
-LAKESHORE ENGINEERING SERVICES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5094.Opinion.4-9-2014.1.PDF,2014-04-11,404 Not Found
-HOFFMANN-LA ROCHE INC. v. APOTEX INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1128.Opinion.4-8-2014.1.PDF,2014-04-11,404 Not Found
-"TREBRO MANUFACTURING, INC. v. FIREFLY EQUIPMENT, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1437.Opinion.4-3-2014.1.PDF,2014-04-09,404 Not Found
-CUNNINGHAM v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5055.Opinion.4-7-2014.1.PDF,2014-04-09,404 Not Found
-CHICAGO BOARD OPTIONS EXCHANGE v. INTERNATIONAL SECURITIES [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1326.Opinion.4-3-2014.1.PDF,2014-04-07,404 Not Found
-"A&D AUTO SALES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5019.Opinion.4-2-2014.1.PDF,2014-04-07,404 Not Found
-RAYTHEON COMPANY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5004.Opinion.4-2-2014.1.PDF,2014-04-04,404 Not Found
-IN RE: TELES AG INFORMATION [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1297.Opinion.4-2-2014.1.PDF,2014-04-04,404 Not Found
-IN RE: TOYOTA MOTOR CORPORATION [MOTION PANEL ORDER],https://cafc.uscourts.gov/opinions-orders/14-113.Motion_Panel_Order.4-1-2014.1.PDF,2014-04-03,404 Not Found
-"MRC INNOVATIONS, INC. v. HUNTER MFG., LLP [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1433.Opinion.3-31-2014.1.PDF,2014-04-02,404 Not Found
-SENJU PHARMACEUTICAL CO. v. APOTEX INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1027.Opinion.3-26-2014.1.PDF,2014-03-31,404 Not Found
-THAI PLASTIC BAGS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1322.Opinion.3-27-2014.1.PDF,2014-03-31,404 Not Found
-"ENDO PHARMACEUTICALS INC. v. ACTAVIS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1658.Opinion.3-27-2014.1.PDF,2014-03-31,404 Not Found
-LALONDE v. HHS [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5088.Opinion.3-25-2014.1.PDF,2014-03-28,404 Not Found
-"SHIRE DEVELOPMENT, LLC v. WATSON PHARMACEUTICALS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1409.Opinion.3-26-2014.1.PDF,2014-03-28,404 Not Found
-STONE LION CAPITAL PARTNERS v. LION CAPITAL LLP [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1353.Opinion.3-24-2014.1.PDF,2014-03-26,404 Not Found
-"STONEEAGLE SERVICES, INC. v. GILLMAN [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1248.Opinion.3-20-2014.1.PDF,2014-03-26,404 Not Found
-CMS CONTRACT MANAGEMENT v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5093.Opinion.3-19-2014.1.PDF,2014-03-25,404 Not Found
-"BRAIN LIFE, LLC v. ELEKTA INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1239.Opinion.3-19-2014.1.PDF,2014-03-24,404 Not Found
-BIGGERS v. NAVY [OPINION],https://cafc.uscourts.gov/opinions-orders/13-3059.Opinion.3-19-2014.1.PDF,2014-03-21,404 Not Found
-ABBEY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5009.Opinion.3-19-2014.1.PDF,2014-03-21,404 Not Found
-"ENERGY RECOVERY, INC. v. HAUGE [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1515.Opinion.3-18-2014.1.PDF,2014-03-20,404 Not Found
-"ALCON RESEARCH, LTD. v. BARR LABORATORIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1340.Opinion.3-12-2014.1.PDF,2014-03-18,404 Not Found
-GUANGDONG WIREKING HOUSEWARES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1404.Opinion.3-13-2014.1.PDF,2014-03-18,404 Not Found
-"VEDERI, LLC v. GOOGLE, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1057.Opinion.3-11-2014.1.PDF,2014-03-14,404 Not Found
-CENTURY EXPLORATION v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5073.Opinion.3-12-2014.1.PDF,2014-03-14,404 Not Found
-"THERASENSE, INC. v. BECTON, DICKINSON AND COMPANY [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1504.Opinion.3-7-2014.1.PDF,2014-03-12,404 Not Found
-MARVIN FURNITURE v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1156.Opinion.3-7-2014.1.PDF,2014-03-11,404 Not Found
-LARSON v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7060.Opinion.3-6-2014.1.PDF,2014-03-10,404 Not Found
-"ANCORA TECHNOLOGIES, INC. v. APPLE, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1378.Opinion.2-27-2014.1.PDF,2014-03-03,404 Not Found
-"INRE: BARNES & NOBLE, INC. [MOTION PANEL ORDER]",https://cafc.uscourts.gov/opinions-orders/13-162.Motion_Panel_Order.2-25-2014.1.PDF,2014-02-27,404 Not Found
-ELCOMMERCE.COM v. SAP AG [OPINION],https://cafc.uscourts.gov/opinions-orders/11-1369.Opinion.2-18-2014.1.PDF,2014-02-24,404 Not Found
-DELEON v. ARMY [MOTION PANEL ORDER],https://cafc.uscourts.gov/opinions-orders/13-3129.Motion_Panel_Order.2-20-2014.1.PDF,2014-02-24,404 Not Found
-STARHOME GMBH v. AT&T MOBILITY LLC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1694.Opinion.2-20-2014.1.PDF,2014-02-24,404 Not Found
-"GLAXOSMITHKLINE LLC v. BANNER PHARMACAPS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1593.Opinion.2-20-2014.1.PDF,2014-02-24,404 Not Found
-LIGHTING BALLAST CONTROL LLC v. PHILIPS ELECTRONICS NORTH AMER [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1014.Opinion.2-18-2014.1.PDF,2014-02-21,404 Not Found
-MASON v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7038.Opinion.2-19-2014.1.PDF,2014-02-21,404 Not Found
-FRANS NOOREN AFDICHTINGSSYSTEM v. STOPAQ AMCORR INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1200.Opinion.2-19-2014.1.PDF,2014-02-21,404 Not Found
-NYCAL OFFSHORE DEVELOPMENT v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5001.Opinion.2-12-2014.1.PDF,2014-02-20,404 Not Found
-TAKEDA PHARMACEUTICAL CO. v. ZYDUS PHARMACEUTICALS USA [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1406.Opinion.2-18-2014.1.PDF,2014-02-20,404 Not Found
-RING & PINION SERVICE INC. v. ARB CORPORATION LTD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1238.Opinion.2-14-2014.1.PDF,2014-02-19,404 Not Found
-DEUTSCHE BANK AG v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5062.Opinion.2-10-2014.1.PDF,2014-02-18,404 Not Found
-"BUTAMAX(TM) ADVANCED BIOFUELS v. GEVO, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1342.Opinion.2-12-2014.1.PDF,2014-02-18,404 Not Found
-"SOLVAY, S.A. v. HONEYWELL INTERNATIONAL [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1660.Opinion.2-7-2014.1.PDF,2014-02-12,404 Not Found
-"METCALF CONSTRUCTION COMPANY, v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5041.Opinion.2-7-2014.1.PDF,2014-02-11,404 Not Found
-STALLWORTH v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7044.Opinion.2-6-2014.1.PDF,2014-02-10,404 Not Found
-ROBERTS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5113.Opinion.2-6-2014.1.PDF,2014-02-10,404 Not Found
-"TEMPO LIGHTING, INC. v. TIVOLI, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1140.Opinion.2-7-2014.1.PDF,2014-02-10,404 Not Found
-CREWZERS FIRE CREW TRANSPORT v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5104.Opinion.2-3-2014.1.PDF,2014-02-06,404 Not Found
-DIXON v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7032.Opinion.1-31-2014.1.PDF,2014-02-04,404 Not Found
-KELLOGG BROWN & ROOT SERVICES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5030.Opinion.1-30-2014.1.PDF,2014-02-03,404 Not Found
-"LINK SNACKS, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1319.Opinion.1-30-2014.1.PDF,2014-02-03,404 Not Found
-ENOCEAN GMBH v. FACE INTERNATIONAL CORP [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1645.Opinion.1-29-2014.1.PDF,2014-01-31,404 Not Found
-REALTIME DATA LLC v. MORGAN STANLEY [ERRATA],https://cafc.uscourts.gov/opinions-orders/13-1092%20errata.pdf,2014-01-29,404 Not Found
-"ADAMS AND ASSOCIATES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5077.Opinion.1-23-2014.1.PDF,2014-01-27,404 Not Found
-WIND TOWER TRADE v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1303.Opinion.1-22-2014.1.PDF,2014-01-24,404 Not Found
-"MEDTRONIC COREVALVE, LLC v. EDWARDS LIFESCIENCES CORP. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1117.Opinion.1-17-2014.1.PDF,2014-01-22,404 Not Found
-NOVARTIS AG v. FOCARINO [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1160.Opinion.1-13-2014.1.PDF,2014-01-15,404 Not Found
-MITCHELL v. MSPB [OPINION],https://cafc.uscourts.gov/opinions-orders/13-3056.Opinion.1-13-2014.1.PDF,2014-01-15,404 Not Found
-"NAZOMI COMMUNICATIONS, INC. v. NOKIA CORPORATION [ERRATA]",https://cafc.uscourts.gov/opinions-orders/13-1165.Errata.1-13-2014.1.PDF,2014-01-13,404 Not Found
-INRE: ENHANCED SECURITY RESEARCH LLC [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1114.Opinion.1-8-2014.1.PDF,2014-01-13,404 Not Found
-INRE: GIANNELLI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1167.Opinion.1-9-2014.1.PDF,2014-01-13,404 Not Found
-"PROVERIS SCIENTIFIC CORP. v. INNOVASYSTEMS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1166.Opinion.1-9-2014.1.PDF,2014-01-13,404 Not Found
-"PACIFIC COAST MARINE v. MALIBU BOATS, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1199.Opinion.1-6-2014.1.PDF,2014-01-08,404 Not Found
-BELL/HEERY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5002.Opinion.1-3-2014.1.PDF,2014-01-07,404 Not Found
-ESTES EXPRESS LINES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5056.Opinion.12-30-2013.1.PDF,2014-01-03,404 Not Found
-"ALLERGAN, INC. v. ATHENA COSMETICS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1286.Opinion.12-26-2013.1.PDF,2013-12-30,404 Not Found
-INSTITUT PASTEUR & UNIVERSITE v. FOCARINO [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1485.Opinion.12-23-2013.1.PDF,2013-12-30,404 Not Found
-US v. GREAT AMERICAN INSURANCE [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1462.Opinion.12-23-2013.1.PDF,2013-12-27,404 Not Found
-"KILOPASS TECHNOLOGY, INC. v. SIDENSE CORPORATION [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1193.Opinion.12-20-2013.1.PDF,2013-12-26,404 Not Found
-MOTOROLA MOBILITY v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1535.Opinion.12-13-2013.1.PDF,2013-12-16,404 Not Found
-WYODAK RESOURCES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5049.Opinion.12-11-2013.1.PDF,2013-12-13,404 Not Found
-"AMS ASSOCIATES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1208.Opinion.12-11-2013.1.PDF,2013-12-13,404 Not Found
-"CBT FLINT PARTNERS, LLC v. RETURN PATH, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1036.Opinion.12-9-2013.1.PDF,2013-12-13,404 Not Found
-"STUEVE BROS. FARMS, LLC v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5021.Opinion.12-9-2013.1.PDF,2013-12-11,404 Not Found
-GALDERMA LABORATORIES v. TOLMAR [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1034.Opinion.12-4-2013.1.PDF,2013-12-11,404 Not Found
-NGUYEN v. DHS [OPINION],https://cafc.uscourts.gov/opinions-orders/13-3024.Opinion.12-5-2013.1.PDF,2013-12-09,404 Not Found
-SNEED v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7029.Opinion.12-4-2013.1.PDF,2013-12-09,404 Not Found
-"FUTUREWEI TECHNOLOGIES, INC. v. ACACIA RESEARCH CORP. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1090.Opinion.11-27-2013.1.PDF,2013-12-03,404 Not Found
-ARKANSAS GAME & FISH COMM v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/9-5121.Opinion.11-27-2013.1.PDF,2013-12-03,404 Not Found
-"RES-CARE, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5035.Opinion.11-18-2013.1.PDF,2013-11-21,404 Not Found
-"APPLE INC. v. SAMSUNG ELECTRONICS CO., LTD. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1129.Opinion.11-14-2013.1.PDF,2013-11-18,404 Not Found
-"OHIO WILLOW WOOD CO. v. ALPS SOUTH, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1642.Opinion.11-13-2013.1.PDF,2013-11-15,404 Not Found
-WILTON INDUSTRIES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1028.Opinion.11-1-2013.1.PDF,2013-11-05,404 Not Found
-SANOFI-AVENTIS v. PFIZER INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1345.Opinion.10-30-2013.1.PDF,2013-11-05,404 Not Found
-"LIFESCAN SCOTLAND, LTD. v. SHASTA TECHNOLOGIES, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1271.Opinion.10-31-2013.1.PDF,2013-11-04,404 Not Found
-"INTEGRATED TECHNOLOGY CORP. v. RUDOLPH TECHNOLOGIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1593.Opinion.10-30-2013.1.PDF,2013-11-04,404 Not Found
-RANDALL MFG. v. REA [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1611.Opinion.10-28-2013.1.PDF,2013-10-30,404 Not Found
-"SYNTHES USA, LLC v. SPINAL KINETICS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1047.Opinion.10-25-2013.1.PDF,2013-10-29,404 Not Found
-GEIB v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7164.Opinion.10-25-2013.1.PDF,2013-10-29,404 Not Found
-TEMBENIS v. HHS [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5029.Opinion.10-8-2013.1.PDF,2013-10-28,404 Not Found
-WAGNER v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7024.Opinion.10-22-2013.1.PDF,2013-10-24,404 Not Found
-SPRINKLE v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7156.Opinion.10-22-2013.1.PDF,2013-10-24,404 Not Found
-"IBORMEITH IP, LLC v. MERCEDES-BENZ USA [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1007.Opinion.10-18-2013.1.PDF,2013-10-22,404 Not Found
-INRE: BIEDERMANN [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1080.Opinion.10-16-2013.1.PDF,2013-10-18,404 Not Found
-"KEURIG, INCORPORATED v. STURM FOODS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1072.Opinion.10-15-2013.1.PDF,2013-10-17,404 Not Found
-TYRUES v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7007.Opinion.10-7-2013.1.PDF,2013-10-10,404 Not Found
-NCUBE CORPORATION v. SEACHANGE INTERNATIONAL INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1066.Opinion.10-8-2013.1.PDF,2013-10-10,404 Not Found
-"INTELLECT WIRELESS, INC. v. HTC CORPORATION [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1658.Opinion.10-7-2013.1.PDF,2013-10-09,404 Not Found
-BROADCOM CORPORATION v. EMULEX CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1309.Opinion.10-3-2013.1.PDF,2013-10-07,404 Not Found
-MICROSOFT CORPORATION v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1445.Opinion.10-1-2013.1.PDF,2013-10-03,404 Not Found
-"TECSEC, INC. v. INTL BUSINESS MACHINES [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1415.Opinion.9-30-2013.1.PDF,2013-10-02,404 Not Found
-INRE: CITY OF HOUSTON [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1356.Opinion.9-26-2013.1.PDF,2013-10-01,404 Not Found
-AZ v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7046.Opinion.9-26-2013.1.PDF,2013-09-30,404 Not Found
-WOLFCHILD v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5035.Opinion.9-25-2013.1.PDF,2013-09-27,404 Not Found
-SUNOVION PHARMACEUTICALS v. TEVA PHARMACEUTICALS USA [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1335.Opinion.9-24-2013.1.PDF,2013-09-26,404 Not Found
-MEADWESTVACO CORPORATION v. REXAM BEAUTY [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1518.Opinion.9-24-2013.1.PDF,2013-09-26,404 Not Found
-RAMBUS INC. v. REA [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1634.Opinion.9-20-2013.1.PDF,2013-09-24,404 Not Found
-"NETWORK SIGNATURES, INC. v. STATE FARM MUTUAL AUTO [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1492.Opinion.9-20-2013.1.PDF,2013-09-24,404 Not Found
-DEL MONTE CORPORATION v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1105.Opinion.9-11-2013.1.PDF,2013-09-16,404 Not Found
-KING v. OPM [OPINION],https://cafc.uscourts.gov/opinions-orders/12-3061.Opinion.9-11-2013.1.PDF,2013-09-13,404 Not Found
-ROCKIES EXPRESS PIPELINE LLC v. INTERIOR [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1055.Opinion.9-11-2013.1.PDF,2013-09-13,404 Not Found
-"HIGH POINT DESIGN LLC v. BUYER'S DIRECT, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1455.Opinion.9-9-2013.1.PDF,2013-09-11,404 Not Found
-"ST. JUDE MEDICAL, INC. v. ACCESS CLOSURE, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1452.Opinion.9-6-2013.1.PDF,2013-09-11,404 Not Found
-ATAR S.R.L. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1001.Opinion.9-9-2013.1.PDF,2013-09-11,404 Not Found
-"CENCAST SERVICES, L.P. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-5142.Opinion.9-6-2013.1.PDF,2013-09-10,404 Not Found
-WAWRZYNSKI v. H.J. HEINZ COMPANY [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1624.Opinion.9-3-2013.1.PDF,2013-09-06,404 Not Found
-"ACCENTURE GLOBAL SERVICES v. GUIDEWIRE SOFTWARE, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/11-1486.Opinion.9-3-2013.1.PDF,2013-09-05,404 Not Found
-KELLOGG BROWN & ROOT SERVICES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5106.Opinion.9-3-2013.1.PDF,2013-09-05,404 Not Found
-"TRADING TECHNOLOGIES INTL v. OPEN E CRY, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1583.Opinion.8-28-2013.1.PDF,2013-08-30,404 Not Found
-"AEVOE CORP. v. AE TECH CO., LTD. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1422.Opinion.8-27-2013.1.PDF,2013-08-29,404 Not Found
-CARSON v. HHS [OPINION],https://cafc.uscourts.gov/opinions-orders/10-5089.Opinion.8-26-2013.1.PDF,2013-08-28,404 Not Found
-"APPLE INC. v. SAMSUNG ELECTRONICS CO., LTD. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1600.Opinion.8-20-2013.1.PDF,2013-08-23,404 Not Found
-SKINMEDICA INC v. HISTOGEN INC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1560.Opinion.8-20-2013.1.PDF,2013-08-23,404 Not Found
-UNIVERSITY OF UTAH v. MAX-PLANCK-GESELLSCHAFT [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1540.Opinion.8-15-2013.1.PDF,2013-08-19,404 Not Found
-ITOCHU BUILDING PRODUCTS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1044.Opinion.8-15-2013.1.PDF,2013-08-19,404 Not Found
-ASHLEY FURNITURE INDUSTRIES v. US [ERRATA],https://cafc.uscourts.gov/opinions-orders/12-1196%20errata.pdf,2013-08-19,404 Not Found
-ASHLEY FURNITURE INDUSTRIES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1196.Opinion.8-15-2013.1.PDF,2013-08-19,404 Not Found
-JOSEPH GARGIULO v. DHS [OPINION],https://cafc.uscourts.gov/opinions-orders/12-3157.Opinion.8-14-2013.1.PDF,2013-08-16,404 Not Found
-BIRDEYE MIDDLETON v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7014.Opinion.8-13-2013.1.PDF,2013-08-15,404 Not Found
-HAMILTON BEACH BRANDS v. SUNBEAM PRODUCTS [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1581.Opinion.8-12-2013.1.PDF,2013-08-14,404 Not Found
-"MONOLITHIC POWER SYSTEMS, INC. v. O2 MICRO INTERNATIONAL LTD. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1221.Opinion.8-9-2013.1.PDF,2013-08-13,404 Not Found
-LEO PHARMACEUTICAL PRODUCTS v. REA [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1520.Opinion.8-8-2013.1.PDF,2013-08-12,404 Not Found
-"ARIA DIAGNOSTICS, INC. v. SEQUENOM, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1531.Opinion.8-7-2013.1.PDF,2013-08-09,404 Not Found
-TAURUS IP v. DAIMLERCHRYSLER [OPINION],https://cafc.uscourts.gov/opinions-orders/8-1462.Opinion.8-7-2013.1.PDF,2013-08-09,404 Not Found
-REMBRANDT VISION TECH v. JOHNSON & JOHNSON VISION [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1510.Opinion.8-2-2013.1.PDF,2013-08-07,404 Not Found
-APPLE INC. v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1338.Opinion.8-5-2013.1.PDF,2013-08-07,404 Not Found
-3M INNOVATIVE PROPERTIES v. TREDEGAR CORP. [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1241.Opinion.8-1-2013.1.PDF,2013-08-06,404 Not Found
-"CHEESE SYSTEMS, INC. v. TETRA PAK CHEESE [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1463.Opinion.8-2-2013.1.PDF,2013-08-06,404 Not Found
-JANE GALLO v. DEPARTMENT OF TRANSPORTATION [OPINION],https://cafc.uscourts.gov/opinions-orders/11-3094.Opinion.8-1-2013.1.PDF,2013-08-05,404 Not Found
-MARIO BOERI v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5102.Opinion.7-29-2013.1.PDF,2013-07-31,404 Not Found
-CROMAN CORPORATION v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5138.Opinion.7-26-2013.1.PDF,2013-07-31,404 Not Found
-"PLANTRONICS, INC. v. ALIPH, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1355.Opinion.7-26-2013.1.PDF,2013-07-31,404 Not Found
-TERRANCE MASSIE v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7087.Opinion.7-25-2013.1.PDF,2013-07-29,404 Not Found
-"ALEXSAM, INC. v. IDT CORPORATION [ERRATA]",https://cafc.uscourts.gov/opinions-orders/12-1063.Errata.7-29-2013.1.PDF,2013-07-29,404 Not Found
-CHARLES MACHINE WORKS v. VERMEER MANUFACTURING [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1578.Opinion.7-24-2013.1.PDF,2013-07-26,404 Not Found
-TEVA PHARMACEUTICALS USA v. SANDOZ INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1567.Opinion.7-24-2013.1.PDF,2013-07-26,404 Not Found
-"LA CROSSE TECHNOLOGY, LTD. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1370.Opinion.7-22-2013.1.PDF,2013-07-25,404 Not Found
-NOVOZYMES A/S v. DUPONT NUTRITION BIOSCIENCES [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1433.Opinion.7-18-2013.1.PDF,2013-07-22,404 Not Found
-MID CONTINENT NAIL CORP v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1682.Opinion.7-16-2013.1.PDF,2013-07-18,404 Not Found
-TRINCO INVESTMENT COMPANY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5139.Opinion.7-16-2013.1.PDF,2013-07-18,404 Not Found
-ANTONELLIS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5140.Opinion.7-16-2013.1.PDF,2013-07-18,404 Not Found
-BURDEN v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7096.Opinion.7-12-2013.1.PDF,2013-07-16,404 Not Found
-"UNITED STATES MARINE, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1678.Opinion.7-11-2013.1.PDF,2013-07-15,404 Not Found
-"SMITH & NEPHEW, INC. v. REA [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1343.Opinion.7-5-2013.1.PDF,2013-07-09,404 Not Found
-STEPHEN YONEK v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7120.Opinion.7-3-2013.1.PDF,2013-07-08,404 Not Found
-FRESENIUS USA v. BAXTER INTERNATIONAL [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1334.Opinion.6-27-2013.1.PDF,2013-07-02,404 Not Found
-ALMOND BROS. LUMBER CO. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1393.Opinion.6-27-2013.1.PDF,2013-07-01,404 Not Found
-WYETH v. ABBOTT LABORATORIES [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1223.Opinion.6-24-2013.1.PDF,2013-06-26,404 Not Found
-"AMS ASSOCIATES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1688.Opinion.6-20-2013.1.PDF,2013-06-24,404 Not Found
-TIMOTHY TIERNEY v. DOJ [OPINION],https://cafc.uscourts.gov/opinions-orders/11-3159.Opinion.6-18-2013.1.PDF,2013-06-20,404 Not Found
-NOVO NORDISK A/S v. CARACO PHARMACEUTICAL [OPINION],https://cafc.uscourts.gov/opinions-orders/11-1223.Opinion.6-14-2013.1.PDF,2013-06-18,404 Not Found
-LEVI STRAUSS & CO. v. ABERCROMBIE & FITCH [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1495.Opinion.6-14-2013.1.PDF,2013-06-18,404 Not Found
-"ROBERT BOSCH, LLC v. PYLON MANUFACTURING CORP. [OPINION]",https://cafc.uscourts.gov/opinions-orders/11-1363.Opinion.6-11-2013.1.PDF,2013-06-14,404 Not Found
-ORGANIC SEED GROWERS AND TRADE v. MONSANTO COMPANY [ERRATA],https://cafc.uscourts.gov/opinions-orders/12-1298%20errata.pdf,2013-06-14,404 Not Found
-RACK ROOM SHOES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1391.Opinion.6-10-2013.1.PDF,2013-06-12,404 Not Found
-REGINA PIRKL v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7067.Opinion.6-10-2013.1.PDF,2013-06-12,404 Not Found
-DARRELL CRAWFORD v. ARMY [OPINION],https://cafc.uscourts.gov/opinions-orders/12-3037.Opinion.6-7-2013.1.PDF,2013-06-11,404 Not Found
-MADISON DERIBEAUX v. SECRETARY OF HEALTH AND HUMAN [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5127.Opinion.6-5-2013.1.PDF,2013-06-07,404 Not Found
-INTERDIGITAL COMMUNICATIONS v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1628.Opinion.6-5-2013.1.PDF,2013-06-07,404 Not Found
-HALL v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7115.Opinion.6-5-2013.1.PDF,2013-06-07,404 Not Found
-REGENTS OF UNIV. OF MINNESOTA v. AGA MEDICAL CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1167.Opinion.5-30-2013.1.PDF,2013-06-03,404 Not Found
-GORDON BUSH v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5051.Opinion.5-28-2013.1.PDF,2013-05-30,404 Not Found
-ATELIERS DE LA HAUTE-GARONNE v. BROETJE AUTOMATION USA INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1038.Opinion.5-17-2013.1.PDF,2013-05-21,404 Not Found
-DOUGLAS DYNAMICS v. BUYERS PRODUCTS COMPANY [OPINION],https://cafc.uscourts.gov/opinions-orders/11-1291.Opinion.5-16-2013.1.PDF,2013-05-21,404 Not Found
-"DEY, L.P. v. SUNOVION PHARMACEUTICALS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1428.Opinion.5-16-2013.1.PDF,2013-05-20,404 Not Found
-YANGZHOU BESTPAK GIFTS v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1312.Opinion.5-16-2013.1.PDF,2013-05-20,404 Not Found
-AVENTIS PHARMACEUTICALS v. AMINO CHEMICALS LTD. [OPINION],https://cafc.uscourts.gov/opinions-orders/11-1335.Opinion.5-16-2013.1.PDF,2013-05-20,404 Not Found
-NSK CORPORATION v. USITC [OPINION],https://cafc.uscourts.gov/opinions-orders/11-1362.Opinion.5-14-2013.1.PDF,2013-05-16,404 Not Found
-FORRESTER ENVIRONMENTAL v. WHEELABRATOR TECHNOLOGIES [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1686.Opinion.5-14-2013.1.PDF,2013-05-16,404 Not Found
-"MOTIVA, LLC v. ITC [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1252.Opinion.5-9-2013.1.PDF,2013-05-13,404 Not Found
-"SANOFI-AVENTIS DEUTSCHLAND v. GENENTECH, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1454.Opinion.5-8-2013.1.PDF,2013-05-10,404 Not Found
-"GENERAL DYNAMICS CORPORATION v. LEON PANETTA, SECRETARY OF DEF [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1249.Opinion.5-7-2013.1.PDF,2013-05-09,404 Not Found
-DECKERS OUTDOOR CORPORATION v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1411.Opinion.5-6-2013.1.PDF,2013-05-08,404 Not Found
-USHIP INTELLECTUAL PROPERTIES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5077.Opinion.5-6-2013.1.PDF,2013-05-08,404 Not Found
-"BARON SERVICES, INC. v. MEDIA WEATHER INNOVATIONS LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1285.Opinion.5-3-2013.1.PDF,2013-05-07,404 Not Found
-ARNOLD PARKS v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7089.Opinion.5-1-2013.1.PDF,2013-05-03,404 Not Found
-FORD MOTOR COMPANY v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1186.Opinion.5-1-2013.1.PDF,2013-05-03,404 Not Found
-ARNOLD KYHN v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7003.Opinion.5-1-2013.1.PDF,2013-05-03,404 Not Found
-"ALLERGAN, INC. v. SANDOZ INC.",https://cafc.uscourts.gov/opinions-orders/11-1619.Opinion.4-25-2013.1.PDF,2013-05-01,404 Not Found
-"VERSATA SOFTWARE, INC. v. SAP AMERICA, INC.",https://cafc.uscourts.gov/opinions-orders/12-1029.Opinion.4-26-2013.1.PDF,2013-05-01,404 Not Found
-ROBERT MACLEAN v. DHS [OPINION],https://cafc.uscourts.gov/opinions-orders/11-3231.Opinion.4-24-2013.1.PDF,2013-04-26,404 Not Found
-LADD V. U.S. [ERRATA],http://www.cafc.uscourts.gov/images/stories/opinions-orders/12-5086%20errata.pdf,2013-04-22,404 Not Found
-"LAZARE KAPLAN INTERNATIONAL, I v. PHOTOSCRIBE TECHNOLOGIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1247.Opinion.4-17-2013.1.PDF,2013-04-19,404 Not Found
-"ASPEX EYEWEAR, INC. v. ZENNI OPTICAL INC.",https://cafc.uscourts.gov/opinions-orders/12-1318.Opinion.4-17-2013.1.PDF,2013-04-19,404 Not Found
-MARIE CONFORTO v. MSPB [OPINION],https://cafc.uscourts.gov/opinions-orders/12-3119.Opinion.4-15-2013.1.PDF,2013-04-18,404 Not Found
-K-TECH v. TIME WARNER CABLE & DIRECTV,https://cafc.uscourts.gov/opinions-orders/12-1425.Opinion.4-16-2013.1.PDF,2013-04-18,404 Not Found
-UNION STEEL v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1248.Opinion.4-12-2013.1.PDF,2013-04-16,404 Not Found
-BIOGEN IDEC INC. v. GLAXOSMITHKLINE LLC  [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1120.Opinion.3-27-2013.1.PDF,2013-04-16,404 Not Found
-JACK LADD v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5086.Opinion.4-5-2013.1.PDF,2013-04-09,404 Not Found
-GENARO VAZQUEZ-CLAUDIO v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7114.Opinion.4-3-2013.1.PDF,2013-04-08,404 Not Found
-IN RE: STEVE MORSA [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1609.Opinion.4-2-2013.1.PDF,2013-04-05,404 Not Found
-BRUCE SAFFRAN v. JOHNSON & JOHNSON [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1043.Opinion.4-1-2013.1.PDF,2013-04-04,404 Not Found
-"KAHRS INTERNATIONAL, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1034.Opinion.4-1-2013.1.PDF,2013-04-03,404 Not Found
-ROKSOLIANA DACHNIWSKYJ v. OPM [OPINION],https://cafc.uscourts.gov/opinions-orders/11-3158.Opinion.3-29-2013.1.PDF,2013-04-02,404 Not Found
-MARVIN BRANDT v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5050.Opinion.3-21-2013.1.PDF,2013-03-26,404 Not Found
-IN RE: TIMOTHY OWENS [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1261.Opinion.3-22-2013.1.PDF,2013-03-26,404 Not Found
-SLATTERY V US [OPINION],http://www.cafc.uscourts.gov/images/stories/opinions-orders/2012-5041.Opinion.3-18-2013.1.PDF,2013-03-21,404 Not Found
-NATIONAL ORG OF VETERANS ADVOC v. SHINSEKI [ORDER],http://www.cafc.uscourts.gov/images/stories/opinions-orders/11-7191.Order.3-18-2013.1.PDF,2013-03-21,404 Not Found
-ABBOTT LABORATORIES v. CORDIS CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1244.Opinion.3-18-2013.1.PDF,2013-03-20,404 Not Found
-ARISTOCRAT TECH [OPINION],https://cafc.uscourts.gov/opinions-orders/10-1426.Opinion.3-11-2013.1.PDF,2013-03-13,404 Not Found
-SYNQOR V ARTESYN TECH,https://cafc.uscourts.gov/opinions-orders/2011-1191.Opinion.3-8-2013.1.PDF,2013-03-13,404 Not Found
-IN RE HUBBELL [OPINION],https://cafc.uscourts.gov/opinions-orders/2011-1547.Opinion.3-5-2013.2_0.pdf,2013-03-07,404 Not Found
-GLOBAL COMMODITY GROUP LLC v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1346.Opinion.3-5-2013.1.PDF,2013-03-07,404 Not Found
-"MOVE, INC. v. REAL ESTATE ALLIANCE LTD. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1342.Opinion.2-28-2013.1.PDF,2013-03-04,404 Not Found
-DAVID SMITH v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5105.Opinion.2-19-2013.1.PDF,2013-02-22,404 Not Found
-SHARP ELECTRONICS CORPORATION v. ARMY [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1299.Opinion.2-19-2013.1.PDF,2013-02-22,404 Not Found
-JERRY MCGUIRE v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5073.Opinion.2-15-2013.1.PDF,2013-02-20,404 Not Found
-NORTHROP GRUMMAN COMPUTING V US [OPINION],https://cafc.uscourts.gov/opinions-orders/2011-5124.Opinion.2-13-2013.1.PDF,2013-02-19,404 Not Found
-YOUNG V HUD [OPINION],https://cafc.uscourts.gov/opinions-orders/2011-3232.Opinion.2-7-2013.1.PDF,2013-02-12,404 Not Found
-SEMICONDUCTOR ENERGY v. YUJIRO NAGATA [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1245.Opinion.2-7-2013.1.PDF,2013-02-11,404 Not Found
-MARK PRASCH v. OPM [OPINION],https://cafc.uscourts.gov/opinions-orders/12-3185.Opinion.2-7-2013.1.PDF,2013-02-11,404 Not Found
-ARKEMA INC. v. HONEYWELL INTERNATIONAL INC. [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1308.Opinion.2-1-2013.1.PDF,2013-02-05,404 Not Found
-HALL V BED BATH,https://cafc.uscourts.gov/opinions-orders/2011-1165.Opinion.1-22-2013.1.PDF,2013-01-25,404 Not Found
-REXNORD INDUSTRIES V KAPPOS [OPINION],https://cafc.uscourts.gov/opinions-orders/2011-1434.Opinion.1-18-2013.1.PDF,2013-01-23,404 Not Found
-C.W. ZUMBIEL CO. V. KAPPOS,https://www.cafc.uscourts.gov/opinions-orders/11-1332.pdf,2012-12-27,404 Not Found
-"CHANGSHOU WUJIN FINE CHEMICAL FACTORY CO., LTD. V. U.S.",https://www.cafc.uscourts.gov/opinions-orders/11-1080.pdf,2012-12-17,404 Not Found
-COMINT SYSTEMS CORP. V. U.S.,https://www.cafc.uscourts.gov/opinions-orders/12-5039.pdf,2012-12-07,404 Not Found
-HIBBARD V. SEC. OF HEALTH AND HUMAN SERVICES,https://www.cafc.uscourts.gov/opinions-orders/12-5007.pdf,2012-11-02,404 Not Found
-"IN RE BAXTER INTERNATIONA, INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/11-1073%20errata%202.pdf,2012-10-31,404 Not Found
-"1ST MEDIA, LLC. V. ELECTRONIC ARTS, INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/10-1435%20errata.pdf,2012-09-28,404 Not Found
-IN RE ABBOTT DIABETES CARE INC. [ERRATA],https://cafc.uscourts.gov/opinions-orders/11-1516-1517 errata.pdf,2012-09-28,404 Not Found
-BERRY V. CONYERS [ERRATA],https://cafc.uscourts.gov/opinions-orders/11-3207%20errata.pdf,2012-08-28,404 Not Found
-STONE V. SEC. OF HEALTH AND HUMAN SERVICES [ORDER],https://cafc.uscourts.gov/opinions-orders/11-5109-5117%20order.pdf,2012-08-27,404 Not Found
-"ELI LILLY AND CO. V. TEVA PARENTERAL MEDICINES, INC.",https://cafc.uscourts.gov/opinions-orders/11-1561%20-1562%2012-1037.pdf,2012-08-24,404 Not Found
-"NORMAN G. JENSEN, INC. V. U.S. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/11-1319%20errata.pdf,2012-08-16,404 Not Found
-"ALCON RESEARCH, LTD. V. APOTEX INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/11-1455%20errata.pdf,2012-08-10,404 Not Found
-IN RE BEINEKE,https://cafc.uscourts.gov/opinions-orders/11-1459%20-1460.pdf,2012-08-06,404 Not Found
-"GROBER V. MAKO PRODUCTS, INC.",https://cafc.uscourts.gov/opinions-orders/10-1519%20-1527.pdf,2012-07-30,404 Not Found
-"ORENSHTEYN V. CITRIX SYSTEMS, INC. [ORDER]",https://cafc.uscourts.gov/opinions-orders/11-1308%20order.pdf,2012-07-26,404 Not Found
-"PS CHEZ SIDNEY, L.L.C. V. U.S. INTERNATIONAL TRADE COMMISSION",https://www.cafc.uscourts.gov/opinions-orders/2008-1526 opinion_new.pdf,2012-07-13,404 Not Found
-SCIELE PHARMA INC. V. LUPIN LTD.,https://cafc.uscourts.gov/opinions-orders/12-1228%20errata.pdf,2012-07-12,404 Not Found
-GENERAL ELECTRIC CO. V. INTERNATIONAL TRADE COMMISSION [ORDER],https://cafc.uscourts.gov/opinions-orders/10-1223%20order.pdf,2012-07-06,404 Not Found
-YOUNIES V. MERIT SYSTEMS PROTECTION BOARD [ERRATA],https://cafc.uscourts.gov/opinions-orders/11-3031%20errata.pdf,2012-06-08,404 Not Found
-"IN RE BAXTER INTERNATIONAL, INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/11-1073%20errata.pdf,2012-05-23,404 Not Found
-GPX INTERNATIONAL TIRE CORP. V. U.S. [ORDER],https://cafc.uscourts.gov/opinions-orders/11-1107-1108-1109%20order.pdf,2012-05-09,404 Not Found
-IN RE EMC CORP. [ORDER],https://cafc.uscourts.gov/opinions-orders/11-m100%20order.pdf,2012-05-04,404 Not Found
-"BARD PERIPHERAL VASCULAR, INC. V. W.L. GORE & ASSOCIATES, INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/10-1510%20errata.pdf,2012-04-13,404 Not Found
-"MELISSA CLOER, M.D. V. SEC. OF HEALTH AND HUMAN SERVICES [ORDER]",https://cafc.uscourts.gov/opinions-orders/09-5052%20order.pdf,2012-04-11,404 Not Found
-"AVENTIS PHARMA S.A. V. HOSPIRA, INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/11-1018%20errata.pdf,2012-04-11,404 Not Found
-"MEMORYLINK CORP. V. MOTOROLA, INC. [ORDER]",https://cafc.uscourts.gov/opinions-orders/10-1533%20order.pdf,2012-04-11,404 Not Found
-"IN RE MSTG, INC.",https://cafc.uscourts.gov/opinions-orders/11-m996%20order.pdf,2012-04-09,404 Not Found
-"BYRNE V. WOOD, HERRON & EVANS, LLP [ORDER]",https://cafc.uscourts.gov/opinions-orders/11-1012%20order.pdf,2012-03-22,404 Not Found
-"BRIDGESTONE AMERICAS TIRE OPERATIONS, LLC. V. FEDERAL CORP. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/10-1376%20errata.pdf,2012-03-19,404 Not Found
-IN RE KUCZYNSKI [ERRATA],https://cafc.uscourts.gov/opinions-orders/2011-1353%20errata.pdf,2012-02-22,404 Not Found
-JARRARD V. DEPT. OF JUSTICE [ERRATA],https://cafc.uscourts.gov/opinions-orders/11-3050%20errata.pdf,2012-01-30,404 Not Found
-KRIPPELZ V. FORD MOTOR CO. [ERRATA],https://cafc.uscourts.gov/opinions-orders/11-1103 errata.pdf,2012-01-27,404 Not Found
-HITACHI HOME ELECTRONICS (AMERICA) INC. V. U.S. [ERRATA],https://cafc.uscourts.gov/opinions-orders/10-1345%20errata.pdf,2011-12-20,404 Not Found
-IN RE CONSTRUCTION EQUIPMENT CO. [CORRECTED],https://cafc.uscourts.gov/opinions-orders/10-1507%20corrected.pdf,2011-12-15,404 Not Found
-IN RE LINK_A_MEDIA DEVICES CORP. [ORDER],https://cafc.uscourts.gov/opinions-orders/11-m990%20order.pdf,2011-12-02,404 Not Found
-"RETRACTABLE TECHNOLOGIES, INC. V. BECTON, DICKINSON AND CO. [ORDER]",https://cafc.uscourts.gov/opinions-orders/2010-1402%20en%20banc%20order.pdf,2011-10-31,404 Not Found
-CORDIS CORP. V. BOSTON SCIENTIFIC CORP.,https://cafc.uscourts.gov/opinions-orders/10-1311%20-1316.pdf,2011-09-28,404 Not Found
-"CORDANCE CORP. V. AMAZON.COM, INC.",https://cafc.uscourts.gov/opinions-orders/10-1502-1545%20.pdf,2011-09-23,404 Not Found
-IN RE SHARED MEMORY GRAPHICS [ORDER],https://cafc.uscourts.gov/opinions-orders/11-m978%20order.pdf,2011-09-22,404 Not Found
-ARKANSAS GAME & FISH COMMISSION V. U.S. [ORDER],https://cafc.uscourts.gov/opinions-orders/09-5121%2010-5029%20order.pdf,2011-08-11,404 Not Found
-"MHL TEK, LLC. V. NISSAN MOTOR CO.",https://cafc.uscourts.gov/opinions-orders/10-1287%20-1317%20-1318.pdf,2011-08-10,404 Not Found
-JTEKT CORP. V. U.S.,https://cafc.uscourts.gov/opinions-orders/10-1516%20-1518.pdf,2011-06-29,404 Not Found
-"ADVANCED SOFTWARE DESIGN CORP. V. FISERV, INC.",https://cafc.uscourts.gov/opinions-orders/09-1585%2010-1011.pdf,2011-06-02,404 Not Found
-LADD V. U.S. [ORDER],https://cafc.uscourts.gov/opinions-orders/10-5010%20order.pdf,2011-05-26,404 Not Found
-"THERASENSE, INC. V. BECTON, DICKINSON AND CO.",https://cafc.uscourts.gov/opinions-orders/08-1511.pdf,2011-05-25,404 Not Found
-PAPIERFABRIK AUGUST KOEHLER AG V. U.S. [ORDER],https://cafc.uscourts.gov/opinions-orders/10-1147%20order.pdf,2011-05-19,404 Not Found
-ENERGY NORTHWEST V. U.S. [ERRATA],https://cafc.uscourts.gov/opinions-orders/10-5112%20errata.pdf,2011-05-06,404 Not Found
-ZHANG V. U.S.,https://cafc.uscourts.gov/opinions-orders/10-5026%20-5027.pdf,2011-04-06,404 Not Found
-IN RE BP LUBRICANTS USA INC. [ORDER],https://cafc.uscourts.gov/opinions-orders/10-m960%20order.pdf,2011-03-15,404 Not Found
-IN RE KATZ INTERACTIVE CALL PROCESSING PATENT LITIGATION,https://cafc.uscourts.gov/opinions-orders/09-1450%20errata.pdf,2011-03-02,404 Not Found
-SEC. OF DEFENSE V. RAYTHEON CO. [ORDER],https://cafc.uscourts.gov/opinions-orders/08-1543%20enbanc%20order.pdf,2011-03-01,404 Not Found
-"SPANSION, INC. V. INTERNATIONAL TRADE COMMISSION [ERRATA]",https://cafc.uscourts.gov/opinions-orders/09-1460%20errata.pdf,2011-03-01,404 Not Found
-"CANCER RESEARCH TECHNOLOGY LTD. V. BARR LABORATORIES, INC. [ORDER]",https://cafc.uscourts.gov/opinions-orders/10-1204%20enbanc%20order.pdf,2011-02-28,404 Not Found
-"ABB INC. V. COOPER INDUSTRIES, LLC.",https://cafc.uscourts.gov/opinions-orders/10-1227%20errata.pdf,2011-02-23,404 Not Found
-CENTILLION DATA SYSTEMS V. QWEST COMMUNICATIONS INTERNATIONAL,https://cafc.uscourts.gov/opinions-orders/10-1110%20-1131.pdf,2011-01-20,404 Not Found
-IN RE MICROSOFT CORP. [ORDER],https://cafc.uscourts.gov/opinions-orders/10-m944%20order.pdf,2011-01-05,404 Not Found
-"THE OHIO WILLOW WOOD CO. V. THERMO-PLY, INC. [ORDER]",https://cafc.uscourts.gov/opinions-orders/10-111910-1269%20order.pdf,2011-01-04,404 Not Found
-"TAYLOR BRANDS, LLC V. BG II CORP. [ORDER]",https://cafc.uscourts.gov/opinions-orders/10-1151-1294%20order.pdf,2010-12-09,404 Not Found
-"SUN PHARMACEUTICAL INDUSTRIES, LTD. V. ELI LILLY AND CO. [ORDER]",https://cafc.uscourts.gov/opinions-orders/10-1105%20order.pdf,2010-11-01,404 Not Found
-"SOLVAY V. HONEYWELL INTERNATIONAL, INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/09-1161%20errata.pdf,2010-10-14,404 Not Found
-U.S. STEEL CORP. V. U.S.,https://cafc.uscourts.gov/opinions-orders/09-1572%20-1573.pdf,2010-10-04,404 Not Found
-"ELI LILLY AND CO. V. TEVA PHARMACEUTICALS USA, INC. [ORDER]",https://cafc.uscourts.gov/opinions-orders/10-1005-1033%20errata.pdf,2010-09-07,404 Not Found
-CEDILLO V. SEC. OF HEALTH AND HUMAN SERVICES [ERRATA],https://cafc.uscourts.gov/opinions-orders/10-5004%20errata.pdf,2010-09-02,404 Not Found
-"IN RE ZIMMER HOLDING, INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/10-m938%20errata.pdf,2010-08-20,404 Not Found
-"AVID IDENTIFICATION SYSTEMS, INC. V. CRYSTAL IMPORT CORP.",https://cafc.uscourts.gov/opinions-orders/09-1216o.pdf,2010-07-16,404 Not Found
-IN RE DEUTSCHE BANK,https://cafc.uscourts.gov/opinions-orders/10-M920e.pdf,2010-06-02,404 Not Found
-"Anascape, Ltd. v. Nintendo of America, Inc.",https://www.courtlistener.com/pdf/1671/,2010-04-13,404 Not Found
-"ResQNet. Com, Inc. v. Lansa, Inc.",https://www.courtlistener.com/pdf/810/,2010-02-05,404 Not Found
-Trustees in Bankruptcy of North American Rubber Thread Co. v. United States,https://www.courtlistener.com/pdf/830/,2010-02-01,404 Not Found
-"Boehringer Ingelheim International GmbH v. Barr Laboratories, Inc.",https://www.courtlistener.com/pdf/835/,2010-01-25,404 Not Found
-In Re Sones,https://www.courtlistener.com/pdf/898/,2009-12-23,404 Not Found
-Henderson v. Shinseki,https://www.courtlistener.com/pdf/907/,2009-12-17,404 Not Found
-HENDERSON V. SHINSEKI,https://cafc.uscourts.gov/opinions-orders/09-7006.pdf,2009-12-17,404 Not Found
-"IN RE HOFFMAN-LA ROCHE, INC.",https://cafc.uscourts.gov/opinions-orders/09-M911.pdf,2009-12-02,404 Not Found
-"SKF USA, INC. V. U.S. CUSTOMS AND BORDER PROTECTION",https://cafc.uscourts.gov/opinions-orders/08-1005.pdf,2009-09-29,404 Not Found
-"TOUCHCOM, INC. V. BERESKIN & PARR",https://cafc.uscourts.gov/opinions-orders/08-1229.pdf,2009-08-03,404 Not Found
-"IN RE GENENTECH, INC.",https://cafc.uscourts.gov/opinions-orders/09-M901.pdf,2009-05-22,404 Not Found
-IN RE TS TECH USA,https://cafc.uscourts.gov/opinions-orders/09-M888.pdf,2008-12-29,404 Not Found
-HOGAN V. PEAKE [CORRECTED],https://cafc.uscourts.gov/opinions-orders/07-7177.pdf,2008-10-31,404 Not Found
-YANKEE ATOMIC ELECTRIC CO. V. U.S.,https://cafc.uscourts.gov/opinions-orders/07-5025%2C-5031.pdf,2008-08-07,404 Not Found
-SCANNER TECH. CORP. V. ICOS VISION SYSTEMS CORP. N.V.,https://cafc.uscourts.gov/opinions-orders/07-1399%2C%2008-1081.pdf,2008-06-19,404 Not Found
-DATATREASURY CORP. V. WELLS FARGO,https://cafc.uscourts.gov/opinions-orders/07-1317%20e.pdf,2008-04-22,404 Not Found
-ZENITH ELECTRONICS CORP. V. PDI COMMUNICATIONS SYSTEMS INC.,https://cafc.uscourts.gov/opinions-orders/07-1288%2C-1321.pdf,2008-04-16,404 Not Found
-SYMANTEC CORP. V. COMPUTER ASSOCIATES INTERNATIONAL INC.,https://cafc.uscourts.gov/opinions-orders/07-1201%2C%20-1239.pdf,2008-04-11,404 Not Found
-MONSANTO V. BAYER BIOSCIENCE,https://cafc.uscourts.gov/opinions-orders/07-1109%20errata.pdf,2008-04-04,404 Not Found
-WILLAIMS V. PEAKE,https://cafc.uscourts.gov/opinions-orders/07-7196%20errata.pdf,2008-04-03,404 Not Found
-FUJI AMERICA CORP. V. U. S.,https://cafc.uscourts.gov/opinions-orders/06-1653%2C%2007-1177.pdf,2008-03-19,404 Not Found
-ERICO INTL V. VUTEC CORP.,https://cafc.uscourts.gov/opinions-orders/07-1168%20errata.pdf,2008-03-10,404 Not Found
-MARANDOLA V. U.S.,https://cafc.uscourts.gov/opinions-orders/07-5136%20errata.pdf,2008-03-07,404 Not Found
-REGENTS OF THE U. OF CALIFORNIA V. DAKOCYTOMATION CALIFORNIA,https://cafc.uscourts.gov/opinions-orders/06-1334%2C-1452%252007-1202.pdf,2008-02-28,404 Not Found
-MOLA DEVELOPMENT CO. V. U.S.,https://cafc.uscourts.gov/opinions-orders/07-5058%2C-5080.pdf,2008-02-25,404 Not Found
-CHAMBERLAIN GROUP V. LEAR CORP.,https://cafc.uscourts.gov/opinions-orders/07-1314-1467.pdf,2008-02-19,404 Not Found
-IN RE ROCHE MOLECULAR SYSTEMS,https://cafc.uscourts.gov/opinions-orders/Misc%20854%20Order.pdf,2008-02-01,404 Not Found
-"IN RE SEAGATE TECHNOLOGY, LLC.",https://cafc.uscourts.gov/opinions-orders/M830e.pdf,2007-08-24,404 Not Found
-IN RE OMEPRAZOLE PATENT LITIGATION,https://cafc.uscourts.gov/opinions-orders/04-1621.pdf,2007-04-23,404 Not Found
-IN RE PRINCO CORPORATION,https://cafc.uscourts.gov/opinions-orders/MISC841.pdf,2007-03-01,404 Not Found
-REGENTS OF THE UNIV. OF CALIFORNIA V. DAKO NORTH AMERICA,https://cafc.uscourts.gov/opinions-orders/M-842o.pdf,2007-02-14,404 Not Found
-POILLUCCI V. DEPARTMENT OF JUSTICE,http://www.cafc.uscourts.gov/sites/default/files/opinions-orders/06-3160.pdf,2006-08-18,404 Not Found
-IN RE ECHOSTAR COMMUNICATIONS CORPORATION,https://cafc.uscourts.gov/opinions-orders/Misc-803o.pdf,2006-05-03,404 Not Found
-"CURTISS-WRIGHT FLOW CONTROL, CORP. V. VELAN, INC.",http://www.cafc.uscourts.gov/sites/default/files/opinions-orders/05-1373.pdf,2006-02-15,404 Not Found
-IN RE TECHNOLOGY LICENSING CORPORATION,https://cafc.uscourts.gov/opinions-orders/misc%20dkt-765.pdf,2005-09-12,404 Not Found
-"CAMPBELL PLASTICS ENGINEERING & MFG., INC. V. BROWNLEE",http://www.cafc.uscourts.gov/sites/default/files/opinions-orders/03-1512.pdf,2004-11-10,404 Not Found
-"ON-LINE TECHNOLOGIES V. BODENSEEWERK PERKIN-ELMER GMBH, ET AL.",https://cafc.uscourts.gov/opinions-orders/04-1291.doc,2004-10-13,404 Not Found
-BUIE V. OFFICE OF PERSONNEL MANAGEMENT,https://cafc.uscourts.gov/opinions-orders/04-3071.doc,2004-10-12,404 Not Found
-"FUJI PHOTO FILM, CO., LTD., V. INTERNATIONAL TRADE COMMISSION, ET AL.",https://cafc.uscourts.gov/opinions-orders/03-1016.doc,2004-10-07,404 Not Found
-"VASTFAME CAMERA, LTD., ET AL. V. INTERNATIONAL TRADE COMMISSION, ET AL.",https://cafc.uscourts.gov/opinions-orders/03-1426.doc,2004-10-07,404 Not Found
-"TODD, ET AL. V. U.S.",https://cafc.uscourts.gov/opinions-orders/03-5120.doc,2004-10-05,404 Not Found
-"INSITUFORM TECHNOLOGIES, INC., ET AL. V. CAT CONTRACTING, INC., ET AL.",https://cafc.uscourts.gov/opinions-orders/99-1584.doc,2004-10-04,404 Not Found
-"VAIZBURD, ET AL. V. U.S.",https://cafc.uscourts.gov/opinions-orders/03-5154.doc,2004-10-01,404 Not Found
+case_name,pdf_url,release_date
+LAND OF LINCOLN MUTUAL HEALTH v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/17-1224.Opinion.6-14-2018.pdf,2018-06-14
+IN RE: EFTHYMIOPOULOS [OPINION],https://cafc.uscourts.gov/opinions-orders/16-1003.Opinion.10-14-2016.1.PDF,2016-10-18
+US MAGNESIUM LLC v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/15-1864.Opinion.10-3-2016.1.PDF,2016-10-06
+"DELORME PUBLISHING CO., INC. v. ITC [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1572.Opinion.11-9-2015.1.PDF,2015-11-12
+"Akamai Technologies, Inc. v. Limelight Networks, Inc.",https://storage.courtlistener.com/pdf/2800400/,2015-05-13
+"AKAMAI TECHNOLOGIES, INC. v. LIMELIGHT NETWORKS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/9-1372.Opinion.5-11-2015.1.PDF,2015-05-13
+PAT HUVAL RESTAURANT & OYSTER v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1250.Opinion.5-5-2015.1.PDF,2015-05-07
+AUTOMATED MERCHANDISING v. LEE [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1728.Opinion.4-8-2015.1.PDF,2015-04-10
+"KENNAMETAL, INC. v. INGERSOLL CUTTING TOOL COMPANY [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1350.Opinion.3-23-2015.1.PDF,2015-03-25
+WINGARD v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7017.Opinion.3-6-2015.1.PDF,2015-03-10
+MINISTERIO ROCA SOLIDA v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5058.Opinion.2-24-2015.1.PDF,2015-02-26
+"PACING TECHNOLOGIES, LLC v. GARMIN INTERNATIONAL, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1396.Opinion.2-13-2015.1.PDF,2015-02-18
+"IN RE CUOZZO SPEED TECHNOLOGIES, LLC [ERRATA]",https://cafc.uscourts.gov/opinions-orders/14-1301.Errata.2-9-2015.1.PDF,2015-02-11
+HELFERICH PATENT LICENSING v. THE NEW YORK TIMES [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1196.Opinion.2-6-2015.1.PDF,2015-02-10
+MOFFITT v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/14-7071.Opinion.1-16-2015.1.PDF,2015-01-21
+BELIMO AUTOMATION A.G. v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1165.Opinion.12-16-2014.1.PDF,2014-12-19
+"E.DIGITAL CORPORATION v. FUTUREWEI TECHNOLOGIES, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1019.Opinion.11-17-2014.1.PDF,2014-11-19
+WORLD CLASS TECHNOLOGY CORP v. ORMCO CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1679.Opinion.10-16-2014.1.PDF,2014-10-20
+"BRISTOL-MYERS SQUIBB COMPANY v. TEVA PHARMACEUTICALS USA, INC [ORDER]",https://cafc.uscourts.gov/opinions-orders/13-1306.Order.10-16-2014.1.PDF,2014-10-20
+"CARDSOFT, LLC v. VERIFONE, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/14-1135.Opinion.10-15-2014.1.PDF,2014-10-17
+BENEFIT FUNDING SYSTEMS v. ADVANCE AMERICA CASH [OPINION],https://cafc.uscourts.gov/opinions-orders/14-1122.Opinion.9-22-2014.1.PDF,2014-09-25
+"MUKAND, LTD. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1425.Opinion.9-12-2014.1.PDF,2014-09-16
+JOYNER v. MCDONALD [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7126.Opinion.9-10-2014.1.PDF,2014-09-12
+CRONIN v. US [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2010-1293.6-11-10.1.pdf,2014-08-28
+IN RE: NOKIA INC. [ORDER],https://cafc.uscourts.gov/opinions-orders/14-133.Order.7-23-2014.1.PDF,2014-07-24
+MARCUM LLP v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/14-5001.Opinion.6-10-2014.1.PDF,2014-06-13
+STC.UNM v. INTEL CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1241.Opinion.6-3-2014.1.PDF,2014-06-06
+"SOURCE VAGABOND SYSTEMS v. HYDRAPAK, INC. [OPINION]",https://www.cafc.uscourts.gov/opinions-orders/2012-1407.7-25-12.1.pdf,2014-06-05
+"K/S HIMPP v. HEAR-WEAR TECHNOLOGIES, LLC [ERRATA]",https://cafc.uscourts.gov/opinions-orders/13-1549.Errata.5-30-2014.1.PDF,2014-05-30
+"ORACLE AMERICA, INC. v. GOOGLE INC. [OPINION]",https://www.cafc.uscourts.gov/opinions-orders/2012-m106.2-6-12.1.pdf,2014-05-09
+"INTOUCH TECHNOLOGIES, INC. v. VGO COMMUNICATIONS, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1201.Opinion.5-7-2014.1.PDF,2014-05-09
+INRE: PACKARD [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2012-m124.6-21-12.1.pdf,2014-05-06
+"APPLE INC. v. MOTOROLA, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1548.Opinion.4-23-2014.1.PDF,2014-04-25
+"INRE: DOMINION DEALER SOLUTIONS, LLC [MOTION PANEL ORDER]",https://cafc.uscourts.gov/opinions-orders/14-109.Motion_Panel_Order.4-22-2014.1.PDF,2014-04-24
+GILBERT v. SHINSEKI [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2012-7006.7-31-12.1.pdf,2014-04-24
+ST. JUDE MEDICAL v. VOLCANO CORPORATION [MOTION PANEL ORDER],https://cafc.uscourts.gov/opinions-orders/14-1183.Motion_Panel_Order.4-22-2014.1.PDF,2014-04-24
+CHECO v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7059.Opinion.4-21-2014.1.PDF,2014-04-23
+CHICAGO BOARD OPTIONS EXCHANGE v. INTERNATIONAL SECURITIES [OPINION],https://cafc.uscourts.gov/opinions-orders/13-1326.Opinion.4-3-2014.1.PDF,2014-04-07
+"ENERGY RECOVERY, INC. v. HAUGE [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1515.Opinion.3-18-2014.1.PDF,2014-03-20
+STARHOME GMBH v. AT&T MOBILITY LLC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1694.Opinion.2-20-2014.1.PDF,2014-02-24
+"BUTAMAX(TM) ADVANCED BIOFUELS v. GEVO, INC. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1342.Opinion.2-12-2014.1.PDF,2014-02-18
+"METCALF CONSTRUCTION COMPANY, v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5041.Opinion.2-7-2014.1.PDF,2014-02-11
+STALLWORTH v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/13-7044.Opinion.2-6-2014.1.PDF,2014-02-10
+"MEDTRONIC COREVALVE, LLC v. EDWARDS LIFESCIENCES CORP. [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1117.Opinion.1-17-2014.1.PDF,2014-01-22
+INSTITUT PASTEUR & UNIVERSITE v. FOCARINO [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1485.Opinion.12-23-2013.1.PDF,2013-12-30
+US v. GREAT AMERICAN INSURANCE [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2012-1056.6-5-12.1.pdf,2013-12-27
+WYODAK RESOURCES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/13-5049.Opinion.12-11-2013.1.PDF,2013-12-13
+"AMS ASSOCIATES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1208.Opinion.12-11-2013.1.PDF,2013-12-13
+"STUEVE BROS. FARMS, LLC v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-5021.Opinion.12-9-2013.1.PDF,2013-12-11
+"LIFESCAN SCOTLAND, LTD. v. SHASTA TECHNOLOGIES, LLC [OPINION]",https://cafc.uscourts.gov/opinions-orders/13-1271.Opinion.10-31-2013.1.PDF,2013-11-04
+BROADCOM CORPORATION v. EMULEX CORPORATION [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1309.Opinion.10-3-2013.1.PDF,2013-10-07
+AZ v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7046.Opinion.9-26-2013.1.PDF,2013-09-30
+ASHLEY FURNITURE INDUSTRIES v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1196.Opinion.8-15-2013.1.PDF,2013-08-19
+ASHLEY FURNITURE INDUSTRIES v. US [ERRATA],https://cafc.uscourts.gov/opinions-orders/12-1196%20errata.pdf,2013-08-19
+UNIVERSITY OF UTAH v. MAX-PLANCK-GESELLSCHAFT [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1540.Opinion.8-15-2013.1.PDF,2013-08-19
+JOSEPH GARGIULO v. DHS [OPINION],https://cafc.uscourts.gov/opinions-orders/12-3157.Opinion.8-14-2013.1.PDF,2013-08-16
+APPLE INC. v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1338.Opinion.8-5-2013.1.PDF,2013-08-07
+JANE GALLO v. DEPARTMENT OF TRANSPORTATION [OPINION],https://cafc.uscourts.gov/opinions-orders/11-3094.Opinion.8-1-2013.1.PDF,2013-08-05
+MARIO BOERI v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5102.Opinion.7-29-2013.1.PDF,2013-07-31
+"AMS ASSOCIATES, INC. v. US [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1688.Opinion.6-20-2013.1.PDF,2013-06-24
+TIMOTHY TIERNEY v. DOJ [OPINION],https://cafc.uscourts.gov/opinions-orders/11-3159.Opinion.6-18-2013.1.PDF,2013-06-20
+ORGANIC SEED GROWERS AND TRADE v. MONSANTO COMPANY [ERRATA],https://cafc.uscourts.gov/opinions-orders/12-1298%20errata.pdf,2013-06-14
+REGINA PIRKL v. SHINSEKI [OPINION],https://cafc.uscourts.gov/opinions-orders/12-7067.Opinion.6-10-2013.1.PDF,2013-06-12
+DARRELL CRAWFORD v. ARMY [OPINION],https://cafc.uscourts.gov/opinions-orders/12-3037.Opinion.6-7-2013.1.PDF,2013-06-11
+INTERDIGITAL COMMUNICATIONS v. ITC [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1628.Opinion.6-5-2013.1.PDF,2013-06-07
+REGENTS OF UNIV. OF MINNESOTA v. AGA MEDICAL CORPORATION [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2012-1167.3-2-12.1.pdf,2013-06-03
+"MOTIVA, LLC v. ITC [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1252.Opinion.5-9-2013.1.PDF,2013-05-13
+K-TECH v. TIME WARNER CABLE & DIRECTV,https://cafc.uscourts.gov/opinions-orders/12-1425.Opinion.4-16-2013.1.PDF,2013-04-18
+IN RE: STEVE MORSA [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1609.Opinion.4-2-2013.1.PDF,2013-04-05
+BRUCE SAFFRAN v. JOHNSON & JOHNSON [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1043.Opinion.4-1-2013.1.PDF,2013-04-04
+MARVIN BRANDT v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5050.Opinion.3-21-2013.1.PDF,2013-03-26
+IN RE: TIMOTHY OWENS [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1261.Opinion.3-22-2013.1.PDF,2013-03-26
+ABBOTT LABORATORIES v. CORDIS CORPORATION [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2012-1039.1-30-12.1.pdf,2013-03-20
+SYNQOR V ARTESYN TECH,https://www.cafc.uscourts.gov/opinions-orders/2011-1191.2-22-12.1.pdf,2013-03-13
+"MOVE, INC. v. REAL ESTATE ALLIANCE LTD. [OPINION]",https://cafc.uscourts.gov/opinions-orders/12-1342.Opinion.2-28-2013.1.PDF,2013-03-04
+JERRY MCGUIRE v. US [OPINION],https://cafc.uscourts.gov/opinions-orders/12-5073.Opinion.2-15-2013.1.PDF,2013-02-20
+MARK PRASCH v. OPM [OPINION],https://cafc.uscourts.gov/opinions-orders/12-3185.Opinion.2-7-2013.1.PDF,2013-02-11
+SEMICONDUCTOR ENERGY v. YUJIRO NAGATA [OPINION],https://cafc.uscourts.gov/opinions-orders/12-1245.Opinion.2-7-2013.1.PDF,2013-02-11
+DENNEY V. OPM,https://www.cafc.uscourts.gov/opinions-orders/12-3094.pdf,2013-02-08
+VIEGAS V SHINSEKI [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2012-7075.Opinion.1-29-2013.1.PDF,2013-01-31
+DELOACH V SHINSEKI [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2011-7166.opinion.1-28-2013.1.pdf,2013-01-30
+"RAYLON, LLC. V. COMPLUS DATA INNOVATIONS, INC.",https://www.cafc.uscourts.gov/opinions-orders/2011-1355 errata.pdf,2013-01-30
+W.C. V HHS [OPINION],https://www.cafc.uscourts.gov/opinions-orders/2012-5058.Opinion.1-11-2013.1.PDF,2013-01-15
+ORION TECHNOLOGY v. US,https://www.cafc.uscourts.gov/opinions-orders/12-5062.pdf,2013-01-14
+INDIAN HARBOR INSURANCE CO. V. US,https://www.cafc.uscourts.gov/opinions-orders/12-5030.pdf,2013-01-11
+LOST TREE VILLAGE CORPORATION V. UNITED STATES,https://www.cafc.uscourts.gov/opinions-orders/12-5008.pdf,2013-01-10
+CONSOLIDATED EDISON CO. OF NY V. U.S.,https://www.cafc.uscourts.gov/opinions-orders/12-5040.pdf,2013-01-09
+ABRAMS V. SOCIAL SECURITY ADMIN.,https://www.cafc.uscourts.gov/opinions-orders/11-3177.pdf,2012-12-28
+ROAD AND HIGHWAY BUILDERS V. U.S.,https://www.cafc.uscourts.gov/opinions-orders/12-5063.pdf,2012-12-20
+"HIGHMARK, INC. V. ALLCARE HEALTH MANAGEMENT SYSTEMS, INC.",https://www.cafc.uscourts.gov/opinions-orders/11-1219 order.pdf,2012-12-06
+KING V. DEPT. OF VETERANS AFFAIRS,www.cafc.uscourts.gov/opinions-orders/11-7159.pdf,2012-12-05
+PITTS V. DEPT. OF VETERANS AFFAIRS,https://www.cafc.uscourts.gov/opinions-orders/11-7182.pdf,2012-11-20
+"NORGREN INC, V. INTERNATIONAL TRADE COMMISSION",https://www.cafc.uscourts.gov/opinions-orders/11-1349.pdf,2012-11-14
+"ARCTIC SLOPE NATIVE ASSOCIATION, LTD. V. SEBELIUS",https://www.cafc.uscourts.gov/opinions-orders/11-1485.pdf,2012-11-09
+YOUNGMAN V. DEPT. OF VETERANS AFFAIRS,https://www.cafc.uscourts.gov/opinions-orders/11-7139.pdf,2012-11-09
+"AKAMAI TECHNOLOGIES, INC. V. LIMELIGHT NETWORKS, INC.",https://www.cafc.uscourts.gov/opinions-orders/09-1372-1380-1416-141710-1291 errata.pdf,2012-09-06
+"ELI LILLY AND CO. V. TEVA PARENTERAL MEDICINES, INC.",https://www.cafc.uscourts.gov/opinions-orders/2010-1342.5-26-11.1.pdf,2012-08-24
+RAYTHEON CO. V. INDIGO SYSTEMS CORP.,http://www.cafc.uscourts.gov/sites/default/files/opinions-orders/11-1245-1246.pdf,2012-08-01
+"MINTZ V. DIETZ & WATSON, INC. [ERRATA]",https://cafc.uscourts.gov/opinions-orders/10-1341%20errata.pdf,2012-06-01
+"AVENTIS PHARMA S.A. V. HOSPIRA, INC. [ERRATA]",https://www.cafc.uscourts.gov/opinions-orders/2011-1095.8-7-12.1.pdf,2012-04-11
+"MELISSA CLOER, M.D. V. SEC. OF HEALTH AND HUMAN SERVICES [ORDER]",https://cafc.uscourts.gov/opinions-orders/09-5052%20order.pdf,2012-04-11
+IN RE CONSTRUCTION EQUIPMENT CO. [CORRECTED],https://cafc.uscourts.gov/opinions-orders/10-1507%20corrected.pdf,2011-12-15
+IN RE LINK_A_MEDIA DEVICES CORP. [ORDER],https://www.cafc.uscourts.gov/opinions-orders/2012-m119.4-2-12.1.pdf,2011-12-02
+ZHANG V. U.S.,https://cafc.uscourts.gov/opinions-orders/10-5026%20-5027.pdf,2011-04-06
+IN RE KATZ INTERACTIVE CALL PROCESSING PATENT LITIGATION,https://cafc.uscourts.gov/opinions-orders/09-1450%20errata.pdf,2011-03-02
+"THE OHIO WILLOW WOOD CO. V. THERMO-PLY, INC. [ORDER]",https://cafc.uscourts.gov/opinions-orders/10-111910-1269%20order.pdf,2011-01-04
+In Re Sones,https://www.courtlistener.com/pdf/898/,2009-12-23
+IN RE TS TECH USA,https://cafc.uscourts.gov/opinions-orders/09-M888.pdf,2008-12-29
+LEIGHTON V. OPM,http://www.cafc.uscourts.gov/sites/default/files/opinions-orders/08-3144.pdf,2008-06-17
+MARANDOLA V. U.S.,https://cafc.uscourts.gov/opinions-orders/07-5136%20errata.pdf,2008-03-07
+MCGEE V. PEAKE,http://www.cafc.uscourts.gov/sites/default/files/opinions-orders/07-7071.pdf,2008-01-08
+NILSSEN V. OSRAM SYLVANIA,http://www.cafc.uscourts.gov/sites/default/files/opinions-orders/06-1550.pdf,2007-10-10
+MAYFIELD V. NICHOLSON,http://www.cafc.uscourts.gov/sites/default/files/opinions-orders/07-7130.pdf,2007-09-17
+REGENTS OF THE UNIV. OF CALIFORNIA V. DAKO NORTH AMERICA,https://www.cafc.uscourts.gov/opinions-orders/2010-m939.10-28-10.1.pdf,2007-02-14
+"VASTFAME CAMERA, LTD., ET AL. V. INTERNATIONAL TRADE COMMISSION, ET AL.",https://cafc.uscourts.gov/opinions-orders/03-1426.doc,2004-10-07

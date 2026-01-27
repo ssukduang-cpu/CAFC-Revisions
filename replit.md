@@ -65,9 +65,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Current Database State (as of January 2026)
 - **Total Documents:** 5,968 precedential CAFC opinions
-- **Ingested (Searchable):** 5,147 documents (86.2%)
-- **Total Pages:** 73,467 pages of full-text searchable content
-- **Failed:** 764 documents (PDFs no longer available on CAFC website - expected for older cases)
+- **Ingested (Searchable):** 5,595 documents (93.8%)
+- **Total Pages:** 82,154 pages of full-text searchable content
+- **Failed:** 115 documents (PDFs no longer available on any source)
+- **Duplicates:** 258 documents (same case ingested under different name/source)
 
 ### Hybrid Web Search Integration
 - **Search-to-Ingest Pipeline:** When local FTS returns no results or user asks about a specific case not in database, automatically:
