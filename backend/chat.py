@@ -1533,8 +1533,29 @@ async def generate_chat_response(
             web_search_result = await try_web_search_and_ingest(message, conversation_id)
             
             if web_search_result.get("success") and web_search_result.get("new_pages"):
-                # Successfully ingested new case, use those pages instead
-                pages = web_search_result["new_pages"]
+                # Successfully ingested new case, merge with existing named case pages
+                web_pages = web_search_result["new_pages"]
+                
+                # CONTEXT MERGE PERSISTENCE: Preserve named case pages even after web search
+                if named_case_pages:
+                    seen_keys = set()
+                    merged = []
+                    for p in named_case_pages:
+                        key = (p.get('opinion_id'), p.get('page_number'))
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            merged.append(p)
+                    named_case_count = len(merged)
+                    for p in web_pages:
+                        key = (p.get('opinion_id'), p.get('page_number'))
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            merged.append(p)
+                    pages = merged[:15]
+                    logging.info(f"DEBUG: Context Merge Success (web search) - {named_case_count} named case pages + {len(pages) - named_case_count} web search pages = {len(pages)} total")
+                else:
+                    pages = web_pages
+                
                 search_terms = message.split()
                 logging.info(f"Web search ingested new case(s), now have {len(pages)} pages")
             elif web_search_result.get("web_search_triggered"):
