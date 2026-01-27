@@ -102,11 +102,11 @@ Preferred communication style: Simple, everyday language.
 - **Tavily API:** Web search for discovering relevant case law when local database lacks coverage. Used via `TAVILY_API_KEY` secret.
 
 ### Current Database State (as of January 2026)
-- **Total Documents:** 5,968 precedential CAFC opinions
-- **Ingested (Searchable):** 5,597 documents (93.8%)
-- **Total Pages:** 82,206 pages of full-text searchable content
-- **Failed:** 115 documents (PDFs no longer available on any source)
-- **Duplicates:** 258 documents (same case ingested under different name/source)
+- **Total Documents:** 5,079 precedential CAFC opinions
+- **Ingested (Searchable):** 4,419 documents (87%) with 41,735 text chunks
+- **Failed:** 257 documents (PDFs no longer available on any source)
+- **Duplicates:** 403 documents (same case ingested under different name/source)
+- **OCR Recovered:** 3 documents (scanned PDFs processed via tesseract)
 - **HTML Ingestion:** Older cases (pre-2000s) where PDFs are unavailable can be ingested from law.resource.org HTML versions (e.g., Vitronics v. Conceptronic, Superguide v. DirecTV)
 
 ### Hybrid Web Search Integration
