@@ -1393,9 +1393,9 @@ async def generate_chat_response(
                 # Sort by rank and use expanded results
                 all_expanded_pages.sort(key=lambda x: x.get('rank', 0), reverse=True)
                 
-                # IMPORTANT: Preserve named case pages - merge them with expanded results
+                # CONTEXT MERGE PERSISTENCE: Preserve named case pages - merge AFTER query expansion
                 if named_case_pages:
-                    # Add named case pages first (highest priority)
+                    # Add named case pages first (highest priority - they must NEVER be dropped)
                     seen_keys = set()
                     merged = []
                     for p in named_case_pages:
@@ -1403,6 +1403,7 @@ async def generate_chat_response(
                         if key not in seen_keys:
                             seen_keys.add(key)
                             merged.append(p)
+                    named_case_count = len(merged)
                     # Then add expanded results
                     for p in all_expanded_pages:
                         key = (p.get('opinion_id'), p.get('page_number'))
@@ -1410,6 +1411,8 @@ async def generate_chat_response(
                             seen_keys.add(key)
                             merged.append(p)
                     pages = merged[:15]
+                    # DEBUG: Log context merge success
+                    logging.info(f"DEBUG: Context Merge Success - {named_case_count} named case pages + {len(pages) - named_case_count} expanded pages = {len(pages)} total")
                 else:
                     pages = all_expanded_pages[:15]
                     
@@ -1473,7 +1476,26 @@ async def generate_chat_response(
             
             # Sort by rank (higher is better) and keep top 15
             all_pages.sort(key=lambda x: x.get('rank', 0), reverse=True)
-            pages = all_pages[:15]
+            
+            # CONTEXT MERGE PERSISTENCE: Preserve named case pages in manual fallback too
+            if named_case_pages:
+                seen_keys = set()
+                merged = []
+                for p in named_case_pages:
+                    key = (p.get('opinion_id'), p.get('page_number'))
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        merged.append(p)
+                named_case_count = len(merged)
+                for p in all_pages:
+                    key = (p.get('opinion_id'), p.get('page_number'))
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        merged.append(p)
+                pages = merged[:15]
+                logging.info(f"DEBUG: Context Merge Success (fallback) - {named_case_count} named case pages preserved")
+            else:
+                pages = all_pages[:15]
             
             # Update search_terms to reflect what we actually searched for
             if pages:

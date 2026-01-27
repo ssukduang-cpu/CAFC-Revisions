@@ -310,18 +310,56 @@ async def ingest_document(doc: Dict, fast_mode: bool = False) -> Dict[str, Any]:
         extraction_result = extract_pages(pdf_path)
         pages = extraction_result["pages"]
         num_pages = len(pages)
+        total_chars = extraction_result.get("total_chars", sum(len(p) for p in pages))
+        chars_per_page = total_chars / num_pages if num_pages > 0 else 0
+        
+        # DEBUG: Log text density score
+        log(f"DEBUG: Text Density Score: {total_chars} chars, {num_pages} pages, {chars_per_page:.0f} chars/page")
         log(f"Extracted {num_pages} pages")
+        
+        # VALIDATION GATE: Check for hollow PDFs with low text density
+        MIN_CHARS_PER_PAGE = 200  # Minimum chars/page for valid text extraction
+        MIN_TOTAL_CHARS = 500    # Minimum total characters for a document
         
         # Check for scanned/image PDFs that need OCR
         if extraction_result["ocr_required"]:
-            db.mark_document_error(doc_id, f"OCR required: only {extraction_result['total_chars']} chars extracted")
+            db.mark_document_error(doc_id, f"OCR required: only {total_chars} chars extracted")
             return {
                 "success": False,
                 "status": "ocr_required",
                 "doc_id": doc_id,
                 "num_pages": num_pages,
-                "total_chars": extraction_result["total_chars"],
+                "total_chars": total_chars,
                 "error": "Scanned/image PDF - OCR required"
+            }
+        
+        # VALIDATION GATE: Block hollow PDFs with low text density
+        if num_pages > 1 and chars_per_page < MIN_CHARS_PER_PAGE:
+            error_msg = f"Low text density: {chars_per_page:.0f} chars/page < {MIN_CHARS_PER_PAGE} threshold"
+            log(f"VALIDATION FAILED: {error_msg}")
+            db.mark_document_error(doc_id, error_msg)
+            return {
+                "success": False,
+                "status": "low_density",
+                "doc_id": doc_id,
+                "num_pages": num_pages,
+                "total_chars": total_chars,
+                "chars_per_page": chars_per_page,
+                "error": error_msg
+            }
+        
+        # VALIDATION GATE: Block documents with very low total chars
+        if total_chars < MIN_TOTAL_CHARS:
+            error_msg = f"Insufficient text: {total_chars} chars < {MIN_TOTAL_CHARS} minimum"
+            log(f"VALIDATION FAILED: {error_msg}")
+            db.mark_document_error(doc_id, error_msg)
+            return {
+                "success": False,
+                "status": "insufficient_text",
+                "doc_id": doc_id,
+                "num_pages": num_pages,
+                "total_chars": total_chars,
+                "error": error_msg
             }
         
         # Clear any existing content before incremental insert
