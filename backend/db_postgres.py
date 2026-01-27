@@ -776,7 +776,7 @@ def advanced_search(
         }
 
 
-def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20, party_only: bool = False) -> List[Dict]:
+def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20, party_only: bool = False, max_text_chars: int = 2000) -> List[Dict]:
     """Search pages with case name boosting or party-only mode.
     
     Args:
@@ -784,6 +784,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         opinion_ids: Optional list of specific opinion IDs to search within
         limit: Max results
         party_only: If True, only search case names (not full text)
+        max_text_chars: Maximum characters to return per page text (prevents token bomb)
     """
     with get_db() as conn:
         cursor = conn.cursor()
@@ -795,7 +796,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
             # Party-only search within specific opinions
             cursor.execute("""
                 SELECT DISTINCT ON (d.id)
-                    p.document_id as opinion_id, p.page_number, p.text,
+                    p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
                     d.courtlistener_url,
@@ -806,12 +807,12 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                   AND d.case_name ILIKE '%%' || %s || '%%'
                 ORDER BY d.id, p.page_number
                 LIMIT %s
-            """, (opinion_ids, query, limit))
+            """, (max_text_chars, opinion_ids, query, limit))
         elif opinion_ids:
             # Full text search within specific opinions - uses pre-computed text_search_vector
             cursor.execute("""
                 SELECT 
-                    p.document_id as opinion_id, p.page_number, p.text,
+                    p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
                     d.courtlistener_url,
@@ -822,12 +823,12 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                   AND p.text_search_vector @@ plainto_tsquery('english', %s)
                 ORDER BY rank DESC
                 LIMIT %s
-            """, (query, opinion_ids, query, limit))
+            """, (max_text_chars, query, opinion_ids, query, limit))
         elif party_only:
             # Party-only search: only match case names, not full opinion text
             cursor.execute("""
                 SELECT DISTINCT ON (d.id)
-                    p.document_id as opinion_id, p.page_number, p.text,
+                    p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
                     d.courtlistener_url,
@@ -838,12 +839,12 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                   AND d.case_name ILIKE '%%' || %s || '%%'
                 ORDER BY d.id, p.page_number
                 LIMIT %s
-            """, (query, limit))
+            """, (max_text_chars, query, limit))
         else:
             # Use pre-computed text_search_vector and trigram index for fast search
             cursor.execute("""
                 SELECT 
-                    p.document_id as opinion_id, p.page_number, p.text,
+                    p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
                     d.courtlistener_url,
@@ -860,7 +861,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                   )
                 ORDER BY rank DESC
                 LIMIT %s
-            """, (query, query, query, query, limit))
+            """, (max_text_chars, query, query, query, query, limit))
         
         return [dict(row) for row in cursor.fetchall()]
 

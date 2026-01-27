@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import List, Dict, Any, Optional, Tuple
 from openai import OpenAI
+import tiktoken
 
 from backend import db_postgres as db
 from backend import web_search
@@ -241,10 +242,11 @@ that it should have been known."""
     
     return None
 
-def build_conversation_summary(conversation_id: str, max_turns: int = 5) -> str:
+def build_conversation_summary(conversation_id: str, max_turns: int = 3) -> str:
     """
     Build a condensed summary of the last N conversation turns.
     This maintains legal context awareness across multi-turn conversations.
+    Reduced to 3 turns to avoid history bloat - legal follow-ups rarely need more context.
     """
     if not conversation_id:
         return ""
@@ -536,10 +538,37 @@ Every sentence in your response that makes a factual or legal assertion MUST be 
 Do NOT cite any fact, holding, or legal standard that cannot be directly mapped to a verbatim quote from the provided indexed chunks.
 """
 
-def build_context(pages: List[Dict]) -> str:
+# Token counting for context safety
+_tiktoken_encoder = None
+
+def get_tiktoken_encoder():
+    """Lazily initialize tiktoken encoder for GPT-4o."""
+    global _tiktoken_encoder
+    if _tiktoken_encoder is None:
+        try:
+            _tiktoken_encoder = tiktoken.encoding_for_model("gpt-4o")
+        except Exception:
+            _tiktoken_encoder = tiktoken.get_encoding("cl100k_base")
+    return _tiktoken_encoder
+
+def count_tokens(text: str) -> int:
+    """Count tokens accurately for GPT-4o. Returns rough estimate on error."""
+    try:
+        enc = get_tiktoken_encoder()
+        return len(enc.encode(text))
+    except Exception:
+        return len(text) // 4  # Rough fallback
+
+def build_context(pages: List[Dict], max_tokens: int = 80000) -> str:
+    """
+    Builds context but STOPS adding excerpts once we hit the token limit.
+    Default 80k leaves room for system prompt, history, and response.
+    """
     context_parts = []
+    current_tokens = 0
+    
     for page in pages:
-        context_parts.append(f"""
+        excerpt = f"""
 --- BEGIN EXCERPT ---
 Opinion ID: {page['opinion_id']}
 Case: {page['case_name']}
@@ -549,7 +578,18 @@ Page: {page['page_number']}
 
 {page['text']}
 --- END EXCERPT ---
-""")
+"""
+        tokens = count_tokens(excerpt)
+        
+        # If adding this would exceed our budget, stop immediately
+        if current_tokens + tokens > max_tokens:
+            logging.warning(f"Context truncated: Hit {max_tokens} limit at {len(context_parts)} pages ({current_tokens} tokens)")
+            break
+            
+        context_parts.append(excerpt)
+        current_tokens += tokens
+        
+    logging.info(f"Built context with {len(context_parts)} pages, {current_tokens} tokens")
     return "\n".join(context_parts)
 
 def normalize_for_verification(text: str) -> str:
