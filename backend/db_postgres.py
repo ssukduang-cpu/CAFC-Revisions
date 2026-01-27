@@ -439,7 +439,16 @@ def ingest_document_atomic(doc_id: str, pages: list, chunks: list, pdf_sha256: O
         mark_document_error(doc_id, f"Incremental ingestion failed: {str(e)}")
         raise e
 
-def mark_document_ingested(doc_id: str, pdf_sha256: Optional[str] = None, total_pages: int = 0, file_size: int = 0):
+def mark_document_ingested(doc_id: str, pdf_sha256: Optional[str] = None, total_pages: int = 0, file_size: int = 0, status: str = 'completed'):
+    """
+    Mark a document as ingested with a specific status.
+    
+    Statuses:
+    - 'completed': Full precedential opinion
+    - 'errata': Errata/erratum correction document
+    - 'summary_affirmance': Rule 36 or summary affirmance (no substantive opinion)
+    - 'order': Court order (not an opinion)
+    """
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -448,12 +457,12 @@ def mark_document_ingested(doc_id: str, pdf_sha256: Optional[str] = None, total_
                 pdf_sha256 = %s, 
                 updated_at = NOW(), 
                 last_error = NULL,
-                status = 'completed',
+                status = %s,
                 error_message = NULL,
                 total_pages = %s,
                 file_size = %s
             WHERE id = %s
-        """, (pdf_sha256, total_pages, file_size, doc_id))
+        """, (pdf_sha256, status, total_pages, file_size, doc_id))
 
 def mark_document_error(doc_id: str, error: str):
     with get_db() as conn:

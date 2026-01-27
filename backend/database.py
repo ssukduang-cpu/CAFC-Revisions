@@ -194,11 +194,20 @@ def insert_page(opinion_id: str, page_number: int, text: str):
         """, (opinion_id, page_number, text))
         conn.commit()
 
-def mark_opinion_ingested(opinion_id: str):
+def mark_opinion_ingested(opinion_id: str, status: str = 'completed'):
+    """
+    Mark an opinion as ingested with a specific status.
+    
+    Statuses:
+    - 'completed': Full precedential opinion
+    - 'errata': Errata/erratum correction document
+    - 'summary_affirmance': Rule 36 or summary affirmance (no substantive opinion)
+    - 'order': Court order (not an opinion)
+    """
     with get_db() as conn:
         cursor = conn.cursor()
         now = datetime.utcnow().isoformat()
-        cursor.execute("UPDATE opinions SET ingested = 1, updated_at = ? WHERE id = ?", (now, opinion_id))
+        cursor.execute("UPDATE opinions SET ingested = 1, updated_at = ?, status = ? WHERE id = ?", (now, status, opinion_id))
         conn.commit()
 
 def escape_fts_query(text: str) -> str:

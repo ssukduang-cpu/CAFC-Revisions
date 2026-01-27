@@ -67,6 +67,14 @@ Preferred communication style: Simple, everyday language.
   - Status marking: 'recovered' (≥5000 chars) or 'ocr_partial' (less than 5000 chars)
   - Dependency check: `python ocr_recovery.py --check-deps` verifies tesseract/poppler
   - Usage: `python ocr_recovery.py --limit 10 --priority-only` for Big 5 cases
+- **Document Classification System:** Automatic classification during ingestion to prevent "Not Found" errors:
+  - `completed`: Full precedential opinion (searchable, has substantive holdings)
+  - `errata`: Erratum/correction documents (not searchable for holdings)
+  - `summary_affirmance`: Rule 36 judgments or summary affirmances (no written opinion)
+  - `order`: Court orders (procedural, not substantive opinions)
+  - `duplicate`: Redundant copies of existing documents (deduplicated by appeal number)
+  - Classification runs automatically on 1-2 page documents during ingestion
+  - Prevents chatbot from searching for holdings in non-opinion documents
 
 ### Advanced Search Features (POST /api/search)
 - **Hybrid Ranking:** `ts_rank * (1.0 / (days_old / 365 + 1))` formula boosts recent documents.
@@ -112,10 +120,12 @@ Preferred communication style: Simple, everyday language.
 
 ### Current Database State (as of January 2026)
 - **Total Documents:** 5,086 precedential CAFC opinions
-- **Searchable:** 4,570 documents (100% coverage) with 81,502 pages and 43,364 chunks
-- **Completed:** 4,567 documents with full text extraction
+- **Searchable:** 4,182 documents with 78,751 pages and 40,965 chunks
+- **Completed:** 4,179 documents with full text extraction
+- **Errata:** 82 documents (correction notices, not searchable for holdings)
+- **Orders:** 1 document (court order, not substantive opinion)
 - **Failed:** 105 documents (PDFs no longer available on any source)
-- **Duplicates:** 411 documents (same case ingested under different name/source)
+- **Duplicates:** 716 documents (deduplicated by appeal number, keeping most substantive version)
 - **OCR Recovered:** 2 documents (scanned PDFs processed via tesseract)
 - **OCR Partial:** 1 document (partial OCR recovery)
 - **HTML Ingestion:** Older cases (pre-2000s) where PDFs are unavailable can be ingested from law.resource.org HTML versions (e.g., Vitronics v. Conceptronic, Sri International v. Matsushita)

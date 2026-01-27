@@ -108,6 +108,44 @@ def validate_extracted_text(pages_text: List[str], opinion_id: str) -> Dict[str,
         "issues": issues
     }
 
+import re
+
+def classify_document(pages_text: List[str], case_name: str) -> str:
+    """
+    Classify document type based on content and case name.
+    Returns appropriate status: 'completed', 'errata', 'summary_affirmance', or 'order'
+    """
+    if not pages_text:
+        return 'completed'
+    
+    full_text = ' '.join(pages_text)
+    text_upper = full_text.upper()
+    case_upper = case_name.upper() if case_name else ''
+    num_pages = len(pages_text)
+    
+    if num_pages <= 2:
+        if 'ERRATA' in text_upper or 'ERRATUM' in text_upper or '[ERRATA]' in case_upper or 'ERRAT' in case_upper:
+            print(f"[classify] Document classified as ERRATA", file=sys.stderr)
+            return 'errata'
+        
+        if 'RULE 36' in text_upper or 'RULE 36' in case_upper:
+            print(f"[classify] Document classified as SUMMARY_AFFIRMANCE (Rule 36)", file=sys.stderr)
+            return 'summary_affirmance'
+        
+        if 'SUMMARY AFFIRMANCE' in text_upper:
+            print(f"[classify] Document classified as SUMMARY_AFFIRMANCE", file=sys.stderr)
+            return 'summary_affirmance'
+        
+        if re.search(r'AFFIRMED\s*(UNDER|PURSUANT|PER)', text_upper) and num_pages == 1:
+            print(f"[classify] Document classified as SUMMARY_AFFIRMANCE (affirmed)", file=sys.stderr)
+            return 'summary_affirmance'
+        
+        if '[ORDER]' in case_upper:
+            print(f"[classify] Document classified as ORDER", file=sys.stderr)
+            return 'order'
+    
+    return 'completed'
+
 async def ingest_opinion(opinion_id: str) -> Dict[str, Any]:
     os.makedirs(PDF_DIR, exist_ok=True)
     pdf_path = os.path.join(PDF_DIR, f"{opinion_id}.pdf")
@@ -169,17 +207,19 @@ async def ingest_opinion(opinion_id: str) -> Dict[str, Any]:
             if (page_num + 1) % 10 == 0:
                 log_memory(f"page-{page_num + 1}")
         
-        db.mark_opinion_ingested(opinion_id)
+        doc_status = classify_document(pages_text, opinion.get('case_name', ''))
+        db.mark_opinion_ingested(opinion_id, status=doc_status)
         log_memory("complete")
-        log_progress(opinion_id, "completed", {
+        log_progress(opinion_id, doc_status, {
             "num_pages": num_pages,
             "inserted_pages": inserted_pages,
-            "total_chars": validation["total_chars"]
+            "total_chars": validation["total_chars"],
+            "classification": doc_status
         })
         
         return {
             "success": True,
-            "status": "completed",
+            "status": doc_status,
             "num_pages": num_pages,
             "inserted_pages": inserted_pages,
             "page1_preview": page1_preview[:200],
