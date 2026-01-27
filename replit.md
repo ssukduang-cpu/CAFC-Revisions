@@ -111,12 +111,14 @@ Preferred communication style: Simple, everyday language.
 - **Tavily API:** Web search for discovering relevant case law when local database lacks coverage. Used via `TAVILY_API_KEY` secret.
 
 ### Current Database State (as of January 2026)
-- **Total Documents:** 5,079 precedential CAFC opinions
-- **Ingested (Searchable):** 4,419 documents (87%) with 41,735 text chunks
-- **Failed:** 257 documents (PDFs no longer available on any source)
-- **Duplicates:** 403 documents (same case ingested under different name/source)
-- **OCR Recovered:** 3 documents (scanned PDFs processed via tesseract)
-- **HTML Ingestion:** Older cases (pre-2000s) where PDFs are unavailable can be ingested from law.resource.org HTML versions (e.g., Vitronics v. Conceptronic, Superguide v. DirecTV)
+- **Total Documents:** 5,086 precedential CAFC opinions
+- **Searchable:** 4,570 documents (100% coverage) with 81,502 pages and 43,364 chunks
+- **Completed:** 4,567 documents with full text extraction
+- **Failed:** 105 documents (PDFs no longer available on any source)
+- **Duplicates:** 411 documents (same case ingested under different name/source)
+- **OCR Recovered:** 2 documents (scanned PDFs processed via tesseract)
+- **OCR Partial:** 1 document (partial OCR recovery)
+- **HTML Ingestion:** Older cases (pre-2000s) where PDFs are unavailable can be ingested from law.resource.org HTML versions (e.g., Vitronics v. Conceptronic, Sri International v. Matsushita)
 
 ### Hybrid Web Search Integration
 - **Search-to-Ingest Pipeline:** When local FTS returns no results or user asks about a specific case not in database, automatically:
