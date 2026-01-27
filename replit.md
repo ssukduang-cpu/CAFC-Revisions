@@ -19,7 +19,11 @@ Preferred communication style: Simple, everyday language.
 - **Layout:** Three-panel resizable interface (sidebar, chat, sources panel).
 - **UX Improvements:** Auto-opening sources panel, multi-stage loading indicators, onboarding banner, mobile-friendly design, expandable quotes, opinion library dashboard with virtualized lists and integrated PDF viewer, party-only search toggle.
 - **Chat Performance:** Server-Sent Events (SSE) for real-time token streaming, conversation context summarization for multi-turn coherence, suggested next steps, LRU cache for legal definitions, parallel processing for context building.
-- **Named Case Priority:** When queries contain specific case names (e.g., "Phillips v. AWH Corp."), the system prioritizes searching for that case by name before general FTS, ensuring foundational cases appear in context.
+- **Named Case Priority:** Two-stage search for specific case names (e.g., "Phillips v. AWH Corp."):
+  1. Regex extracts case name from query with stop-word filtering
+  2. `find_documents_by_name()` locates matching document IDs with case name normalization (Corp./Corporation, Inc./Incorporated)
+  3. FTS search within matched documents using extracted legal terms (claim construction, intrinsic evidence, obviousness, etc.)
+  4. Merged results prioritize named case pages before general FTS results
 
 ### Backend
 - **Framework:** Python FastAPI.

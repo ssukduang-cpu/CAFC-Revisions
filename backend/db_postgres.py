@@ -776,6 +776,43 @@ def advanced_search(
         }
 
 
+def normalize_case_name_query(query: str) -> str:
+    """Normalize case name for flexible matching.
+    
+    Handles abbreviations like Corp./Corporation, Inc./Incorporated, etc.
+    """
+    import re
+    # Remove trailing periods from abbreviations
+    q = query.strip().rstrip('.')
+    # Replace common abbreviations with patterns that match both forms
+    # For ILIKE: we just need to use the shorter form without period
+    q = re.sub(r'\bCorp\.?$', 'Corp', q)
+    q = re.sub(r'\bInc\.?$', 'Inc', q)
+    q = re.sub(r'\bCo\.?$', 'Co', q)
+    q = re.sub(r'\bLtd\.?$', 'Ltd', q)
+    q = re.sub(r'\bL\.?L\.?C\.?$', 'LLC', q)
+    return q
+
+
+def find_documents_by_name(case_name: str, limit: int = 5) -> List[str]:
+    """Find document IDs that match a case name.
+    
+    Returns list of document ID strings for use in FTS queries.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        normalized = normalize_case_name_query(case_name)
+        cursor.execute("""
+            SELECT id::text
+            FROM documents
+            WHERE ingested = TRUE
+              AND status NOT IN ('failed', 'duplicate')
+              AND case_name ILIKE '%%' || %s || '%%'
+            ORDER BY release_date DESC
+            LIMIT %s
+        """, (normalized, limit))
+        return [row['id'] for row in cursor.fetchall()]
+
 def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20, party_only: bool = False, max_text_chars: int = 2000) -> List[Dict]:
     """Search pages with case name boosting or party-only mode.
     
@@ -792,6 +829,9 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         if not query.strip():
             return []
         
+        # Normalize query for case name matching
+        normalized_query = normalize_case_name_query(query) if party_only else query
+        
         if opinion_ids and party_only:
             # Party-only search within specific opinions
             cursor.execute("""
@@ -807,7 +847,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                   AND d.case_name ILIKE '%%' || %s || '%%'
                 ORDER BY d.id, p.page_number
                 LIMIT %s
-            """, (max_text_chars, opinion_ids, query, limit))
+            """, (max_text_chars, opinion_ids, normalized_query, limit))
         elif opinion_ids:
             # Full text search within specific opinions - uses pre-computed text_search_vector
             cursor.execute("""
@@ -825,21 +865,29 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                 LIMIT %s
             """, (max_text_chars, query, opinion_ids, query, limit))
         elif party_only:
-            # Party-only search: only match case names, not full opinion text
+            # Party-only search: return multiple pages from matching cases
+            # Return pages with FTS match if possible, otherwise first few pages
             cursor.execute("""
-                SELECT DISTINCT ON (d.id)
+                WITH matched_docs AS (
+                    SELECT d.id, d.case_name, d.appeal_number, d.release_date, 
+                           d.pdf_url, d.courtlistener_url
+                    FROM documents d
+                    WHERE d.ingested = TRUE 
+                      AND d.case_name ILIKE '%%' || %s || '%%'
+                    LIMIT 3
+                )
+                SELECT 
                     p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
                     d.courtlistener_url,
                     1.0 as rank
                 FROM document_pages p
-                JOIN documents d ON p.document_id = d.id
-                WHERE d.ingested = TRUE 
-                  AND d.case_name ILIKE '%%' || %s || '%%'
-                ORDER BY d.id, p.page_number
+                JOIN matched_docs d ON p.document_id = d.id
+                WHERE p.page_number <= 10  -- First 10 pages of each matched case
+                ORDER BY d.case_name, p.page_number
                 LIMIT %s
-            """, (max_text_chars, query, limit))
+            """, (normalized_query, max_text_chars, limit))
         else:
             # Use pre-computed text_search_vector and trigram index for fast search
             cursor.execute("""

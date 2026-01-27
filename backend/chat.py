@@ -1186,17 +1186,79 @@ async def generate_chat_response(
     # PRIORITY SEARCH: If query mentions a specific case (X v. Y pattern), 
     # search for that case FIRST to ensure it appears in context
     named_case_pages = []
-    named_case_pattern = re.search(
-        r'["\']?([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)\s+v\.?\s+([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)["\']?',
+    # Look for case citations like "Phillips v. AWH Corp." or "Alice Corp. v. CLS Bank"
+    # Pattern includes periods for abbreviations like "Corp.", "Inc.", "Co."
+    case_patterns = re.findall(
+        r'\b([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Z][a-zA-Z\'\-\.]+){0,2})\s+v\.?\s+([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Za-z\'\-\.]+){0,3})',
         message
     )
-    if named_case_pattern and not party_only:
-        case_query = f"{named_case_pattern.group(1)} v. {named_case_pattern.group(2)}"
-        logging.info(f"Detected specific case name in query: {case_query}")
-        # Search by case name to ensure we get the named case
-        named_case_pages = db.search_pages(case_query, opinion_ids, limit=10, party_only=True)
-        if named_case_pages:
-            logging.info(f"Found {len(named_case_pages)} pages for named case: {case_query}")
+    # Filter out patterns where plaintiff starts with common verbs/adjectives
+    stop_words = {'Explain', 'Based', 'Using', 'According', 'Following', 'Regarding', 
+                  'What', 'How', 'Why', 'When', 'Where', 'Does', 'Did', 'Can', 'Should'}
+    
+    for match in case_patterns:
+        plaintiff = match[0].strip()
+        defendant = match[1].strip()
+        
+        # Skip if plaintiff is a stop word (sentence starter, not a party name)
+        first_word = plaintiff.split()[0] if plaintiff else ''
+        if first_word in stop_words:
+            continue
+        
+        # Clean up defendant: remove trailing common words (not part of party names)
+        trailing_words = {'decision', 'case', 'holding', 'opinion', 'court', 'now', 
+                          'and', 'regarding', 'concerning', 'hold', 'about', 'test',
+                          'standard', 'doctrine', 'rule', 'analysis', 'framework',
+                          'obviousness', 'construction', 'infringement', 'validity'}
+        def_words = defendant.split()
+        while def_words and def_words[-1].lower().rstrip('.,?!') in trailing_words:
+            def_words.pop()
+        defendant = ' '.join(def_words) if def_words else defendant
+        
+        if not defendant or not plaintiff:
+            continue
+        
+        # Build the case query
+        case_query = f"{plaintiff} v. {defendant}"
+        
+        if not party_only:
+            logging.info(f"Detected specific case name in query: {case_query}")
+            # Find document IDs matching the case name
+            named_case_ids = db.find_documents_by_name(case_query)
+            if not named_case_ids:
+                named_case_ids = db.find_documents_by_name(defendant)
+            
+            if named_case_ids:
+                logging.info(f"Found {len(named_case_ids)} matching documents for: {case_query}")
+                # Extract key legal terms from the query for better FTS matching
+                # Try successively simpler queries until we get results
+                search_terms = [
+                    message,  # Full query first
+                    ' '.join([w for w in message.split() if len(w) > 4 and w.lower() not in 
+                              {'what', 'which', 'where', 'when', 'does', 'according', 'explain', 'describe'}]),
+                ]
+                # Add common legal topic extractions
+                legal_terms = []
+                if 'claim construction' in message.lower():
+                    legal_terms.append('claim construction')
+                if 'evidence' in message.lower():
+                    legal_terms.append('intrinsic evidence')
+                if 'obviousness' in message.lower():
+                    legal_terms.append('obviousness')
+                if 'infringement' in message.lower():
+                    legal_terms.append('infringement')
+                if legal_terms:
+                    search_terms.append(' '.join(legal_terms))
+                
+                for search_term in search_terms:
+                    if not search_term.strip():
+                        continue
+                    named_case_pages = db.search_pages(search_term, named_case_ids, limit=10, party_only=False)
+                    if named_case_pages:
+                        logging.info(f"Found {len(named_case_pages)} pages from named case using: '{search_term[:50]}...'")
+                        break
+                if named_case_pages:
+                    break
     
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     
