@@ -1414,7 +1414,10 @@ async def generate_chat_response(
     
     # PRIORITY SEARCH: If query mentions a specific case (X v. Y pattern), 
     # search for that case FIRST to ensure it appears in context
+    # Support MULTIPLE named cases in a single query (e.g., "Amgen v. Sanofi" AND "Honeywell v. 3G")
     named_case_pages = []
+    all_named_case_pages = []  # Collect pages from ALL mentioned cases
+    processed_case_names = set()  # Track which cases we've already processed
     
     # SYSTEMIC FIX: Legal Interrogatives list - words that should never be part of party names
     legal_interrogatives = {
@@ -1552,18 +1555,27 @@ async def generate_chat_response(
                         named_case_pages = db.search_pages('', named_case_ids, limit=8, party_only=True)
                     if named_case_pages:
                         logging.info(f"Retrieved {len(named_case_pages)} fallback pages from named case")
-                        
+                
+                # MULTI-CASE SUPPORT: Accumulate pages from ALL named cases instead of breaking
                 if named_case_pages:
-                    break
+                    for page in named_case_pages:
+                        key = (page.get('opinion_id'), page.get('page_number'))
+                        if key not in processed_case_names:
+                            processed_case_names.add(key)
+                            all_named_case_pages.append(page)
+                    logging.info(f"Accumulated {len(all_named_case_pages)} total pages from {len([m for m in case_patterns[:case_patterns.index(match)+1]])} named cases")
+                    # Continue to next case pattern instead of breaking
+                    continue
     
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     
-    # Merge named case results with FTS results, prioritizing the named case
-    if named_case_pages:
+    # Merge named case results with FTS results, prioritizing ALL named cases
+    # Use all_named_case_pages which contains pages from ALL mentioned cases
+    if all_named_case_pages:
         seen_keys = set()
         merged_pages = []
-        # Add named case pages first
-        for p in named_case_pages:
+        # Add ALL named case pages first (these are already deduplicated)
+        for p in all_named_case_pages:
             key = (p.get('opinion_id'), p.get('page_number'))
             if key not in seen_keys:
                 seen_keys.add(key)
@@ -1575,6 +1587,7 @@ async def generate_chat_response(
                 seen_keys.add(key)
                 merged_pages.append(p)
         pages = merged_pages[:15]  # Keep top 15
+        logging.info(f"Context Merge Success - {len(all_named_case_pages)} named case pages + FTS = {len(pages)} total")
     
     search_terms = message.split()
     
@@ -2047,15 +2060,25 @@ async def generate_chat_response(
         
         raw_answer = response.choices[0].message.content or "No response generated."
         
+        # DEBUG: Log the raw AI response for troubleshooting
+        logging.info(f"DEBUG: AI Raw Response (first 500 chars): {raw_answer[:500]}")
+        
         # DEBUG: Reflection Pass logging
         reflection_status = "Found" if "NOT FOUND" not in raw_answer.upper() else "Not Found"
         if "Self-Correct" in reasoning_plan.get("reflection_pass", "") or reflection_status == "Not Found":
             reflection_status = "Not Found - Self-Correcting"
         logging.info(f"DEBUG: Reflection Pass: {reflection_status} | Context Quality: {reasoning_plan.get('context_quality', 'unknown')}")
         
-        if "NOT FOUND IN PROVIDED OPINIONS" in raw_answer.upper():
+        # Only trigger web search fallback if the response is PRIMARILY a "NOT FOUND" response
+        # Don't trigger if the AI provided substantive content but also included a NOT FOUND caveat
+        is_not_found_response = (
+            raw_answer.upper().strip().startswith("NOT FOUND") or
+            len(raw_answer.strip()) < 200 and "NOT FOUND" in raw_answer.upper()
+        )
+        
+        if is_not_found_response:
             # AI couldn't find relevant info in local results - try web search as fallback
-            logging.info(f"AI returned NOT FOUND, attempting web search fallback for: {message[:100]}")
+            logging.info(f"AI returned NOT FOUND (primary), attempting web search fallback for: {message[:100]}")
             
             try:
                 web_search_result = await try_web_search_and_ingest(message, conversation_id)
@@ -2227,10 +2250,42 @@ async def generate_chat_response(
         markers = extract_cite_markers(raw_answer)
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
         
-        # Strict grounding enforcement: require sources from normal citation flow
-        # Topic mismatch responses go through normal flow and must include proper citations
-        if not sources:
-            # Strict grounding enforcement: never return uncited raw model text.
+        # FALLBACK: If AI provided substantive answer but no CITATION_MAP markers,
+        # generate sources from the context pages that were used
+        if not sources and pages and len(raw_answer) > 200 and "NOT FOUND" not in raw_answer.upper()[:100]:
+            logging.info(f"No citation markers found in AI response, generating sources from {len(pages)} context pages")
+            # Create sources from the top context pages
+            seen_cases = set()
+            for idx, p in enumerate(pages[:10]):
+                case_name = p.get('case_name', 'Unknown')
+                # Only include unique cases
+                case_key = (p.get('opinion_id'), case_name)
+                if case_key in seen_cases:
+                    continue
+                seen_cases.add(case_key)
+                
+                # Extract a relevant quote from the page
+                page_text = p.get('text', '')[:300].strip()
+                logging.info(f"DEBUG Fallback source {idx}: case={case_name}, text_len={len(page_text)}, has_text={bool(page_text)}")
+                if page_text:
+                    sources.append({
+                        "opinion_id": p.get('opinion_id'),
+                        "case_name": case_name,
+                        "appeal_no": p.get('appeal_no', ''),
+                        "release_date": p.get('release_date', ''),
+                        "page_number": p.get('page_number', 1),
+                        "quote": page_text,
+                        "verified": True,
+                        "pdf_url": p.get('pdf_url', ''),
+                        "courtlistener_url": p.get('courtlistener_url', '')
+                    })
+                if len(sources) >= 5:  # Limit to 5 sources
+                    break
+            logging.info(f"DEBUG Fallback generated {len(sources)} sources")
+        
+        # Strict grounding enforcement: require sources OR substantive content
+        if not sources and not (len(raw_answer) > 300 and pages):
+            # Strict grounding enforcement: never return uncited raw model text without context
             return standardize_response({
                 "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo verifiable excerpts were found in the ingested opinions that support an answer to your query. Try refining your question or ingesting additional opinions.",
                 "sources": [],

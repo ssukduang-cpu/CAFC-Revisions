@@ -907,6 +907,10 @@ async def send_message(conversation_id: str, request: MessageRequest):
     
     assistant_response = serialize_for_json(convert_keys_to_camel(assistant_msg)) if assistant_msg else {}
     
+    # Extract sources from the citation data and include in response
+    assistant_response["sources"] = result.get("sources", [])
+    assistant_response["debug"] = result.get("debug", {})
+    
     return {
         "userMessage": serialize_for_json(convert_keys_to_camel(user_msg)) if user_msg else {},
         "assistantMessage": assistant_response,

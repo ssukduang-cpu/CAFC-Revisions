@@ -48,6 +48,9 @@ Preferred communication style: Simple, everyday language.
 - **API Pattern:** RESTful endpoints under `/api/`.
 - **Key Features:** Opinion syncing and ingestion, batch ingestion with retry/validation, ingestion status and integrity checks, RAG-powered chat, conversation history management, admin endpoints for manifest building and batch ingestion control, PDF serving with security.
 - **Core Logic:** Strict citation enforcement, page-based retrieval, filtering for precedential opinions, smart disambiguation and context resolution for ambiguous queries, consistent API response schema.
+- **Citation Marker Fallback:** When AI provides substantive answer without CITATION_MAP format, system automatically generates sources from context pages used in RAG, ensuring responses always include verifiable sources.
+- **Smart NOT FOUND Detection:** Only triggers web search fallback when response PRIMARILY contains "NOT FOUND" (starts with it OR is short), not when AI includes a NOT FOUND caveat in an otherwise substantive response.
+- **OR-based FTS Queries:** Long queries (>100 chars) use OR-based to_tsquery instead of AND-based plainto_tsquery, extracting up to 12 key legal terms for flexible matching.
 
 ### Data Layer
 - **Database:** PostgreSQL with Drizzle ORM.

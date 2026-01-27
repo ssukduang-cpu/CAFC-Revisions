@@ -1,5 +1,7 @@
 import os
+import re
 import uuid
+import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
@@ -9,6 +11,82 @@ from datetime import datetime
 import hashlib
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# Legal stop words that add noise to FTS queries
+LEGAL_STOP_WORDS = {
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+    'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had',
+    'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
+    'this', 'that', 'these', 'those', 'it', 'its', 'they', 'their', 'what', 'which',
+    'who', 'whom', 'how', 'when', 'where', 'why', 'if', 'then', 'so', 'than', 'such',
+    'can', 'only', 'other', 'into', 'over', 'under', 'between', 'through', 'during',
+    'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'about', 'each',
+    'explain', 'specifically', 'contrast', 'compare', 'describe', 'current', 'legal'
+}
+
+# High-value legal terms to prioritize in search
+LEGAL_KEY_TERMS = {
+    # Patent doctrines
+    'enablement', 'obviousness', 'anticipation', 'infringement', 'claim', 'claims',
+    'construction', 'patent', 'patentability', 'novelty', 'scope', 'prior', 'art',
+    'specification', 'prosecution', 'estoppel', 'doctrine', 'equivalents', 'literal',
+    'written', 'description', 'indefiniteness', 'abstract', 'idea', 'eligibility',
+    # Key tests and factors
+    'wands', 'factors', 'alice', 'mayo', 'ksr', 'phillips', 'markman', 'nautilus',
+    'experimentation', 'undue', 'genus', 'species', 'functional', 'structural',
+    # Case names (important landmarks)
+    'amgen', 'sanofi', 'honeywell', 'athena', 'diagnostics', 'berkheimer',
+    # Obviousness specific
+    'desirable', 'optimal', 'modification', 'motivation', 'combine', 'teaching',
+    'suggestion', 'rationale', 'predictable', 'reasonable', 'expectation'
+}
+
+
+def extract_search_terms(query: str, max_terms: int = 8) -> List[str]:
+    """Extract key legal terms from a complex query.
+    
+    For long queries (>100 chars), extracts the most relevant legal terms.
+    
+    Args:
+        query: Original search query
+        max_terms: Maximum number of terms to include
+        
+    Returns:
+        List of extracted key terms
+    """
+    # Tokenize and clean
+    words = re.findall(r'[a-zA-Z]+', query.lower())
+    
+    if len(query) < 100:
+        # For short queries, just filter stop words
+        terms = [w for w in words if w not in LEGAL_STOP_WORDS and len(w) > 2]
+        return terms[:max_terms]
+    
+    # Prioritize legal key terms for long queries
+    key_matches = [w for w in words if w in LEGAL_KEY_TERMS]
+    other_words = [w for w in words if w not in LEGAL_STOP_WORDS and w not in LEGAL_KEY_TERMS and len(w) > 2]
+    
+    # Combine: key terms first, then other significant words
+    terms = key_matches[:max_terms]
+    remaining_slots = max_terms - len(terms)
+    if remaining_slots > 0:
+        terms.extend(other_words[:remaining_slots])
+    
+    logging.debug(f"[FTS] Query extraction: {len(query)} chars -> {terms}")
+    return terms[:max_terms]
+
+
+def build_or_tsquery(terms: List[str]) -> str:
+    """Build an OR-based tsquery string from a list of terms.
+    
+    Creates a query like: enablement | obviousness | amgen
+    This matches pages containing ANY of the terms, not ALL.
+    """
+    if not terms:
+        return ""
+    # Escape any special characters and join with OR
+    clean_terms = [re.sub(r'[^\w]', '', t) for t in terms if t.strip()]
+    return ' | '.join(clean_terms)
 
 # Global connection pool (initialize once, reuse connections)
 _pool = None
@@ -939,27 +1017,52 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                 LIMIT %s
             """, (normalized_query, max_text_chars, limit))
         else:
-            # Use pre-computed text_search_vector and trigram index for fast search
-            cursor.execute("""
-                SELECT 
-                    p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
-                    d.case_name, d.appeal_number as appeal_no, 
-                    to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
-                    d.courtlistener_url,
-                    (
-                        ts_rank(p.text_search_vector, plainto_tsquery('english', %s)) +
-                        CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
-                    ) as rank
-                FROM document_pages p
-                JOIN documents d ON p.document_id = d.id
-                WHERE d.ingested = TRUE 
-                  AND (
-                    p.text_search_vector @@ plainto_tsquery('english', %s)
-                    OR d.case_name ILIKE '%%' || %s || '%%'
-                  )
-                ORDER BY rank DESC
-                LIMIT %s
-            """, (max_text_chars, query, query, query, query, limit))
+            # For long queries (>100 chars), extract key legal terms and use OR-based
+            # matching to avoid over-restrictive AND queries that return 0 results
+            terms = extract_search_terms(query, max_terms=8)
+            or_query = build_or_tsquery(terms)
+            logging.info(f"[FTS] Search: {len(query)} chars -> OR query: '{or_query}'")
+            
+            if or_query:
+                # Use OR-based to_tsquery for flexible matching (ANY term matches)
+                cursor.execute("""
+                    SELECT 
+                        p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
+                        d.case_name, d.appeal_number as appeal_no, 
+                        to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                        d.courtlistener_url,
+                        (
+                            ts_rank(p.text_search_vector, to_tsquery('english', %s)) +
+                            CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
+                        ) as rank
+                    FROM document_pages p
+                    JOIN documents d ON p.document_id = d.id
+                    WHERE d.ingested = TRUE 
+                      AND d.status = 'completed'
+                      AND (
+                        p.text_search_vector @@ to_tsquery('english', %s)
+                        OR d.case_name ILIKE '%%' || %s || '%%'
+                      )
+                    ORDER BY rank DESC
+                    LIMIT %s
+                """, (max_text_chars, or_query, query, or_query, query, limit))
+            else:
+                # Fallback to case name search only
+                cursor.execute("""
+                    SELECT 
+                        p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
+                        d.case_name, d.appeal_number as appeal_no, 
+                        to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                        d.courtlistener_url,
+                        1.0 as rank
+                    FROM document_pages p
+                    JOIN documents d ON p.document_id = d.id
+                    WHERE d.ingested = TRUE 
+                      AND d.status = 'completed'
+                      AND d.case_name ILIKE '%%' || %s || '%%'
+                    ORDER BY d.release_date DESC
+                    LIMIT %s
+                """, (max_text_chars, query, limit))
         
         return [dict(row) for row in cursor.fetchall()]
 
