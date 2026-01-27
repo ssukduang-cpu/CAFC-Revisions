@@ -177,7 +177,8 @@ export function OpinionLibrary() {
         q: debouncedSearch || undefined,
         author: author && author !== "all" ? author : undefined,
         includeR36: false,
-        year: selectedYear || undefined
+        year: selectedYear || undefined,
+        ingested: true
       });
       setOpinions(data.opinions);
       setTotal(data.total);
@@ -340,7 +341,7 @@ export function OpinionLibrary() {
           {totalPages > 1 && (
             <div className="p-3 sm:p-4 border-t flex items-center justify-between shrink-0 bg-background">
               <div className="text-xs sm:text-sm text-muted-foreground">
-                <span className="hidden sm:inline">Page {currentPage} of {totalPages} ({total} total)</span>
+                <span className="hidden sm:inline">Page {currentPage} of {totalPages} ({total.toLocaleString()} searchable)</span>
                 <span className="sm:hidden">{currentPage}/{totalPages}</span>
               </div>
               
