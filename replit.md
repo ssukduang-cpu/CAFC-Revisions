@@ -27,7 +27,12 @@ Preferred communication style: Simple, everyday language.
      - DEBUG logging: "Parsed Party Name: [X]" for real-time verification
   2. `find_documents_by_name()` locates matching document IDs with case name normalization (Corp./Corporation, Inc./Incorporated)
   3. FTS search within matched documents using extracted legal terms (claim construction, intrinsic evidence, obviousness, etc.)
-  4. Merged results prioritize named case pages before general FTS results, preserved even during query expansion fallback
+  4. **Context Merge Persistence:** Named case pages are ALWAYS preserved across all search fallback paths:
+     - Query expansion: Named case pages merged first, then expanded results
+     - Manual token extraction: Named case pages merged first, then token results
+     - Web search ingestion: Named case pages merged first, then web search results
+     - DEBUG logging: "Context Merge Success - X named + Y expanded = Z total"
+     - Maximum 15 pages total with named case pages guaranteed to survive
 
 ### Backend
 - **Framework:** Python FastAPI.
@@ -41,6 +46,11 @@ Preferred communication style: Simple, everyday language.
 - **Text Search:** PostgreSQL GIN index on `tsvector` columns for full-text search across chunked opinion text.
 - **PDF Processing:** `pdf-parse` library for text extraction, `cleanup_hyphenated_text()` for hyphenation cleanup.
 - **Ingestion Robustness:** Retry logic with exponential backoff, validation for empty/corrupt PDFs, SHA256 tracking to avoid reprocessing, batch processing, integrity checks, and a robust PDF download fallback mechanism to CourtListener.
+- **Hollow PDF Validation Gate:** Blocks ingestion of low-quality PDFs:
+  - Minimum 200 chars/page for multi-page documents (blocks scanned/image PDFs)
+  - Minimum 500 total characters for any document
+  - DEBUG logging: "Text Density Score: X chars, Y pages, Z chars/page"
+  - Audit script: `backend/audit_hollow_pdfs.py` identifies existing hollow documents
 
 ### Advanced Search Features (POST /api/search)
 - **Hybrid Ranking:** `ts_rank * (1.0 / (days_old / 365 + 1))` formula boosts recent documents.
