@@ -1232,10 +1232,31 @@ async def generate_chat_response(
     # PRIORITY SEARCH: If query mentions a specific case (X v. Y pattern), 
     # search for that case FIRST to ensure it appears in context
     named_case_pages = []
+    
+    # SYSTEMIC FIX: Legal Interrogatives list - words that should never be part of party names
+    legal_interrogatives = {
+        'say', 'says', 'said', 'about', 'regarding', 'holding', 'opinion', 'rule', 
+        'standard', 'test', 'mean', 'meaning', 'claim', 'construction', 'plain',
+        'decision', 'case', 'court', 'concerning', 'hold', 'doctrine', 'analysis',
+        'framework', 'obviousness', 'infringement', 'validity', 'state', 'states',
+        'stated', 'discuss', 'discusses', 'discussed', 'require', 'requires', 
+        'required', 'use', 'using', 'intrinsic', 'extrinsic', 'evidence', 'patent',
+        'patents', 'interpret', 'interpretation', 'ordinary', 'terms', 'term',
+        'language', 'define', 'defines', 'defined', 'explain', 'explains', 'explained',
+        'address', 'addresses', 'addressed', 'apply', 'applies', 'applied',
+        'establish', 'establishes', 'established', 'determine', 'determines'
+    }
+    
+    # Legal entity suffixes that should terminate defendant capture
+    entity_suffixes = {'inc', 'inc.', 'corp', 'corp.', 'co', 'co.', 'ltd', 'ltd.',
+                       'llc', 'l.l.c.', 'llp', 'l.l.p.', 'gmbh', 'plc', 'lp', 'l.p.',
+                       'na', 'n.a.', 'pllc', 'pc', 'p.c.', 'sa', 's.a.', 'ag',
+                       'enterprises', 'international', 'technologies', 'systems',
+                       'industries', 'group', 'company', 'corporation', 'incorporated'}
+    
     # Look for case citations like "Phillips v. AWH Corp." or "Alice Corp. v. CLS Bank"
-    # Pattern includes periods for abbreviations like "Corp.", "Inc.", "Co."
     case_patterns = re.findall(
-        r'\b([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Z][a-zA-Z\'\-\.]+){0,2})\s+v\.?\s+([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Za-z\'\-\.]+){0,3})',
+        r'\b([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Z][a-zA-Z\'\-\.]+){0,2})\s+v\.?\s+([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Za-z\'\-\.]+){0,5})',
         message
     )
     # Filter out patterns where plaintiff starts with common verbs/adjectives
@@ -1251,28 +1272,36 @@ async def generate_chat_response(
         if first_word in stop_words:
             continue
         
-        # Clean up defendant: remove trailing common words (not part of party names)
-        trailing_words = {'decision', 'case', 'holding', 'opinion', 'court', 'now', 
-                          'and', 'regarding', 'concerning', 'hold', 'about', 'test',
-                          'standard', 'doctrine', 'rule', 'analysis', 'framework',
-                          'obviousness', 'construction', 'infringement', 'validity',
-                          'say', 'says', 'said', 'state', 'states', 'stated', 'mean',
-                          'means', 'meant', 'discuss', 'discusses', 'discussed',
-                          'claim', 'claims', 'require', 'requires', 'required',
-                          'for', 'the', 'use', 'using', 'intrinsic', 'extrinsic',
-                          'evidence', 'patent', 'patents', 'interpret', 'interpretation',
-                          'plain', 'meaning', 'ordinary', 'terms', 'term', 'language',
-                          'of', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
+        # SYSTEMIC FIX: Apply hard anchor after entity suffix OR limit to 4 words max
         def_words = defendant.split()
-        while def_words and def_words[-1].lower().rstrip('.,?!') in trailing_words:
-            def_words.pop()
-        defendant = ' '.join(def_words) if def_words else defendant
+        cleaned_words = []
+        for i, word in enumerate(def_words):
+            word_lower = word.lower().rstrip('.,?!')
+            
+            # Stop if we hit a legal interrogative
+            if word_lower in legal_interrogatives:
+                break
+            
+            cleaned_words.append(word)
+            
+            # Stop after entity suffix (e.g., "Corp.", "Inc.")
+            if word_lower in entity_suffixes:
+                break
+            
+            # Hard limit: max 4 words after v. unless entity suffix found
+            if i >= 3:
+                break
+        
+        defendant = ' '.join(cleaned_words) if cleaned_words else ''
         
         if not defendant or not plaintiff:
             continue
         
         # Build the case query
         case_query = f"{plaintiff} v. {defendant}"
+        
+        # DEBUG: Log parsed party name for verification
+        logging.info(f"DEBUG: Parsed Party Name: [{case_query}] from query")
         
         if not party_only:
             logging.info(f"Detected specific case name in query: {case_query}")
