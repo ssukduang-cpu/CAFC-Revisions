@@ -7,30 +7,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, Filter } from "lucide-react";
-import { useConversations, useCreateConversation, useDeleteConversation } from "@/hooks/useConversations";
+import { useConversations, useCreateConversation, useDeleteConversation, useClearAllConversations } from "@/hooks/useConversations";
 import { useStatus } from "@/hooks/useOpinions";
 import { NewCaseDigest } from "@/components/NewCaseDigest";
 
 export function Sidebar() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [excludeR36, setExcludeR36] = useState(false);
-  const [authorFilter, setAuthorFilter] = useState("");
   const { currentConversationId, setCurrentConversationId, setShowOpinionLibrary } = useApp();
   
   const { data: conversations, isLoading } = useConversations();
   const { data: status } = useStatus();
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
+  const clearAllConversations = useClearAllConversations();
 
   const filteredConversations = (conversations || []).filter(conv => 
     conv.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -54,6 +59,15 @@ export function Sidebar() {
       }
     } catch (error) {
       console.error("Failed to delete conversation:", error);
+    }
+  };
+
+  const handleClearAllHistory = async () => {
+    try {
+      await clearAllConversations.mutateAsync();
+      setCurrentConversationId(null);
+    } catch (error) {
+      console.error("Failed to clear history:", error);
     }
   };
 
@@ -104,63 +118,40 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="px-3 py-2">
-        <button 
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-medium hover:text-sidebar-foreground/60 transition-colors w-full"
-          data-testid="button-toggle-filters"
-        >
-          {showFilters ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          <Filter className="h-3 w-3" />
-          <span>Refine Search</span>
-        </button>
-        
-        {showFilters && (
-          <div className="mt-3 space-y-3 p-3 bg-sidebar-accent/30 rounded-lg">
-            <div>
-              <Label className="text-[10px] uppercase font-medium text-sidebar-foreground/50">
-                Authoring Judge
-              </Label>
-              <Select value={authorFilter} onValueChange={setAuthorFilter}>
-                <SelectTrigger className="w-full mt-1 h-8 text-xs bg-sidebar-accent border-transparent">
-                  <SelectValue placeholder="All Judges" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Judges</SelectItem>
-                  <SelectItem value="Newman">Newman</SelectItem>
-                  <SelectItem value="Lourie">Lourie</SelectItem>
-                  <SelectItem value="Dyk">Dyk</SelectItem>
-                  <SelectItem value="Prost">Prost</SelectItem>
-                  <SelectItem value="Moore">Moore</SelectItem>
-                  <SelectItem value="Chen">Chen</SelectItem>
-                  <SelectItem value="Taranto">Taranto</SelectItem>
-                  <SelectItem value="Hughes">Hughes</SelectItem>
-                  <SelectItem value="Stoll">Stoll</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="exclude-r36"
-                checked={excludeR36}
-                onCheckedChange={(checked) => setExcludeR36(checked === true)}
-                className="border-sidebar-foreground/30"
-                data-testid="checkbox-exclude-r36"
-              />
-              <Label 
-                htmlFor="exclude-r36" 
-                className="text-xs text-sidebar-foreground/70 cursor-pointer"
-              >
-                Hide Rule 36 Affirmances
-              </Label>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="px-3 py-2">
+      <div className="px-3 py-2 flex items-center justify-between">
         <h3 className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-medium">History</h3>
+        {(conversations || []).length > 0 && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] text-sidebar-foreground/40 hover:text-red-400"
+                data-testid="button-clear-history"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear All
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear All History</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete all your conversation history. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleClearAllHistory}
+                  className="bg-red-500 hover:bg-red-600"
+                >
+                  Delete All
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
       
       <ScrollArea className="flex-1 px-3">
@@ -216,16 +207,13 @@ export function Sidebar() {
             variant="ghost" 
             size="sm" 
             onClick={() => setShowOpinionLibrary(true)}
-            className="w-full justify-between h-9 px-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
+            className="w-full justify-start h-9 px-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
             data-testid="button-opinion-library"
           >
             <div className="flex items-center gap-2.5">
               <Library className="h-4 w-4" />
               <span className="text-xs font-medium">Opinion Library</span>
             </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sidebar-accent text-sidebar-foreground/60">
-              {status ? `${status.opinions.ingested}/${status.opinions.total}` : "--"}
-            </span>
           </Button>
           <a 
             href="https://www.cafc.uscourts.gov/home/case-information/opinions-orders/" 

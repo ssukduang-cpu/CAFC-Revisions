@@ -4,6 +4,7 @@ import {
   fetchConversation, 
   createConversation, 
   deleteConversation,
+  clearAllConversations,
   sendMessage,
   type ConversationWithMessages,
   type MessageWithCitations,
@@ -47,6 +48,17 @@ export function useDeleteConversation() {
   
   return useMutation({
     mutationFn: deleteConversation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
+}
+
+export function useClearAllConversations() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: clearAllConversations,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },

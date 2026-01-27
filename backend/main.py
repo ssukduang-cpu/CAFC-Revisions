@@ -855,6 +855,18 @@ async def create_conversation():
     conv = db.get_conversation(conv_id)
     return serialize_for_json(convert_keys_to_camel(conv))
 
+@app.delete("/api/conversations")
+async def clear_all_conversations():
+    count = db.clear_all_conversations()
+    return {"success": True, "deleted": count}
+
+@app.delete("/api/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: str):
+    success = db.delete_conversation(conversation_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"success": True}
+
 @app.get("/api/conversations/{conversation_id}")
 async def get_conversation_endpoint(conversation_id: str):
     conv = db.get_conversation(conversation_id)

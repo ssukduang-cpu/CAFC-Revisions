@@ -144,6 +144,10 @@ export async function deleteConversation(id: string): Promise<void> {
   await apiRequest("DELETE", `/api/conversations/${id}`);
 }
 
+export async function clearAllConversations(): Promise<void> {
+  await apiRequest("DELETE", "/api/conversations");
+}
+
 export async function sendMessage(conversationId: string, content: string, searchMode: string = "all"): Promise<ChatResult> {
   const res = await apiRequest("POST", `/api/conversations/${conversationId}/messages`, { content, searchMode });
   const data = await res.json();

@@ -312,16 +312,15 @@ export function ChatInterface() {
                 data-testid="button-opinion-status"
               >
                 <Library className="h-4 w-4 text-primary" />
-                <span>{status.opinions.ingested} of {status.opinions.total} opinions indexed</span>
-                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                <span>{status.opinions.ingested.toLocaleString()} searchable precedential opinions (2004-2024)</span>
               </button>
             )}
             
             <div className="grid gap-3">
               {[
-                { q: "What is the enablement standard for antibody claims?", tag: "Claim Drafting" },
-                { q: "Explain the Fintiv factors for PTAB discretionary denial", tag: "IPR Strategy" },
-                { q: "What is the Alice/Mayo test for patent eligibility?", tag: "101 Analysis" }
+                { q: "What did Amgen v. Sanofi hold about the enablement requirement for functional genus claims?", tag: "§112 Enablement" },
+                { q: "Explain the claim construction framework from Phillips v. AWH Corp.", tag: "Claim Construction" },
+                { q: "What is the 'motivation to combine' standard for obviousness after KSR?", tag: "§103 Obviousness" }
               ].map((item, i) => (
                 <button 
                   key={i}

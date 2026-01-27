@@ -1117,6 +1117,27 @@ def get_messages(conv_id: str) -> List[Dict]:
         cursor.execute("SELECT * FROM messages WHERE conversation_id = %s ORDER BY created_at", (conv_id,))
         return [dict(row) for row in cursor.fetchall()]
 
+def delete_conversation(conv_id: str) -> bool:
+    """Delete a single conversation and its messages. Atomic operation."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM conversations WHERE id = %s", (conv_id,))
+        if cursor.fetchone() is None:
+            return False
+        cursor.execute("DELETE FROM messages WHERE conversation_id = %s", (conv_id,))
+        cursor.execute("DELETE FROM conversations WHERE id = %s", (conv_id,))
+        return True
+
+def clear_all_conversations() -> int:
+    """Delete all conversations and their messages. Returns count of deleted conversations."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM conversations")
+        count = cursor.fetchone()["count"]
+        cursor.execute("DELETE FROM messages")
+        cursor.execute("DELETE FROM conversations")
+        return count
+
 def set_pending_disambiguation(conv_id: str, candidates: List[Dict], original_query: str) -> None:
     """Store disambiguation candidates for a conversation."""
     import json
