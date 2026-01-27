@@ -52,9 +52,18 @@ def get_connection():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 
+MIN_TOTAL_CHARS_THRESHOLD = 1000
+MIN_CHARS_PER_PAGE_THRESHOLD = 200
+
+
 def get_hollow_documents(limit: int = 1000, priority_only: bool = False) -> List[Dict]:
     """
     Get list of hollow documents to process.
+    Aligned with audit_hollow_pdfs criteria:
+    - total_chars < MIN_TOTAL_CHARS_THRESHOLD (1000)
+    - OR total_pages = 0/NULL with minimal text
+    - OR chars_per_page < MIN_CHARS_PER_PAGE_THRESHOLD (200)
+    
     Prioritizes Big 5 landmark cases if priority_only=True.
     """
     conn = get_connection()
@@ -66,12 +75,21 @@ def get_hollow_documents(limit: int = 1000, priority_only: bool = False) -> List
             SELECT 
                 d.id, d.case_name, d.pdf_url, d.total_pages, d.status,
                 d.courtlistener_cluster_id,
-                COALESCE(SUM(LENGTH(dp.text)), 0) as total_chars
+                COALESCE(SUM(LENGTH(dp.text)), 0) as total_chars,
+                CASE 
+                    WHEN d.total_pages > 0 THEN COALESCE(SUM(LENGTH(dp.text)), 0)::float / d.total_pages 
+                    ELSE 0 
+                END as chars_per_page
             FROM documents d
             LEFT JOIN document_pages dp ON d.id = dp.document_id
             WHERE ({conditions})
             GROUP BY d.id
-            HAVING COALESCE(SUM(LENGTH(dp.text)), 0) < 1000
+            HAVING 
+                COALESCE(SUM(LENGTH(dp.text)), 0) < {MIN_TOTAL_CHARS_THRESHOLD}
+                OR d.total_pages = 0 
+                OR d.total_pages IS NULL
+                OR (d.total_pages > 1 AND 
+                    COALESCE(SUM(LENGTH(dp.text)), 0)::float / d.total_pages < {MIN_CHARS_PER_PAGE_THRESHOLD})
             ORDER BY d.case_name
             LIMIT {limit}
         """
@@ -80,12 +98,21 @@ def get_hollow_documents(limit: int = 1000, priority_only: bool = False) -> List
             SELECT 
                 d.id, d.case_name, d.pdf_url, d.total_pages, d.status,
                 d.courtlistener_cluster_id,
-                COALESCE(SUM(LENGTH(dp.text)), 0) as total_chars
+                COALESCE(SUM(LENGTH(dp.text)), 0) as total_chars,
+                CASE 
+                    WHEN d.total_pages > 0 THEN COALESCE(SUM(LENGTH(dp.text)), 0)::float / d.total_pages 
+                    ELSE 0 
+                END as chars_per_page
             FROM documents d
             LEFT JOIN document_pages dp ON d.id = dp.document_id
-            WHERE d.status IN ('completed', 'ingestion_failed')
+            WHERE d.status IN ('completed', 'ingestion_failed', 'ocr_partial')
             GROUP BY d.id
-            HAVING COALESCE(SUM(LENGTH(dp.text)), 0) < 1000
+            HAVING 
+                COALESCE(SUM(LENGTH(dp.text)), 0) < {MIN_TOTAL_CHARS_THRESHOLD}
+                OR d.total_pages = 0 
+                OR d.total_pages IS NULL
+                OR (d.total_pages > 1 AND 
+                    COALESCE(SUM(LENGTH(dp.text)), 0)::float / d.total_pages < {MIN_CHARS_PER_PAGE_THRESHOLD})
             ORDER BY total_chars ASC
             LIMIT {limit}
         """
@@ -97,12 +124,37 @@ def get_hollow_documents(limit: int = 1000, priority_only: bool = False) -> List
     return [dict(d) for d in docs]
 
 
+def check_ocr_dependencies() -> Dict[str, Any]:
+    """
+    Check if required OCR dependencies (tesseract, poppler) are available.
+    Returns dict with 'available' bool and 'errors' list.
+    """
+    errors = []
+    
+    try:
+        import shutil
+        if not shutil.which('tesseract'):
+            errors.append("tesseract binary not found in PATH")
+        if not shutil.which('pdftoppm'):
+            errors.append("poppler (pdftoppm) binary not found in PATH")
+    except Exception as e:
+        errors.append(f"Error checking dependencies: {e}")
+    
+    return {'available': len(errors) == 0, 'errors': errors}
+
+
 def ocr_pdf_to_pages(pdf_path: str) -> List[str]:
     """
     Convert PDF to images and extract text using OCR.
     Uses hi_res strategy with configurable DPI.
     """
     logger.info(f"Running OCR on: {pdf_path}")
+    
+    deps = check_ocr_dependencies()
+    if not deps['available']:
+        for err in deps['errors']:
+            logger.error(f"OCR dependency missing: {err}")
+        return []
     
     try:
         images = convert_from_path(pdf_path, dpi=DPI_FOR_OCR)
@@ -328,20 +380,32 @@ def verify_recovery(doc_id: str) -> Dict[str, Any]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Batch OCR Recovery for Hollow PDFs")
     parser.add_argument("--limit", type=int, default=10, help="Maximum documents to process")
-    parser.add_argument("--priority-only", action="store_true", default=True,
-                        help="Only process Big 5 landmark cases first")
-    parser.add_argument("--all", action="store_true", help="Process all hollow documents")
+    parser.add_argument("--priority-only", action="store_true", default=False,
+                        help="Only process Big 5 landmark cases (Markman, Phillips, Vitronics, Alice, KSR)")
+    parser.add_argument("--all", action="store_true", 
+                        help="Process all hollow documents (default behavior if --priority-only not set)")
     parser.add_argument("--force-redownload", action="store_true", 
                         help="Force re-download of PDFs even if they exist")
     parser.add_argument("--verify", type=str, help="Verify recovery status for a document ID")
+    parser.add_argument("--check-deps", action="store_true", help="Check OCR dependencies only")
     
     args = parser.parse_args()
+    
+    if args.check_deps:
+        deps = check_ocr_dependencies()
+        if deps['available']:
+            print("All OCR dependencies available")
+        else:
+            print("Missing OCR dependencies:")
+            for err in deps['errors']:
+                print(f"  - {err}")
+        sys.exit(0 if deps['available'] else 1)
     
     if args.verify:
         result = verify_recovery(args.verify)
         print(f"Verification: {result}")
     else:
-        priority_only = not args.all
+        priority_only = args.priority_only
         asyncio.run(batch_recover(
             limit=args.limit,
             priority_only=priority_only,
