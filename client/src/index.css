@@ -131,4 +131,20 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+  
+  /* App shell uses dynamic viewport height for iOS */
+  html, body, #root {
+    height: 100%;
+  }
+  
+  @supports (height: 100dvh) {
+    #root {
+      height: 100dvh;
+    }
+  }
+  
+  /* iOS safe area padding */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }

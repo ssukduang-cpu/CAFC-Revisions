@@ -16,7 +16,7 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="h-screen w-full bg-background overflow-hidden flex flex-col">
+    <div className="h-full w-full bg-background overflow-hidden flex flex-col">
       
       <div className="flex-1 overflow-hidden flex">
         <ResizablePanelGroup direction="horizontal">
