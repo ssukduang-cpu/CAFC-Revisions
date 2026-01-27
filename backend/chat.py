@@ -1255,7 +1255,14 @@ async def generate_chat_response(
         trailing_words = {'decision', 'case', 'holding', 'opinion', 'court', 'now', 
                           'and', 'regarding', 'concerning', 'hold', 'about', 'test',
                           'standard', 'doctrine', 'rule', 'analysis', 'framework',
-                          'obviousness', 'construction', 'infringement', 'validity'}
+                          'obviousness', 'construction', 'infringement', 'validity',
+                          'say', 'says', 'said', 'state', 'states', 'stated', 'mean',
+                          'means', 'meant', 'discuss', 'discusses', 'discussed',
+                          'claim', 'claims', 'require', 'requires', 'required',
+                          'for', 'the', 'use', 'using', 'intrinsic', 'extrinsic',
+                          'evidence', 'patent', 'patents', 'interpret', 'interpretation',
+                          'plain', 'meaning', 'ordinary', 'terms', 'term', 'language',
+                          'of', 'a', 'an', 'is', 'was', 'are', 'were', 'been', 'be'}
         def_words = defendant.split()
         while def_words and def_words[-1].lower().rstrip('.,?!') in trailing_words:
             def_words.pop()
@@ -1356,7 +1363,27 @@ async def generate_chat_response(
             if all_expanded_pages:
                 # Sort by rank and use expanded results
                 all_expanded_pages.sort(key=lambda x: x.get('rank', 0), reverse=True)
-                pages = all_expanded_pages[:15]
+                
+                # IMPORTANT: Preserve named case pages - merge them with expanded results
+                if named_case_pages:
+                    # Add named case pages first (highest priority)
+                    seen_keys = set()
+                    merged = []
+                    for p in named_case_pages:
+                        key = (p.get('opinion_id'), p.get('page_number'))
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            merged.append(p)
+                    # Then add expanded results
+                    for p in all_expanded_pages:
+                        key = (p.get('opinion_id'), p.get('page_number'))
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            merged.append(p)
+                    pages = merged[:15]
+                else:
+                    pages = all_expanded_pages[:15]
+                    
                 search_terms = expanded_terms
                 logging.info(f"Query expansion found {len(pages)} pages")
         
