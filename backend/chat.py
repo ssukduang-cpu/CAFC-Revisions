@@ -396,6 +396,76 @@ SYSTEM_PROMPT = """You are a specialized legal research assistant for U.S. Feder
 
 Your only authoritative knowledge source is the opinion excerpts provided in the current conversation (via retrieval or direct input). You must operate with litigation-grade rigor, clerk-level precision, and strict textual grounding.
 
+0. AGENTIC REASONING & REFLECTION LOOP (MANDATORY - EXECUTE BEFORE EVERY RESPONSE)
+
+Before generating any answer, you MUST complete an internal reasoning process. This process is SILENT to the user but MANDATORY for quality control.
+
+A. REASONING SCRATCHPAD (Internal - Do Not Output)
+
+Step 1: CLASSIFY THE QUERY
+- Identify the core legal standard: § 101 (eligibility), § 102 (anticipation), § 103 (obviousness), § 112 (definiteness/enablement), claim construction, willful infringement, injunctions, damages, etc.
+- Identify the query type: doctrinal question, case-specific holding, procedural issue, multi-case synthesis
+
+Step 2: BRAINSTORM SEARCH STRATEGY
+- List 3-5 key legal terms and synonyms for the doctrine
+- Identify potential landmark cases: KSR (obviousness), Alice (§101), Phillips (claim construction), Markman (claim construction), Nautilus (§112), etc.
+- For 2024/2025 queries, consider recent developments:
+  * § 103 Obviousness: "desirable vs. best" distinction (Honeywell v. 3G Licensing 2025), "design choice" and predictable results (USAA v. PNC Bank 2025)
+  * § 101: Continuing Alice/Mayo framework refinements
+  * Claim Construction: Intrinsic vs. extrinsic evidence hierarchy
+
+Step 3: DEFINE SEARCH PLAN
+- Primary terms: [list core legal terms]
+- Secondary terms: [list synonyms and related concepts]
+- Target cases: [list relevant landmark and recent cases]
+
+B. CHAIN-OF-VERIFICATION (CoVe) - REFLECTION PASS
+
+After retrieving context, SILENTLY verify:
+
+1. RELEVANCE CHECK:
+   - Do the retrieved excerpts actually discuss the legal standard in question?
+   - Are they substantive holdings or merely page headers/headnotes?
+
+2. RECENCY CHECK:
+   - For evolving standards (obviousness, § 101), are the excerpts from recent cases (2020+)?
+   - Is there a 2024/2025 case that updates or refines the doctrine?
+
+3. SUBSTANTIVE DISCUSSION CHECK:
+   - Does the excerpt contain the court's actual reasoning, not just a passing mention?
+   - Prioritize: Majority holdings > Concurrences > Dicta > Headnotes
+
+4. SELF-CORRECTION TRIGGER:
+   - If the retrieved context lacks substantive discussion of the query's core doctrine:
+     * Internally note: "Context lacks [specific element]. Expanding search."
+     * Suggest alternative search terms in your response
+   - If multiple cases discuss the same doctrine, synthesize the EVOLUTION of the standard
+
+C. RE-RANKING LOGIC
+
+When multiple excerpts are retrieved, prioritize in this order:
+1. Supreme Court precedent (if directly applicable)
+2. En banc Federal Circuit decisions
+3. Recent panel decisions (2023-2025) that apply or refine the doctrine
+4. Older foundational cases that established the rule
+
+Within each tier, prioritize:
+- Pages with explicit "We hold..." or "The rule is..." language
+- Pages discussing the "why" behind a holding (reasoning)
+- Pages with multi-factor tests or standards
+- DEPRIORITIZE: Cover pages, headnotes, procedural background, party listings
+
+D. DYNAMIC SYNTHESIS REQUIREMENT
+
+Your response must go beyond quoting. You must:
+1. Extract the RULE (What the court held)
+2. Explain the REASONING (Why the court so held - the logic)
+3. Identify the APPLICATION (How a practitioner applies this)
+4. Note any EVOLUTION (How this refines or updates prior doctrine)
+
+If the query asks about a doctrine and you find multiple cases, trace the doctrinal development:
+"[Foundation case] established [rule]. [Subsequent case] clarified that [refinement]. Most recently, [2024/2025 case] held that [current standard]."
+
 I. CORE FUNCTION
 
 Your function is to extract, explain, and apply holdings and rules of law from Federal Circuit precedential decisions, for use in:
@@ -583,6 +653,110 @@ Every sentence in your response that makes a factual or legal assertion MUST be 
 
 Do NOT cite any fact, holding, or legal standard that cannot be directly mapped to a verbatim quote from the provided indexed chunks.
 """
+
+# 2025 Hot Topics Reference for Agentic Reasoning
+HOT_TOPICS_2025 = {
+    "obviousness": {
+        "doctrine": "§ 103 Obviousness",
+        "landmark": "KSR v. Teleflex (2007)",
+        "recent_developments": [
+            "Honeywell v. 3G Licensing (2025): 'Desirable vs. Best' distinction - modification need not be optimal",
+            "USAA v. PNC Bank (2025): 'Design choice' standard - known alternatives are predictable variations"
+        ],
+        "key_terms": ["motivation to combine", "teaching-suggestion-motivation", "TSM", "obvious to try", 
+                      "predictable results", "design choice", "desirable modification", "POSITA", "KSR"]
+    },
+    "eligibility": {
+        "doctrine": "§ 101 Patent Eligibility", 
+        "landmark": "Alice Corp. v. CLS Bank (2014)",
+        "recent_developments": [
+            "Continuing refinements to abstract idea categories",
+            "Software patent eligibility analysis under Alice Step 2"
+        ],
+        "key_terms": ["abstract idea", "laws of nature", "natural phenomena", "Alice step one", 
+                      "Alice step two", "inventive concept", "significantly more", "preemption"]
+    },
+    "claim_construction": {
+        "doctrine": "Claim Construction",
+        "landmark": "Phillips v. AWH Corp. (2005)",
+        "recent_developments": [
+            "Intrinsic vs. extrinsic evidence hierarchy",
+            "Plain and ordinary meaning analysis"
+        ],
+        "key_terms": ["claim construction", "intrinsic evidence", "extrinsic evidence", "specification",
+                      "prosecution history", "plain meaning", "Markman hearing", "Phillips"]
+    },
+    "definiteness": {
+        "doctrine": "§ 112 Definiteness",
+        "landmark": "Nautilus v. Biosig (2014)",
+        "recent_developments": ["Reasonable certainty standard application"],
+        "key_terms": ["definiteness", "reasonable certainty", "indefinite", "functional language", "means-plus-function"]
+    }
+}
+
+
+def _build_agentic_reasoning_plan(query_lower: str, pages: List[Dict]) -> Dict[str, Any]:
+    """
+    Build the agentic reasoning plan for DEBUG logging.
+    Classifies the query, identifies relevant doctrine, and checks context quality.
+    """
+    plan = {
+        "query_classification": "unknown",
+        "doctrine": None,
+        "landmark_case": None,
+        "hot_topics": [],
+        "search_terms_suggested": [],
+        "context_quality": "unknown",
+        "reflection_pass": "pending"
+    }
+    
+    # Step 1: Classify the query
+    if any(t in query_lower for t in ['obvious', '103', 'motivation to combine', 'ksr', 'tsm', 'teaching suggestion']):
+        plan["query_classification"] = "§ 103 Obviousness"
+        plan["doctrine"] = HOT_TOPICS_2025["obviousness"]["doctrine"]
+        plan["landmark_case"] = HOT_TOPICS_2025["obviousness"]["landmark"]
+        plan["hot_topics"] = HOT_TOPICS_2025["obviousness"]["recent_developments"]
+        plan["search_terms_suggested"] = HOT_TOPICS_2025["obviousness"]["key_terms"]
+    elif any(t in query_lower for t in ['101', 'eligible', 'abstract', 'alice', 'mayo', 'preemption']):
+        plan["query_classification"] = "§ 101 Patent Eligibility"
+        plan["doctrine"] = HOT_TOPICS_2025["eligibility"]["doctrine"]
+        plan["landmark_case"] = HOT_TOPICS_2025["eligibility"]["landmark"]
+        plan["hot_topics"] = HOT_TOPICS_2025["eligibility"]["recent_developments"]
+        plan["search_terms_suggested"] = HOT_TOPICS_2025["eligibility"]["key_terms"]
+    elif any(t in query_lower for t in ['claim construction', 'constru', 'phillips', 'markman', 'intrinsic', 'specification']):
+        plan["query_classification"] = "Claim Construction"
+        plan["doctrine"] = HOT_TOPICS_2025["claim_construction"]["doctrine"]
+        plan["landmark_case"] = HOT_TOPICS_2025["claim_construction"]["landmark"]
+        plan["hot_topics"] = HOT_TOPICS_2025["claim_construction"]["recent_developments"]
+        plan["search_terms_suggested"] = HOT_TOPICS_2025["claim_construction"]["key_terms"]
+    elif any(t in query_lower for t in ['112', 'definite', 'indefinite', 'nautilus', 'reasonable certainty']):
+        plan["query_classification"] = "§ 112 Definiteness"
+        plan["doctrine"] = HOT_TOPICS_2025["definiteness"]["doctrine"]
+        plan["landmark_case"] = HOT_TOPICS_2025["definiteness"]["landmark"]
+        plan["hot_topics"] = HOT_TOPICS_2025["definiteness"]["recent_developments"]
+        plan["search_terms_suggested"] = HOT_TOPICS_2025["definiteness"]["key_terms"]
+    
+    # Step 2: Context quality assessment (Reflection Pass)
+    if pages:
+        # Check if we have substantive content
+        total_chars = sum(len(p.get('text', '')) for p in pages)
+        unique_cases = len(set(p.get('case_name', '') for p in pages))
+        
+        if total_chars > 10000 and unique_cases >= 2:
+            plan["context_quality"] = "good"
+            plan["reflection_pass"] = "Found - substantive content from multiple cases"
+        elif total_chars > 5000:
+            plan["context_quality"] = "moderate"
+            plan["reflection_pass"] = "Partial - content found but may need expansion"
+        else:
+            plan["context_quality"] = "poor"
+            plan["reflection_pass"] = "Not Found - Self-Correcting needed, suggest alternative terms"
+    else:
+        plan["context_quality"] = "empty"
+        plan["reflection_pass"] = "Not Found - No context retrieved, web search recommended"
+    
+    return plan
+
 
 # Token counting for context safety
 _tiktoken_encoder = None
@@ -1808,6 +1982,11 @@ async def generate_chat_response(
     
     enhanced_prompt += "\n\nAVAILABLE OPINION EXCERPTS:\n" + context
     
+    # DEBUG: Agentic Reasoning Plan logging
+    query_lower = message.lower()
+    reasoning_plan = _build_agentic_reasoning_plan(query_lower, pages)
+    logging.info(f"DEBUG: Agentic Reasoning Plan: {reasoning_plan}")
+    
     try:
         response = await asyncio.wait_for(
             loop.run_in_executor(
@@ -1827,6 +2006,12 @@ async def generate_chat_response(
         )
         
         raw_answer = response.choices[0].message.content or "No response generated."
+        
+        # DEBUG: Reflection Pass logging
+        reflection_status = "Found" if "NOT FOUND" not in raw_answer.upper() else "Not Found"
+        if "Self-Correct" in reasoning_plan.get("reflection_pass", "") or reflection_status == "Not Found":
+            reflection_status = "Not Found - Self-Correcting"
+        logging.info(f"DEBUG: Reflection Pass: {reflection_status} | Context Quality: {reasoning_plan.get('context_quality', 'unknown')}")
         
         if "NOT FOUND IN PROVIDED OPINIONS" in raw_answer.upper():
             # AI couldn't find relevant info in local results - try web search as fallback
