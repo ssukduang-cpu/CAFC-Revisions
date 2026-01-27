@@ -341,9 +341,21 @@ export function ChatInterface() {
             
             <div className="grid gap-3">
               {[
-                { q: "What did Amgen v. Sanofi hold about the enablement requirement for functional genus claims?", tag: "§112 Enablement" },
-                { q: "Explain the claim construction framework from Phillips v. AWH Corp.", tag: "Claim Construction" },
-                { q: "What is the 'motivation to combine' standard for obviousness after KSR?", tag: "§103 Obviousness" }
+                { 
+                  q: "What did Amgen v. Sanofi hold about the enablement requirement for functional genus claims?", 
+                  tag: "§112 Enablement",
+                  preview: "The Federal Circuit held that Amgen's claims to antibodies defined solely by their function (binding to PCSK9) failed the enablement requirement. The court ruled that claims covering potentially millions of undisclosed antibody sequences cannot be enabled by disclosing only 26 examples. This reinforced that the scope of enablement must be commensurate with the scope of the claims."
+                },
+                { 
+                  q: "Explain the claim construction framework from Phillips v. AWH Corp.", 
+                  tag: "Claim Construction",
+                  preview: "Phillips established that claim terms are given their ordinary meaning as understood by a person of ordinary skill in the art at the time of invention. The specification is the primary source for claim construction, while prosecution history provides context. Dictionaries may inform but cannot override the intrinsic record. The court emphasized that claims must be read in view of the specification, not in a vacuum."
+                },
+                { 
+                  q: "What is the 'motivation to combine' standard for obviousness after KSR?", 
+                  tag: "§103 Obviousness",
+                  preview: "After KSR v. Teleflex, the Federal Circuit applies a flexible approach to motivation to combine. Courts need not find explicit teaching in the prior art to combine references—common sense, predictable results, and design incentives can supply motivation. The 'teaching, suggestion, motivation' test remains useful but is not mandatory. Courts may consider whether a skilled artisan would have seen a reason to combine known elements."
+                }
               ].map((item, i) => (
                 <button 
                   key={i}
@@ -351,11 +363,16 @@ export function ChatInterface() {
                   className="group w-full p-4 text-left bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all"
                   data-testid={`button-example-${i}`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-sm text-foreground font-medium leading-relaxed">{item.q}</span>
-                    <span className="shrink-0 text-[10px] font-medium px-2 py-1 rounded-full bg-primary/10 text-primary">
-                      {item.tag}
-                    </span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-sm text-foreground font-medium leading-relaxed">{item.q}</span>
+                      <span className="shrink-0 text-[10px] font-medium px-2 py-1 rounded-full bg-primary/10 text-primary">
+                        {item.tag}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 group-hover:line-clamp-none transition-all">
+                      {item.preview}
+                    </p>
                   </div>
                 </button>
               ))}
@@ -593,7 +610,7 @@ export function ChatInterface() {
                       );
                     })() : (
                       <div className="text-sm leading-relaxed text-foreground">
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                        {renderMarkdownText(msg.content, [])}
                       </div>
                     )}
                   </div>
