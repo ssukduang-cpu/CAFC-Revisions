@@ -244,10 +244,33 @@ export function ChatInterface() {
       // Handle numbered list items (1., 2., etc)
       const numberedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
       if (numberedMatch) {
+        let content = numberedMatch[2];
+        // Check if content contains a header (## or ###) - render as header instead
+        if (content.startsWith('#### ')) {
+          return (
+            <h4 key={lineIdx} className="text-sm font-semibold text-foreground mt-2 mb-1">
+              {renderInlineMarkdown(content.slice(5), sources)}
+            </h4>
+          );
+        }
+        if (content.startsWith('### ')) {
+          return (
+            <h3 key={lineIdx} className="text-base font-semibold text-foreground mt-3 mb-1">
+              {renderInlineMarkdown(content.slice(4), sources)}
+            </h3>
+          );
+        }
+        if (content.startsWith('## ')) {
+          return (
+            <h2 key={lineIdx} className="text-lg font-bold text-foreground mt-4 mb-2 border-b border-border/30 pb-1">
+              {renderInlineMarkdown(content.slice(3), sources)}
+            </h2>
+          );
+        }
         return (
           <div key={lineIdx} className="flex gap-2 mb-1.5 pl-1">
             <span className="text-muted-foreground font-medium text-sm w-5 shrink-0">{numberedMatch[1]}.</span>
-            <span className="flex-1">{renderMarkdownWithSources(numberedMatch[2], sources)}</span>
+            <span className="flex-1">{renderMarkdownWithSources(content, sources)}</span>
           </div>
         );
       }
