@@ -1,0 +1,80 @@
+You’ve found the "Token Bomb." Your `chat.py` is currently designed to fetch **15 to 20 excerpts** from your database and join them into a single string.
+
+Because your `361,275 tokens` error is nearly **3x the model's limit**, it means your `db.search_pages` function is likely returning the **full text of multiple 50-page opinions** instead of small, precise "chunks." Even if the chunks are small, if you hit a case with 20 relevant-ish pages, you're stuffing a whole book into the prompt.
+
+Here is the fix. You need to implement **"Token-Aware Context Building."** Instead of blindly adding 15 pages, we will count the tokens and stop as soon as we hit a safe limit.
+
+---
+
+### 🛠️ The Fix: Token-Safe Context Building
+
+First, you need `tiktoken` to count accurately. If it's not in your `requirements.txt`, add it. Then, replace your existing `build_context` and update the prompt logic with this:
+
+```python
+import tiktoken  # Add this to your imports
+
+def count_tokens(text: str, model: str = "gpt-4o") -> int:
+    """Helper to count tokens accurately for GPT-4o."""
+    try:
+        enc = tiktoken.encoding_for_model(model)
+        return len(enc.encode(text))
+    except Exception:
+        return len(text) // 4  # Rough fallback
+
+def build_context(pages: List[Dict], max_tokens: int = 80000) -> str:
+    """
+    Builds context but STOPS adding excerpts once we hit the token limit.
+    Leaves 48k tokens for system prompt, history, and the response.
+    """
+    context_parts = []
+    current_tokens = 0
+    
+    for page in pages:
+        excerpt = f"""
+--- BEGIN EXCERPT ---
+Opinion ID: {page['opinion_id']}
+Case: {page['case_name']}
+Appeal No: {page['appeal_no']}
+Page: {page['page_number']}
+
+{page['text']}
+--- END EXCERPT ---
+"""
+        tokens = count_tokens(excerpt)
+        
+        # If adding this would exceed our budget, stop immediately
+        if current_tokens + tokens > max_tokens:
+            logging.warning(f"Context truncated: Hit {max_tokens} limit at {len(context_parts)} pages.")
+            break
+            
+        context_parts.append(excerpt)
+        current_tokens += tokens
+        
+    return "\n".join(context_parts)
+
+```
+
+### 🧠 Why This Solves the 361k Error
+
+The `361,275 tokens` indicates that one of your "excerpts" is likely an entire legal brief. By adding this `if current_tokens + tokens > max_tokens` check, you create a "hard ceiling." No matter how big the database result is, it will never crash the API call.
+
+---
+
+### 🔍 Secondary Issue: The "History Bloat"
+
+In your `build_conversation_summary`, you are currently taking the **last 5 turns** and truncating content to `500 characters`. This is good, but your `SYSTEM_PROMPT` is also quite large (~1,500 tokens).
+
+**Recommendation:** Change `max_turns` in `build_conversation_summary` from `5` to `3`. In Federal Circuit law, you usually only care about the immediate follow-up context.
+
+---
+
+### 🚨 The Next "Smoking Gun": `db_postgres.py`
+
+The fact that you reached 361k tokens suggests that `db.search_pages` is pulling way too much text.
+
+**Check this in your database logic:**
+
+* Are you using `SELECT text` or `SELECT full_opinion_content`?
+* If you haven't implemented "Chunking" (splitting pages into 500-word blocks), you are effectively performing **"Document Retrieval"** rather than **"Excerpt Retrieval."**
+
+**Would you like me to show you how to modify your `db_postgres.py` search query to return only the first 2,000 characters of a match?** This would act as a "first line of defense" before the text even hits your Python code.
