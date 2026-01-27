@@ -1485,8 +1485,9 @@ async def generate_chat_response(
                        'industries', 'group', 'company', 'corporation', 'incorporated'}
     
     # Look for case citations like "Phillips v. AWH Corp." or "Alice Corp. v. CLS Bank"
+    # Case-insensitive for middle words to handle "H-W technology v. Overstock" (lowercase 'technology')
     case_patterns = re.findall(
-        r'\b([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Z][a-zA-Z\'\-\.]+){0,2})\s+v\.?\s+([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Za-z\'\-\.]+){0,5})',
+        r'\b([A-Z][a-zA-Z\'\-\.]+(?:\s+[A-Za-z][a-zA-Z\'\-\.]+){0,2})\s+v\.?\s+([A-Za-z][a-zA-Z\'\-\.]+(?:\s+[A-Za-z\'\-\.]+){0,5})',
         message
     )
     # Filter out patterns where plaintiff starts with common verbs/adjectives
@@ -1773,7 +1774,8 @@ async def generate_chat_response(
     
     # Check if query references a specific case name (e.g., "H-W Technologies v. Overstock")
     # and trigger web search if that case isn't in our database
-    specific_case_match = re.search(r'([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)\s+v\.?\s+([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)', message)
+    # Case-insensitive matching for defendant to handle lowercase inputs like "overstock"
+    specific_case_match = re.search(r'([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)\s+v\.?\s+([A-Za-z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)', message)
     if specific_case_match and pages:
         plaintiff = specific_case_match.group(1).strip()
         defendant = specific_case_match.group(2).strip()
