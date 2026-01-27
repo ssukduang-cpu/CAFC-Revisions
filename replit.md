@@ -20,10 +20,10 @@ Preferred communication style: Simple, everyday language.
 - **UX Improvements:** Auto-opening sources panel, multi-stage loading indicators, onboarding banner, mobile-friendly design, expandable quotes, opinion library dashboard with virtualized lists and integrated PDF viewer, party-only search toggle.
 - **Chat Performance:** Server-Sent Events (SSE) for real-time token streaming, conversation context summarization for multi-turn coherence, suggested next steps, LRU cache for legal definitions, parallel processing for context building.
 - **Named Case Priority:** Two-stage search for specific case names (e.g., "Phillips v. AWH Corp."):
-  1. Regex extracts case name from query with stop-word filtering
+  1. Regex extracts case name from query with extensive trailing-word cleanup (removes query context words like "say", "plain", "meaning", "claim", etc.)
   2. `find_documents_by_name()` locates matching document IDs with case name normalization (Corp./Corporation, Inc./Incorporated)
   3. FTS search within matched documents using extracted legal terms (claim construction, intrinsic evidence, obviousness, etc.)
-  4. Merged results prioritize named case pages before general FTS results
+  4. Merged results prioritize named case pages before general FTS results, preserved even during query expansion fallback
 
 ### Backend
 - **Framework:** Python FastAPI.
@@ -72,10 +72,11 @@ Preferred communication style: Simple, everyday language.
 
 ### Current Database State (as of January 2026)
 - **Total Documents:** 5,968 precedential CAFC opinions
-- **Ingested (Searchable):** 5,595 documents (93.8%)
-- **Total Pages:** 82,154 pages of full-text searchable content
+- **Ingested (Searchable):** 5,597 documents (93.8%)
+- **Total Pages:** 82,206 pages of full-text searchable content
 - **Failed:** 115 documents (PDFs no longer available on any source)
 - **Duplicates:** 258 documents (same case ingested under different name/source)
+- **HTML Ingestion:** Older cases (pre-2000s) where PDFs are unavailable can be ingested from law.resource.org HTML versions (e.g., Vitronics v. Conceptronic, Superguide v. DirecTV)
 
 ### Hybrid Web Search Integration
 - **Search-to-Ingest Pipeline:** When local FTS returns no results or user asks about a specific case not in database, automatically:
