@@ -181,10 +181,11 @@ export function Sidebar() {
                   </div>
                   <button
                     onClick={(e) => handleDeleteConversation(e, conv.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
+                    className="opacity-30 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 rounded transition-all shrink-0"
+                    title="Delete conversation"
                     data-testid={`button-delete-conversation-${conv.id}`}
                   >
-                    <Trash2 className="h-3 w-3 text-red-400" />
+                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
                   </button>
                 </div>
               </div>
