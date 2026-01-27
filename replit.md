@@ -76,6 +76,16 @@ Preferred communication style: Simple, everyday language.
 - **Landmark Case System:** Curated list of 94 landmark cases organized by doctrine, with citation discovery features.
 - **Domain-Specific Search Enhancement:** Fallback search logic includes domain term expansion for patent law queries (reissue/recapture, claim construction, obviousness/anticipation, infringement/equivalents, Alice/Mayo/§101 eligibility). This improves recall for natural language questions about specific patent doctrines.
 - **AI-Powered Query Expansion:** When initial FTS search returns insufficient results (<3 pages for long queries), uses GPT-4o to generate 5 related legal keywords before database search. For example, "after-arising technology" expands to ["after-arising technology enablement", "unforeseeable advancements patent scope", "enablement requirement future inventions", "predictability enablement doctrine", "utility and enablement standard"]. This dramatically improves retrieval for conceptual or doctrinal queries that may not match verbatim case text.
+- **Agentic Reasoning & Reflection Loop:** Before every response, the system executes an internal reasoning process:
+  1. **Query Classification:** Identifies legal doctrine (§101, §102, §103, §112, claim construction)
+  2. **Search Strategy:** Lists key terms, synonyms, and relevant landmark cases (KSR, Alice, Phillips, Nautilus)
+  3. **Chain-of-Verification (CoVe):** Reflection pass checks relevance, recency, and substantive discussion quality
+  4. **Re-ranking Logic:** Prioritizes Supreme Court > En banc > Recent panels > Foundational cases
+  5. **Dynamic Synthesis:** Extracts RULE, REASONING, APPLICATION, and doctrinal EVOLUTION
+  - DEBUG logging: "Agentic Reasoning Plan" with doctrine/landmarks/context quality, "Reflection Pass" status
+- **2025 Hot Topics Reference:** Built-in reference data for recent developments:
+  - Obviousness: "Desirable vs. Best" (Honeywell v. 3G Licensing 2025), "Design choice" (USAA v. PNC Bank 2025)
+  - Eligibility, Claim Construction, Definiteness doctrine updates
 
 ## External Dependencies
 
