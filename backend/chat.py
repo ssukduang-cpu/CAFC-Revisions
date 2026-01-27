@@ -1183,7 +1183,41 @@ async def generate_chat_response(
             opinion_ids = [str(resolved_opinion_id)]
             party_only = False  # Search full text within the resolved case
     
+    # PRIORITY SEARCH: If query mentions a specific case (X v. Y pattern), 
+    # search for that case FIRST to ensure it appears in context
+    named_case_pages = []
+    named_case_pattern = re.search(
+        r'["\']?([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)\s+v\.?\s+([A-Z][a-zA-Z0-9\-\.]+(?:\s+[A-Za-z\.]+)*)["\']?',
+        message
+    )
+    if named_case_pattern and not party_only:
+        case_query = f"{named_case_pattern.group(1)} v. {named_case_pattern.group(2)}"
+        logging.info(f"Detected specific case name in query: {case_query}")
+        # Search by case name to ensure we get the named case
+        named_case_pages = db.search_pages(case_query, opinion_ids, limit=10, party_only=True)
+        if named_case_pages:
+            logging.info(f"Found {len(named_case_pages)} pages for named case: {case_query}")
+    
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
+    
+    # Merge named case results with FTS results, prioritizing the named case
+    if named_case_pages:
+        seen_keys = set()
+        merged_pages = []
+        # Add named case pages first
+        for p in named_case_pages:
+            key = (p.get('opinion_id'), p.get('page_number'))
+            if key not in seen_keys:
+                seen_keys.add(key)
+                merged_pages.append(p)
+        # Add remaining FTS results
+        for p in pages:
+            key = (p.get('opinion_id'), p.get('page_number'))
+            if key not in seen_keys:
+                seen_keys.add(key)
+                merged_pages.append(p)
+        pages = merged_pages[:15]  # Keep top 15
+    
     search_terms = message.split()
     
     # Fallback retrieval strategy for natural language questions

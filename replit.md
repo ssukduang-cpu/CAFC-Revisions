@@ -19,6 +19,7 @@ Preferred communication style: Simple, everyday language.
 - **Layout:** Three-panel resizable interface (sidebar, chat, sources panel).
 - **UX Improvements:** Auto-opening sources panel, multi-stage loading indicators, onboarding banner, mobile-friendly design, expandable quotes, opinion library dashboard with virtualized lists and integrated PDF viewer, party-only search toggle.
 - **Chat Performance:** Server-Sent Events (SSE) for real-time token streaming, conversation context summarization for multi-turn coherence, suggested next steps, LRU cache for legal definitions, parallel processing for context building.
+- **Named Case Priority:** When queries contain specific case names (e.g., "Phillips v. AWH Corp."), the system prioritizes searching for that case by name before general FTS, ensuring foundational cases appear in context.
 
 ### Backend
 - **Framework:** Python FastAPI.
