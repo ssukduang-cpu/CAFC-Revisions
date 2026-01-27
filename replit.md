@@ -54,6 +54,7 @@ Preferred communication style: Simple, everyday language.
 - **Persona:** Patent Litigator, styling natural language output as Federal Circuit practitioner briefing with sections like "Bottom Line", "What the Court Held", and "Practice Note". Inline markers like `[S1]` for citations.
 - **Landmark Case System:** Curated list of 94 landmark cases organized by doctrine, with citation discovery features.
 - **Domain-Specific Search Enhancement:** Fallback search logic includes domain term expansion for patent law queries (reissue/recapture, claim construction, obviousness/anticipation, infringement/equivalents, Alice/Mayo/§101 eligibility). This improves recall for natural language questions about specific patent doctrines.
+- **AI-Powered Query Expansion:** When initial FTS search returns insufficient results (<3 pages for long queries), uses GPT-4o to generate 5 related legal keywords before database search. For example, "after-arising technology" expands to ["after-arising technology enablement", "unforeseeable advancements patent scope", "enablement requirement future inventions", "predictability enablement doctrine", "utility and enablement standard"]. This dramatically improves retrieval for conceptual or doctrinal queries that may not match verbatim case text.
 
 ## External Dependencies
 

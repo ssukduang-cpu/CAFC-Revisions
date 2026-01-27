@@ -346,6 +346,52 @@ def get_openai_client() -> Optional[OpenAI]:
         return OpenAI(base_url=AI_BASE_URL, api_key=AI_API_KEY)
     return None
 
+
+def expand_query_with_legal_terms(query: str, client: Optional[OpenAI] = None) -> List[str]:
+    """Use GPT-4o to expand a conceptual query with related legal keywords.
+    
+    Returns a list of 5 related legal search terms for better FTS matching.
+    Example: "after-arising technology" -> ["later-developed technology", "nascent technology", 
+             "enablement time of filing", "commensurate scope claims", "written description"]
+    """
+    if not client:
+        client = get_openai_client()
+    if not client:
+        return []
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are a Federal Circuit patent law expert. Given a legal query, generate 5 related legal search terms that would help find relevant case law.
+
+Focus on:
+- Synonyms and alternate phrasings of legal concepts
+- Related doctrines or tests
+- Key phrases from seminal cases
+- Statutory language equivalents
+
+Output ONLY the 5 terms, one per line, no numbers or bullets. Keep each term short (2-5 words)."""
+                },
+                {
+                    "role": "user", 
+                    "content": f"Generate 5 related legal search terms for: {query}"
+                }
+            ],
+            max_tokens=150,
+            temperature=0.3
+        )
+        
+        terms = response.choices[0].message.content.strip().split('\n')
+        terms = [t.strip() for t in terms if t.strip()][:5]
+        logging.info(f"Query expansion: '{query[:40]}...' -> {terms}")
+        return terms
+    except Exception as e:
+        logging.warning(f"Query expansion failed: {e}")
+        return []
+
 SYSTEM_PROMPT = """You are a specialized legal research assistant for U.S. Federal Circuit patent litigators.
 
 Your only authoritative knowledge source is the opinion excerpts provided in the current conversation (via retrieval or direct input). You must operate with litigation-grade rigor, clerk-level precision, and strict textual grounding.
@@ -1289,66 +1335,93 @@ async def generate_chat_response(
     needs_fallback = (not pages) or (len(pages) < 3 and is_long_query)
     
     if needs_fallback and not party_only:
-        # Common English stopwords to remove
-        stopwords = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'from', 'to', 'of', 'for', 
-                     'on', 'at', 'by', 'with', 'it', 'its', 'this', 'that', 'be', 'been', 'being',
-                     'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
-                     'may', 'might', 'must', 'shall', 'can', 'and', 'or', 'but', 'if', 'when',
-                     'what', 'how', 'why', 'where', 'which', 'who', 'whom', 'whose', 'than', 'then',
-                     'so', 'as', 'not', 'no', 'yes', 'about', 'into', 'through', 'during', 'before',
-                     'after', 'above', 'below', 'between', 'under', 'again', 'further', 'once',
-                     'here', 'there', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such',
-                     'only', 'own', 'same', 'too', 'very', 'just', 'also', 'now', 'even', 'still',
-                     'already', 'always', 'never', 'ever', 'often', 'sometimes', 'usually'}
+        # QUERY EXPANSION: Use GPT-4o to generate related legal keywords for conceptual queries
+        # This helps find relevant cases for abstract legal concepts like "after-arising technology"
+        expanded_terms = expand_query_with_legal_terms(message)
         
-        # Clean and tokenize the query
-        # Remove section symbols, punctuation, and normalize
-        cleaned_query = re.sub(r'[§\?!.,;:\'"()\[\]{}]', ' ', message)
-        tokens = cleaned_query.lower().split()
-        
-        # Filter: remove stopwords, short tokens (<=2 chars), and pure numbers
-        meaningful_tokens = [
-            t for t in tokens 
-            if t not in stopwords and len(t) > 2 and not t.isdigit()
-        ]
-        
-        # Add domain-specific legal terms based on query context
-        domain_terms = []
-        message_lower = message.lower()
-        if 'reissue' in message_lower or '251' in message_lower:
-            domain_terms.extend(['reissue', 'recapture', 'broadening', 'broaden', 'enlarge', 'scope', 'original'])
-        if 'claim' in message_lower:
-            domain_terms.extend(['claim', 'claims', 'limitation', 'element'])
-        if 'patent' in message_lower or 'prior art' in message_lower:
-            domain_terms.extend(['patent', 'obviousness', 'anticipation', 'novelty', 'prior'])
-        if 'infringement' in message_lower:
-            domain_terms.extend(['infringement', 'infringe', 'infringes', 'literal', 'doctrine', 'equivalents'])
-        if 'alice' in message_lower or 'mayo' in message_lower or 'eligibility' in message_lower or '101' in message_lower:
-            domain_terms.extend(['alice', 'mayo', 'eligibility', 'abstract', 'idea', 'ineligible', 'section', 'step'])
-        
-        # Combine meaningful tokens with domain terms (deduplicate)
-        all_search_tokens = list(set(meaningful_tokens + domain_terms))
-        
-        # Search each token individually and merge results
-        all_pages = []
-        seen_page_keys = set()
-        
-        for token in all_search_tokens:
-            if token and len(token) > 2:
-                results = db.search_pages(token, opinion_ids, limit=5, party_only=False)
+        if expanded_terms:
+            # Search with expanded terms first
+            logging.info(f"Query expansion searching with: {expanded_terms}")
+            all_expanded_pages = []
+            seen_expanded_keys = set()
+            
+            for term in expanded_terms:
+                results = db.search_pages(term, opinion_ids, limit=5, party_only=False)
                 for p in results:
                     key = (p.get('opinion_id'), p.get('page_number'))
-                    if key not in seen_page_keys:
-                        seen_page_keys.add(key)
-                        all_pages.append(p)
+                    if key not in seen_expanded_keys:
+                        seen_expanded_keys.add(key)
+                        all_expanded_pages.append(p)
+            
+            if all_expanded_pages:
+                # Sort by rank and use expanded results
+                all_expanded_pages.sort(key=lambda x: x.get('rank', 0), reverse=True)
+                pages = all_expanded_pages[:15]
+                search_terms = expanded_terms
+                logging.info(f"Query expansion found {len(pages)} pages")
         
-        # Sort by rank (higher is better) and keep top 15
-        all_pages.sort(key=lambda x: x.get('rank', 0), reverse=True)
-        pages = all_pages[:15]
-        
-        # Update search_terms to reflect what we actually searched for
-        if pages:
-            search_terms = all_search_tokens
+        # If expansion didn't help, fall back to manual token extraction
+        if not pages or len(pages) < 3:
+            # Common English stopwords to remove
+            stopwords = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'from', 'to', 'of', 'for', 
+                         'on', 'at', 'by', 'with', 'it', 'its', 'this', 'that', 'be', 'been', 'being',
+                         'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
+                         'may', 'might', 'must', 'shall', 'can', 'and', 'or', 'but', 'if', 'when',
+                         'what', 'how', 'why', 'where', 'which', 'who', 'whom', 'whose', 'than', 'then',
+                         'so', 'as', 'not', 'no', 'yes', 'about', 'into', 'through', 'during', 'before',
+                         'after', 'above', 'below', 'between', 'under', 'again', 'further', 'once',
+                         'here', 'there', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such',
+                         'only', 'own', 'same', 'too', 'very', 'just', 'also', 'now', 'even', 'still',
+                         'already', 'always', 'never', 'ever', 'often', 'sometimes', 'usually'}
+            
+            # Clean and tokenize the query
+            # Remove section symbols, punctuation, and normalize
+            cleaned_query = re.sub(r'[§\?!.,;:\'"()\[\]{}]', ' ', message)
+            tokens = cleaned_query.lower().split()
+            
+            # Filter: remove stopwords, short tokens (<=2 chars), and pure numbers
+            meaningful_tokens = [
+                t for t in tokens 
+                if t not in stopwords and len(t) > 2 and not t.isdigit()
+            ]
+            
+            # Add domain-specific legal terms based on query context
+            domain_terms = []
+            message_lower = message.lower()
+            if 'reissue' in message_lower or '251' in message_lower:
+                domain_terms.extend(['reissue', 'recapture', 'broadening', 'broaden', 'enlarge', 'scope', 'original'])
+            if 'claim' in message_lower:
+                domain_terms.extend(['claim', 'claims', 'limitation', 'element'])
+            if 'patent' in message_lower or 'prior art' in message_lower:
+                domain_terms.extend(['patent', 'obviousness', 'anticipation', 'novelty', 'prior'])
+            if 'infringement' in message_lower:
+                domain_terms.extend(['infringement', 'infringe', 'infringes', 'literal', 'doctrine', 'equivalents'])
+            if 'alice' in message_lower or 'mayo' in message_lower or 'eligibility' in message_lower or '101' in message_lower:
+                domain_terms.extend(['alice', 'mayo', 'eligibility', 'abstract', 'idea', 'ineligible', 'section', 'step'])
+            
+            # Combine meaningful tokens with domain terms (deduplicate)
+            all_search_tokens = list(set(meaningful_tokens + domain_terms))
+            
+            # Search each token individually and merge results
+            all_pages = []
+            seen_page_keys = set()
+            
+            for token in all_search_tokens:
+                if token and len(token) > 2:
+                    results = db.search_pages(token, opinion_ids, limit=5, party_only=False)
+                    for p in results:
+                        key = (p.get('opinion_id'), p.get('page_number'))
+                        if key not in seen_page_keys:
+                            seen_page_keys.add(key)
+                            all_pages.append(p)
+            
+            # Sort by rank (higher is better) and keep top 15
+            all_pages.sort(key=lambda x: x.get('rank', 0), reverse=True)
+            pages = all_pages[:15]
+            
+            # Update search_terms to reflect what we actually searched for
+            if pages:
+                search_terms = all_search_tokens
     
     # Check if query references a specific case name (e.g., "H-W Technologies v. Overstock")
     # and trigger web search if that case isn't in our database
