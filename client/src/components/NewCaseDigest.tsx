@@ -66,31 +66,40 @@ interface NewCaseDigestProps {
 export function NewCaseDigest({ className, onCaseClick }: NewCaseDigestProps) {
   const { data, isLoading } = useRecentDigest();
   const [dismissed, setDismissed] = useState<Set<number>>(() => getDismissedIds());
-  const [visible, setVisible] = useState(true);
+  const [manuallyHidden, setManuallyHidden] = useState(false);
 
   const recentIngests = data?.recent_ingests || [];
   const visibleIngests = recentIngests.filter(ingest => !dismissed.has(ingest.id));
   const latestIngest = visibleIngests[0];
 
-  const handleDismissAll = useCallback(() => {
-    const allIds = [...Array.from(dismissed), ...visibleIngests.map(i => i.id)];
-    const newDismissed = new Set(allIds);
-    setDismissed(newDismissed);
-    saveDismissedIds(newDismissed);
-    setVisible(false);
+  const handleDismiss = useCallback(() => {
+    if (visibleIngests.length > 0) {
+      const allIds = [...Array.from(dismissed), ...visibleIngests.map(i => i.id)];
+      const newDismissed = new Set(allIds);
+      setDismissed(newDismissed);
+      saveDismissedIds(newDismissed);
+    }
+    setManuallyHidden(true);
   }, [dismissed, visibleIngests]);
 
+  // Auto-dismiss after delay - only runs once per unique latestIngest
   useEffect(() => {
-    if (visibleIngests.length > 0) {
-      setVisible(true);
+    if (latestIngest && !manuallyHidden) {
       const timer = setTimeout(() => {
-        handleDismissAll();
+        handleDismiss();
       }, AUTO_DISMISS_DELAY);
       return () => clearTimeout(timer);
     }
-  }, [visibleIngests.length, latestIngest?.id, handleDismissAll]);
+  }, [latestIngest?.id]);
 
-  if (isLoading || !visible || visibleIngests.length === 0 || !latestIngest) {
+  // Reset manual hide when new cases arrive
+  useEffect(() => {
+    if (latestIngest && !dismissed.has(latestIngest.id)) {
+      setManuallyHidden(false);
+    }
+  }, [latestIngest?.id, dismissed]);
+
+  if (isLoading || manuallyHidden || visibleIngests.length === 0 || !latestIngest) {
     return null;
   }
 
@@ -133,7 +142,7 @@ export function NewCaseDigest({ className, onCaseClick }: NewCaseDigestProps) {
         variant="ghost"
         size="icon"
         className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-        onClick={handleDismissAll}
+        onClick={handleDismiss}
         data-testid="digest-dismiss"
       >
         <X className="h-3.5 w-3.5" />
