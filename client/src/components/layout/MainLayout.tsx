@@ -32,7 +32,7 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
             </>
           )}
 
-          <ResizablePanel defaultSize={sourcePanelOpen ? 57 : 82} minSize={40}>
+          <ResizablePanel defaultSize={isSidebarOpen ? (sourcePanelOpen ? 55 : 80) : (sourcePanelOpen ? 75 : 100)} minSize={40}>
             <div className="h-full flex flex-col bg-background relative">
               <div className="absolute top-3 left-3 z-10 hidden md:flex">
                 <Button 
