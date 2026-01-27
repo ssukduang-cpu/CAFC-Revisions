@@ -141,6 +141,8 @@ function OpinionCard({ opinion, onIngest, isIngesting }: OpinionRowProps) {
   );
 }
 
+const YEARS = Array.from({ length: 2024 - 2004 + 1 }, (_, i) => 2024 - i);
+
 export function OpinionLibrary() {
   const { showOpinionLibrary, setShowOpinionLibrary } = useApp();
   const [searchTerm, setSearchTerm] = useState("");
@@ -151,6 +153,7 @@ export function OpinionLibrary() {
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [author, setAuthor] = useState("");
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   
   const { data: status } = useStatus();
   const syncOpinions = useSyncOpinions();
@@ -173,7 +176,8 @@ export function OpinionLibrary() {
         offset,
         q: debouncedSearch || undefined,
         author: author && author !== "all" ? author : undefined,
-        includeR36: false
+        includeR36: false,
+        year: selectedYear || undefined
       });
       setOpinions(data.opinions);
       setTotal(data.total);
@@ -181,7 +185,7 @@ export function OpinionLibrary() {
       console.error("Failed to load opinions:", error);
     }
     setIsLoading(false);
-  }, [debouncedSearch, author, currentPage]);
+  }, [debouncedSearch, author, currentPage, selectedYear]);
 
   useEffect(() => {
     if (showOpinionLibrary) {
@@ -258,26 +262,44 @@ export function OpinionLibrary() {
               />
             </div>
             
-            <div className="flex items-center justify-between gap-2">
-              <Button 
-                onClick={handleSync}
-                disabled={syncOpinions.isPending}
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-8 text-xs sm:text-sm"
-                data-testid="button-sync-opinions"
-              >
-                {syncOpinions.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-                <span className="hidden sm:inline">Sync from CAFC</span>
-                <span className="sm:hidden">Sync</span>
-              </Button>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button 
+                  onClick={handleSync}
+                  disabled={syncOpinions.isPending}
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 h-8 text-xs sm:text-sm"
+                  data-testid="button-sync-opinions"
+                >
+                  {syncOpinions.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden sm:inline">Sync from CAFC</span>
+                  <span className="sm:hidden">Sync</span>
+                </Button>
+                
+                <select
+                  value={selectedYear || ""}
+                  onChange={(e) => {
+                    const year = e.target.value ? parseInt(e.target.value) : null;
+                    setSelectedYear(year);
+                    setCurrentPage(1);
+                  }}
+                  className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background text-foreground"
+                  data-testid="select-year"
+                >
+                  <option value="">All Years</option>
+                  {YEARS.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
               
               <div className="text-xs sm:text-sm text-muted-foreground">
-                {status?.opinions.ingested ?? 0} searchable
+                {total > 0 ? `${total} opinions` : `${status?.opinions.ingested ?? 0} searchable`}
               </div>
             </div>
           </div>

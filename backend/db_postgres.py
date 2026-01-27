@@ -346,7 +346,8 @@ def get_documents(
     limit: int = 100,
     offset: int = 0,
     author: Optional[str] = None,
-    include_r36: bool = True
+    include_r36: bool = True,
+    year: Optional[int] = None
 ) -> List[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()
@@ -367,12 +368,50 @@ def get_documents(
             params.append(author)
         if not include_r36:
             query += " AND (is_rule_36 = FALSE OR is_rule_36 IS NULL)"
+        if year:
+            query += " AND EXTRACT(YEAR FROM release_date) = %s"
+            params.append(year)
         
         query += " ORDER BY release_date DESC NULLS LAST LIMIT %s OFFSET %s"
         params.extend([limit, offset])
         
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
+
+def get_documents_count(
+    q: Optional[str] = None,
+    origin: Optional[str] = None,
+    ingested: Optional[bool] = None,
+    author: Optional[str] = None,
+    include_r36: bool = True,
+    year: Optional[int] = None
+) -> int:
+    """Get count of documents matching the given filters."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        query = "SELECT COUNT(*) as count FROM documents WHERE 1=1"
+        params = []
+        
+        if q:
+            query += " AND case_name ILIKE %s"
+            params.append(f"%{q}%")
+        if origin:
+            query += " AND origin = %s"
+            params.append(origin)
+        if ingested is not None:
+            query += " AND ingested = %s"
+            params.append(ingested)
+        if author:
+            query += " AND author_judge = %s"
+            params.append(author)
+        if not include_r36:
+            query += " AND (is_rule_36 = FALSE OR is_rule_36 IS NULL)"
+        if year:
+            query += " AND EXTRACT(YEAR FROM release_date) = %s"
+            params.append(year)
+        
+        cursor.execute(query, params)
+        return cursor.fetchone()["count"]
 
 def get_document(doc_id: str) -> Optional[Dict]:
     with get_db() as conn:

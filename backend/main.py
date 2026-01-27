@@ -160,18 +160,24 @@ async def list_opinions(
     limit: int = 50,
     offset: int = 0,
     author: Optional[str] = None,
-    include_r36: Optional[str] = None
+    include_r36: Optional[str] = None,
+    year: Optional[int] = None
 ):
     r36_flag = include_r36 != "false" if include_r36 is not None else True
     documents = db.get_documents(
         q=q, origin=origin, ingested=ingested, 
         limit=limit, offset=offset,
-        author=author, include_r36=r36_flag
+        author=author, include_r36=r36_flag,
+        year=year
     )
     documents = serialize_for_json(documents)
     
+    filtered_total = db.get_documents_count(
+        q=q, origin=origin, ingested=ingested,
+        author=author, include_r36=r36_flag, year=year
+    )
+    
     stats = db.get_ingestion_stats()
-    total = stats.get('total_documents', 0)
     ingested_count = stats.get('ingested', 0)
     
     camel_docs = []
@@ -183,11 +189,11 @@ async def list_opinions(
     
     return {
         "opinions": camel_docs,
-        "total": total,
+        "total": filtered_total,
         "ingested": ingested_count,
         "limit": limit,
         "offset": offset,
-        "hasMore": offset + len(camel_docs) < total
+        "hasMore": offset + len(camel_docs) < filtered_total
     }
 
 @app.get("/api/opinions/{opinion_id}")

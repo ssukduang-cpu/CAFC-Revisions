@@ -290,8 +290,8 @@ export function ChatInterface() {
 
   if (!currentConversationId && messages.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-background">
-        <div className="flex-1 flex items-center justify-center px-4 py-12">
+      <div className="flex flex-col h-full bg-background overflow-hidden">
+        <div className="flex-1 overflow-y-auto flex items-center justify-center px-4 py-8" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="text-center max-w-lg">
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 text-xs font-medium bg-primary/10 text-primary rounded-full">
               <Sparkles className="h-3 w-3" />
@@ -340,14 +340,14 @@ export function ChatInterface() {
           </div>
         </div>
 
-        <div className="p-4 border-t border-border/30">
+        <div className="p-3 sm:p-4 border-t border-border/30 shrink-0 bg-background pb-safe">
           <div className="max-w-2xl mx-auto space-y-2">
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs flex-wrap">
               <span className="text-muted-foreground">Search:</span>
               <Button
                 variant={searchMode === "all" ? "default" : "outline"}
                 size="sm"
-                className="h-6 text-xs px-2 gap-1"
+                className="h-7 text-xs px-2 gap-1"
                 onClick={() => setSearchMode("all")}
                 title="Search all opinion text and case names"
                 data-testid="button-search-all"
@@ -358,7 +358,7 @@ export function ChatInterface() {
               <Button
                 variant={searchMode === "parties" ? "default" : "outline"}
                 size="sm"
-                className="h-6 text-xs px-2 gap-1"
+                className="h-7 text-xs px-2 gap-1"
                 onClick={() => setSearchMode("parties")}
                 title="Search only case names (party names)"
                 data-testid="button-search-parties"
@@ -378,7 +378,7 @@ export function ChatInterface() {
                   }
                 }}
                 placeholder={searchMode === "parties" ? "Enter a party name (e.g., Google, Apple, Samsung)..." : "Ask about CAFC precedent..."} 
-                className="min-h-[52px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3.5 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
+                className="min-h-[52px] max-h-[120px] w-full resize-none border-0 bg-transparent py-3 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
                 rows={1}
                 data-testid="input-chat-message"
               />
@@ -388,7 +388,7 @@ export function ChatInterface() {
                   disabled={!inputValue.trim() || sendMessage.isPending || createConversation.isPending}
                   size="icon" 
                   className={cn(
-                    "h-8 w-8 rounded-lg transition-all",
+                    "h-9 w-9 rounded-lg transition-all touch-manipulation",
                     inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   )}
                   data-testid="button-send-message"
@@ -401,7 +401,7 @@ export function ChatInterface() {
                 </Button>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground/60 text-center mt-2">
+            <p className="text-[10px] text-muted-foreground/60 text-center">
               <Sparkles className="h-3 w-3 inline mr-1" />
               Not legal advice. Answers based on precedential CAFC opinions only.
             </p>
