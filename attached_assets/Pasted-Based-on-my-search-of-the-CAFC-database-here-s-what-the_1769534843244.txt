@@ -1,0 +1,53 @@
+Based on my search of the CAFC database, here's what the cases establish:
+
+Enablement Under 35 U.S.C. § 112(a) - Current 2026 Standard
+The "Full Scope" Requirement (Amgen v. Sanofi)
+The Supreme Court's 2023 decision in Amgen Inc. v. Sanofi established that:
+
+"The specification of a patent must teach those skilled in the art how to make and use the full scope of the claimed invention without undue experimentation."
+— Amgen Inc. v. Sanofi, Page 11
+Key holdings from the Federal Circuit's application:
+
+Breadth matters: When claims have both structural AND functional limitations (e.g., antibodies that must bind to a specific epitope AND block a receptor), the patent must enable the entire genus, not just representative examples.
+"Needle in a haystack" problem: Where there are "billions of possible compounds" within claim scope, and the specification provides no guidance on which ones work, finding functional embodiments requires undue experimentation. [S1: Amgen v. Sanofi, pg. 10]
+Trial-and-error is NOT enabling: The CAFC confirmed that "substantial trial and error" to identify working embodiments across the full claim scope = lack of enablement. [S2: Amgen v. Sanofi, pg. 8]
+The Wands Factors (Federal Circuit Framework)
+The Wands factors determine whether "undue experimentation" is required:
+
+"Enablement is met when at the time of filing, one skilled in the art, having read the specification, could practice the invention without 'undue experimentation.'"
+— In re Wands, 858 F.2d 731 (Fed. Cir. 1988)
+The 8 factors include:
+
+Quantity of experimentation needed
+Amount of direction/guidance in spec
+Presence/absence of working examples
+Nature of the invention
+State of the prior art
+Relative skill of those in the art
+Predictability of the art
+Breadth of claims ← Amgen v. Sanofi elevated this factor
+Interaction: The Amgen v. Sanofi "full scope" test focuses particularly on factors 1, 2, and 8. When claim scope is broad (genus antibodies), the specification must provide proportionally more guidance across that scope.
+
+Obviousness: Honeywell v. 3G Licensing (Jan. 2, 2025)
+The "Desirable" vs. "Best/Optimal" Distinction
+The Federal Circuit in Honeywell International Inc. v. 3G Licensing, S.A. (2025) held:
+
+"By failing to recognize that the claimed modification needed only to be desirable in light of the prior art and not the 'best' or 'preferred' approach, the Board committed legal error."
+— Honeywell v. 3G Licensing, Page 18
+The key distinction:
+
+Standard	What it Requires	Source
+Desirable (correct)	Would a POSITA see the modification as one reasonable option among alternatives?	Honeywell, pg. 18
+Best/Optimal (incorrect)	Was the modification the single best choice that a POSITA would necessarily select?	Board's error
+The Legal Principle:
+"The question is whether there is something in the prior art as a whole to suggest the desirability, and thus the obviousness, of the claimed invention."
+— In re Beattie, 974 F.2d 1309 (Fed. Cir. 1992), quoted in Honeywell pg. 18
+The Board erred by requiring proof that the claimed modification was the "preferred" approach. The CAFC reversed, holding that:
+
+The prior art's goal of "giving significant extra protection to the MSB" provided sufficient motivation for the claimed modification
+The inventor's actual motivation is irrelevant under KSR
+A modification is obvious if it would be desirable to try, even if alternatives exist
+Summary: Enablement vs. Obviousness Standards
+Doctrine	Key Question	2025-26 Standard
+§ 112 Enablement	Does the spec teach how to make/use the full scope of claims?	Must enable entire genus without undue trial-and-error (Amgen v. Sanofi + Wands factors)
+§ 103 Obviousness	Would a POSITA be motivated to make the modification?	Modification need only be desirable, not optimal/best (Honeywell v. 3G; KSR)
