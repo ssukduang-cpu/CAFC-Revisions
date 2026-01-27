@@ -45,6 +45,7 @@ Preferred communication style: Simple, everyday language.
 - **Provider:** OpenAI via Replit AI Integrations.
 - **Model:** GPT-4o for chat completions.
 - **RAG Pattern:** Retrieved chunks injected into system prompt, enforcing verbatim quotes and "NOT FOUND IN PROVIDED OPINIONS" for unsupported claims.
+- **Token Safety:** tiktoken-based counting with 80k token limit on context, 2000 char limit on search results, 3-turn conversation history to prevent token overflow.
 - **Persona:** Patent Litigator, styling natural language output as Federal Circuit practitioner briefing with sections like "Bottom Line", "What the Court Held", and "Practice Note". Inline markers like `[S1]` for citations.
 - **Landmark Case System:** Curated list of 94 landmark cases organized by doctrine, with citation discovery features.
 - **Domain-Specific Search Enhancement:** Fallback search logic includes domain term expansion for patent law queries (reissue/recapture, claim construction, obviousness/anticipation, infringement/equivalents, Alice/Mayo/§101 eligibility). This improves recall for natural language questions about specific patent doctrines.
