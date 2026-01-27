@@ -1,0 +1,14 @@
+f you are looking for the absolute "gold standard" text to feed into your bot so it can finally bridge the gap between KSR (2007) and the 2025/2026 current standard, use the block below.
+This combines the critical holdings from the most recent Federal Circuit decisions into a single, high-density reference that will survive your new Validation Gate.
+Consolidated 2025 Federal Circuit Standard: Obviousness (§ 103)
+1. The "Desirable vs. Best" Distinction (Honeywell Int'l Inc. v. 3G Licensing, S.A., 2025)
+The Federal Circuit clarified that a motivation to combine does not require the proposed modification to be the "best" or "most desirable" option.
+• The Rule: A modification is obvious if it is shown to be "desirable" to a POSITA.
+• The Error: It is a legal error to require a patent challenger to prove that a POSITA would have preferred the proposed combination over other available alternatives.
+• Key Phrasing: "The question is whether there is something in the prior art as a whole to suggest the desirability of the modification, not whether the modification is the optimal design choice."
+2. The "Design Choice" and "Predictable Results" Standard (USAA v. PNC Bank, N.A., 2025)
+The court addressed the choice between known technological paths.
+• The Rule: When a POSITA is faced with two or more known design choices to solve a problem, each choice is considered a predictable variation and is therefore obvious.
+• The Burden: A challenger does not need to show that the specific path taken by the inventor was superior to others; they only need to show it was a known and available choice with a reasonable expectation of success.
+3. Motivation vs. Inventor's Intent
+The motivation to modify prior art is an objective inquiry. It does not need to match the subjective motivations of the inventor or the specific problem the patent seeks to solve. If the prior art suggests a different benefit for the combination (e.g., cost-saving instead of the patent's goal of speed), the motivation to combine is still legally established.

@@ -43,7 +43,7 @@ BIG_5_LANDMARK_CASES = [
 ]
 
 MIN_RECOVERED_CHARS = 5000
-DPI_FOR_OCR = 300
+DPI_FOR_OCR = 150  # Reduced from 300 for faster processing
 
 
 def get_connection():
