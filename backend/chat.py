@@ -1879,12 +1879,6 @@ def apply_per_statement_provenance_gating(
             "supporting_citations": list(set(supporting_sids))
         })
         
-        # Tag unsupported case-attributed statements
-        if not is_supported and mentioned_cases:
-            # Add [UNSUPPORTED] tag at the end of the sentence
-            if not sentence.rstrip().endswith('[UNSUPPORTED]'):
-                sentence = sentence.rstrip() + ' [UNSUPPORTED]'
-        
         modified_lines.append(sentence)
     
     modified_answer = ' '.join(modified_lines)
