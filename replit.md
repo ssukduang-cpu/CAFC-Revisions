@@ -50,6 +50,14 @@ Preferred communication style: Simple, everyday language.
 - **Filters:** Includes `author_judge`, `originating_forum`, and `exclude_r36`.
 - **Rate Limiting:** Leaky bucket algorithm for API requests.
 
+### Precedence-Aware Ranking (Step 2)
+- **Composite Scoring:** Formula = relevance_score × authority_boost × gravity_factor × recency_factor × application_signal
+- **Authority Hierarchy:** SCOTUS (1.8) > CAFC en banc (1.6) > CAFC precedential (1.3) > nonprecedential (0.8)
+- **Application Signal:** Scoring for "applies" vs "mentions" via holding_indicator (0/1/2), analysis_depth, framework_reference detection, proximity_score
+- **Two-Pass Retrieval:** Authoritative sources (SCOTUS + en banc) first, then precedential CAFC/PTAB, merged by composite_score with deduplication
+- **"Why This Case?" Explanation:** Frontend displays `application_reason` explaining ranking rationale (e.g., "Supreme Court precedent; applies Alice")
+- **Explain Metadata:** Each source includes full scoring breakdown (composite_score, authority_boost, application_signal, holding_indicator, frameworks_detected)
+
 ### AI Integration
 - **Provider:** OpenAI (via Replit AI Integrations) using GPT-4o.
 - **RAG Pattern:** Injects retrieved chunks into system prompts, enforces verbatim quotes, and explicitly states "NOT FOUND IN PROVIDED OPINIONS" for unsupported claims.
