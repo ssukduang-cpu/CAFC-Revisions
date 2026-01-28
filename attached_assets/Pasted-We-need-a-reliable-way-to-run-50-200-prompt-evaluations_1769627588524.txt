@@ -1,0 +1,60 @@
+We need a reliable way to run 50–200 prompt evaluations in STRICT mode. Current approach “won’t run” (likely timeouts/rate limits). Implement an internal eval runner that executes asynchronously on the server and persists progress.
+
+Backend changes
+	1.	Create eval_runs table
+Fields:
+
+	•	id (uuid), created_at, mode (STRICT/RESEARCH), status (RUNNING/COMPLETE/FAILED)
+	•	total_prompts, completed_prompts, failed_prompts
+	•	error_summary (nullable)
+	•	latency_p50, latency_p95 (optional computed at end)
+
+	2.	Create eval_results table
+Fields:
+
+	•	eval_run_id, prompt_id, prompt_text, doctrine_tag
+	•	verified_rate, citations_total, citations_verified, citations_unverified
+	•	case_attributed_propositions, case_attributed_unsupported
+	•	failure_reason_counts (json)
+	•	latency_ms, response_id (if stored), created_at
+
+	3.	Internal endpoints
+
+	•	POST /api/internal/eval/start body: {count: 50, mode: "STRICT"} → returns {eval_run_id}
+	•	GET /api/internal/eval/status?eval_run_id=... → returns progress + partial aggregates
+	•	GET /api/internal/eval/results?eval_run_id=...&limit=...&offset=... → returns rows
+
+	4.	Job execution model
+
+	•	Do NOT run the whole eval inside the HTTP request.
+	•	Use one of:
+	•	a background worker thread/process
+	•	a simple queue table polled every N seconds by the server
+	•	a cron-like loop in the backend process (acceptable for dev)
+	•	Run prompts in batches of 5 with small sleep to avoid rate limits.
+	•	Persist after each prompt so the run is resumable.
+
+	5.	Prompt set
+
+	•	Add a static eval_prompt_bank.json with ~200 prompts labeled by doctrine.
+	•	For count=50, sample stratified: 5 prompts × 10 doctrine buckets (or proportional if fewer doctrines enabled).
+
+Frontend (optional but useful)
+	•	Add /eval internal page that:
+	•	starts a run
+	•	shows progress bar
+	•	shows doctrine table + verification rate as results come in
+
+Acceptance criteria
+	•	A 50-prompt run completes without timeouts.
+	•	Results persist even if the server restarts mid-run (resume behavior).
+	•	Output includes per-doctrine verified rate + case-attributed unsupported rate.
+	•	Telemetry dashboard can filter by eval_run_id.
+
+Deliver back:
+	•	PR/commit
+	•	Schema migrations
+	•	Example response payloads for start/status/results
+	•	Screenshot of eval page (if built)
+
+Stop after implementing this.
