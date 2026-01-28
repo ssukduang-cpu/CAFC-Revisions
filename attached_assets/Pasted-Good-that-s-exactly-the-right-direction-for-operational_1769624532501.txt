@@ -1,0 +1,128 @@
+Good — that’s exactly the right direction for operationalizing “litigation-grade” provenance. Before you treat this as done, there are a few hard requirements I’d add so the dashboard is defensible, not just pretty.
+
+Below are (1) what to verify, (2) what to change, and (3) a single copy/paste instruction to Replit to close the loop.
+
+⸻
+
+1) What I would verify immediately (must-have)
+
+A. Data integrity & trust boundary
+	•	Who can write telemetry rows? It must be server-only (no client writes, no query-param writes).
+	•	What’s the key for a telemetry row? You need a stable identifier to avoid double-counting:
+	•	response_id (UUID) + timestamp + environment + doctrine_tag
+	•	Does telemetry record the reason for failures? You need structured buckets, not free text.
+
+B. Metrics correctness
+
+You want the dashboard to reflect attorney-risk, not vanity metrics:
+	•	Verified citation rate should be computed on:
+	•	citations attached to case-attributed propositions, not all citations equally
+	•	Unsupported proposition rate should be tracked explicitly:
+	•	% propositions labeled [UNSUPPORTED]
+	•	% case-attributed propositions unsupported (this should be ~0 in STRICT mode)
+	•	By-mode segmentation:
+	•	Attorney Mode (STRICT) vs Research Mode — must be separate
+
+C. Audit readiness
+	•	Store enough to reproduce the metric:
+	•	counts: citations_total, citations_verified, citations_unverified
+	•	binding_fail_reason distribution
+	•	latency breakdown: median + p95
+	•	Add data retention and access control notes (even internal).
+
+⸻
+
+2) What I would add/change (high value)
+
+A. Failure reason taxonomy (non-negotiable)
+
+Require a strict enum like:
+	•	QUOTE_NOT_FOUND
+	•	WRONG_CASE_ID
+	•	WRONG_PAGE
+	•	TOO_SHORT
+	•	OCR_ARTIFACT_MISMATCH
+	•	ELLIPSIS_FRAGMENT
+	•	NORMALIZATION_MISMATCH
+	•	NO_CANDIDATE_PASSAGES
+	•	OTHER
+
+This is what makes the telemetry actionable.
+
+B. Alerts that match attorney risk
+
+The current “doctrine below 80%” is useful but incomplete. Add:
+	•	STRICT mode case-attributed unsupported > 0.5% → alert (should be near zero)
+	•	Unverified citations > 10% overall in STRICT mode → alert
+	•	p95 latency > threshold → alert
+	•	Spike detection (week-over-week delta)
+
+C. Drill-down capability
+
+From the doctrine table row, allow drill-down to a list of:
+	•	recent failing response_ids
+	•	failure reason breakdown
+	•	(optional internal view) sample prompts (redacted if needed)
+
+⸻
+
+3) Copy/paste instruction to Replit (next step)
+
+Paste this verbatim:
+
+⸻
+
+Telemetry Dashboard Hardening (P0): Add risk-grade metrics, failure taxonomy, and strict-mode segmentation
+
+Great — the dashboard exists. Now harden it so it measures attorney risk and is actionable.
+
+Required backend changes
+	1.	Add strict failure reason taxonomy
+	•	Add failure_reason enum column to citation_telemetry with values:
+QUOTE_NOT_FOUND, WRONG_CASE_ID, WRONG_PAGE, TOO_SHORT, OCR_ARTIFACT_MISMATCH, ELLIPSIS_FRAGMENT, NORMALIZATION_MISMATCH, NO_CANDIDATE_PASSAGES, OTHER
+	•	Ensure every unverified citation is assigned exactly one reason.
+	•	Update ingestion/logging to populate this.
+	2.	Add mode + proposition-risk fields
+	•	Add mode field: STRICT | RESEARCH
+	•	Add counts:
+	•	propositions_total
+	•	propositions_case_attributed
+	•	propositions_unsupported
+	•	propositions_case_attributed_unsupported
+	•	Update API endpoint to compute and return:
+	•	verified citation rate overall + by doctrine + by mode
+	•	unsupported proposition rates overall + by doctrine + by mode
+	•	p50/p95 latency by mode
+	3.	Alert rules (update)
+	•	Alert if any doctrine in STRICT mode has:
+	•	verified citation rate < 90%
+	•	OR case-attributed unsupported > 0.5%
+	•	OR unverified citation rate > 10%
+	•	Add p95 latency alert threshold (pick a value; log and display).
+
+Required frontend changes
+	4.	Dashboard segmentation + drill-down
+	•	Add STRICT/RESEARCH filter toggle.
+	•	Show separate cards for:
+	•	Verified rate (STRICT)
+	•	Case-attributed unsupported rate (STRICT)
+	•	p95 latency (STRICT)
+	•	Add drill-down from doctrine rows to:
+	•	failure reason breakdown
+	•	list of failing response_ids (last 50)
+
+Deliverables
+	•	Commit/PR + file list
+	•	Screenshot of updated dashboard showing STRICT metrics + doctrine drill-down
+	•	Example telemetry row JSON showing new fields populated
+	•	Unit test verifying failure_reason is set for every unverified citation
+
+Stop after delivering these artifacts.
+
+⸻
+
+What I need from you to decide “GO for internal attorney pilot”
+
+Once Replit implements the above, you’ll have the right instrumentation. The last gating item is the 200-prompt evaluation (or at least a 50-prompt pilot evaluation) segmented by STRICT mode.
+
+If you paste their next telemetry-hardening response plus a small sample of the API payload from /api/telemetry/dashboard, I’ll sanity-check whether the metrics are computed in a way that would satisfy skeptical litigators.
