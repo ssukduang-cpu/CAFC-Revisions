@@ -1,0 +1,53 @@
+Great — thanks for fixing the P0/P1 issues. Before we proceed to Step 4 (quote-generation/binding_failed prevalence), I need the auditable golden-query artifacts and two sanity checks.
+
+A) Golden Queries — provide the full top-5 tables (required)
+
+For each of the 10 golden queries, paste a table with the top 5 ranked hits including:
+	•	rank
+	•	case_name
+	•	court (SCOTUS/CAFC/PTAB)
+	•	precedential_status (en banc / precedential / nonprecedential / n/a)
+	•	authority_type (scotus/cafc/ptab/statute/guidance)
+	•	explain values:
+	•	relevance_score
+	•	authority_boost
+	•	gravity_factor
+	•	recency_factor
+	•	framework_boost (if separate; otherwise include in composite or explain explicitly)
+	•	application_signal
+	•	composite_score
+	•	why_this_case (the 1-sentence string shown in UI)
+
+Golden queries:
+	1.	§101 Alice/Mayo inventive concept
+	2.	Claim construction (Teva/Markman/Phillips)
+	3.	§103 obviousness (KSR/Graham)
+	4.	Damages/apportionment
+	5.	PTAB reviewability (Cuozzo/Thryv/SAS)
+	6.	§112 enablement (Amgen/Nautilus + Ariad if used)
+	7.	Willfulness/enhanced damages (Halo)
+	8.	Injunctions (eBay)
+	9.	Fees (Octane)
+	10.	DOE/estoppel (Festo/Warner-Jenkinson)
+
+B) Acceptance checks — answer YES/NO per query
+
+For each query, answer:
+	1.	Does top-5 include controlling authority (SCOTUS/statute) OR a CAFC precedential hit with holding language + high application_signal?
+	2.	Any court/boost inconsistencies in top-20? (must be NO)
+
+C) UI sanity checks (screenshot or component reference)
+	1.	Confirm search results view no longer displays citation tier/binding_failed anywhere (it should only show ranking explain/why-this-case).
+	2.	Confirm generated answer citations still display tier/score/signals/bindingMethod as before.
+
+D) Implementation references (exact lines)
+
+Provide file + line ranges for:
+	•	application_signal computation (show final formula + clamp)
+	•	composite_score computation
+	•	framework_boost logic
+	•	origin normalization mapping
+
+Stop after providing A–D. Once I review those artifacts, I’ll give Step 4 instructions to address quote-generation causes of binding_failed (generator quoting/paraphrase/ellipsis/normalization/OCR).
+
+(Important: do not summarize—paste the full top-5 tables and explain numbers.)
