@@ -1271,42 +1271,63 @@ def build_sources_from_markers(
     # Apply composite scoring for precedence-aware ranking
     pages_by_id = {p.get("opinion_id"): p for p in pages if p.get("opinion_id")}
     
-    # P0: Ensure injected controlling SCOTUS pages appear as supplementary sources
-    # even if AI didn't explicitly cite them
-    existing_opinion_ids = {s.get("opinion_id") for s in sources}
-    for page in pages:
-        if page.get("injected_as_controlling") and page.get("opinion_id") not in existing_opinion_ids:
-            # Add this controlling case as a supplementary source
-            page_text = page.get("text", "")[:300].strip()
-            if page_text:
-                supplementary_source = {
-                    "sid": f"ctrl-{len(sources)+1}",
-                    "opinion_id": page.get("opinion_id"),
-                    "case_name": page.get("case_name", ""),
-                    "appeal_no": page.get("appeal_no", ""),
-                    "release_date": page.get("release_date", ""),
-                    "page_number": page.get("page_number", 1),
-                    "quote": page_text,
-                    "viewer_url": f"/pdf/{page.get('opinion_id')}?page={page.get('page_number', 1)}",
-                    "pdf_url": page.get("pdf_url", ""),
-                    "courtlistener_url": page.get("courtlistener_url", ""),
-                    "court": page.get("origin", "CAFC"),
-                    "precedential_status": "precedential",
-                    "is_en_banc": False,
-                    "injected_as_controlling": True,
-                    "citation_verification": {
-                        "tier": "moderate",
-                        "score": 55,
-                        "signals": ["controlling_authority", "injected_source"],
-                        "binding_method": "supplementary"
-                    }
-                }
-                sources.append(supplementary_source)
-                existing_opinion_ids.add(page.get("opinion_id"))
+    # NOTE: Removed supplementary source injection here.
+    # Controlling authorities are now returned separately via build_controlling_authorities()
+    # to maintain provenance: SourcesPanel shows ONLY citations referenced by the answer.
     
     ranked_sources = ranking_scorer.rank_sources_by_composite(sources, pages_by_id)
     
     return ranked_sources, position_to_sid
+
+
+def build_controlling_authorities(pages: List[Dict], doctrine_tag: Optional[str]) -> List[Dict]:
+    """Build controlling authorities list from injected doctrine pages.
+    
+    These are SEPARATE from sources - they represent recommended framework
+    cases for the doctrine, NOT evidence for specific statements in the answer.
+    
+    Returns:
+        List of controlling authority dicts for display in a separate UI section
+    """
+    if not doctrine_tag:
+        return []
+    
+    controlling = []
+    seen_opinion_ids = set()
+    
+    # Get doctrine description for "why_recommended"
+    doctrine_descriptions = {
+        "101": "Controlling precedent for § 101 patent eligibility analysis",
+        "103": "Controlling precedent for § 103 obviousness analysis",
+        "112": "Controlling precedent for § 112 disclosure requirements",
+        "claim_construction": "Controlling precedent for claim construction methodology",
+        "ptab": "Controlling precedent for PTAB reviewability and procedure",
+        "remedies": "Controlling precedent for patent remedies (damages, injunctions, fees)",
+        "doe": "Controlling precedent for doctrine of equivalents and prosecution history estoppel"
+    }
+    why_base = doctrine_descriptions.get(doctrine_tag, "Controlling authority for this doctrine")
+    
+    for page in pages:
+        if not page.get("injected_as_controlling"):
+            continue
+        
+        opinion_id = page.get("opinion_id")
+        if opinion_id in seen_opinion_ids:
+            continue
+        seen_opinion_ids.add(opinion_id)
+        
+        court = ranking_scorer.normalize_origin(page.get("origin", ""), page.get("case_name", ""))
+        
+        controlling.append({
+            "case_name": page.get("case_name", ""),
+            "court": court,
+            "opinion_id": opinion_id,
+            "release_date": page.get("release_date", ""),
+            "why_recommended": why_base,
+            "doctrine_tag": doctrine_tag
+        })
+    
+    return controlling
 
 
 def detect_section_type_heuristic(page_text: str, quote: str) -> Tuple[str, List[str]]:

@@ -1,0 +1,28 @@
+Your doctrine-triggered SCOTUS injection for retrieval is correct. However, the current “Supplementary Source Guarantee” is not acceptable for attorney use because it causes SCOTUS pages to appear in SourcesPanel even if the model did not cite them. This breaks provenance: SourcesPanel must only contain evidence for statements actually made.
+
+Required behavior change (non-negotiable)
+	1.	Remove “always appear as sources even if AI doesn’t cite them” from build_sources_from_markers() (or wherever implemented).
+	•	SourcesPanel must show only citations that are explicitly referenced by the answer (via markers) AND pass binding rules (or are tagged unverified when binding fails).
+	2.	Add a new top-level section in the response payload:
+controlling_authorities (separate from citations/sources), populated from doctrine-triggered injection:
+	•	Each item: {case_name, court, opinion_id, release_date, why_recommended}
+	•	This section is recommendation/context, not evidence for any specific statement.
+	3.	UI change:
+	•	Display Controlling Authorities above the answer or above SourcesPanel as a separate panel/tab.
+	•	Clearly label: “Controlling Authorities (recommended framework; not necessarily cited in the answer).”
+	•	Keep current SourcesPanel for Cited Sources only with tiers/signals/bindingMethod.
+
+Acceptance tests
+
+A) If the model does not cite Alice/Mayo in the answer, Alice/Mayo must NOT appear in SourcesPanel, but MAY appear in Controlling Authorities.
+B) If the model cites Alice but binding fails, the citation must show tier=unverified and the answer must tag the affected proposition as [UNSUPPORTED]; do not “fill in” SCOTUS via controlling-authority injection.
+C) Golden queries still show SCOTUS in Controlling Authorities for doctrine queries, and CAFC applicative cases remain highly ranked in search results.
+
+Deliverables
+	•	Commit hash/PR + files changed
+	•	Example JSON output for Query 1 showing:
+	•	controlling_authorities includes Alice/Mayo/Bilski
+	•	sources/citations includes only what the model actually cited
+	•	UI screenshot or component diff showing separate section/panel.
+
+Stop after completing this. Do not start quote-generation changes yet.
