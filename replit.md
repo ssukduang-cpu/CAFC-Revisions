@@ -104,12 +104,14 @@ Preferred communication style: Simple, everyday language.
 - **Specific Case Detection:** Triggers web search for "X v. Y" patterns not found locally.
 
 ### Citation Telemetry Dashboard
-- **Metrics Tracking:** PostgreSQL `citation_telemetry` table stores verification metrics per query.
-- **Dashboard UI:** `/telemetry` page showing overall verification rate, queries by doctrine, alerts for low-performing doctrines.
-- **Doctrine Breakdown:** Table view with verification rates, citation counts, and latency by doctrine family (101, 103, 112, etc.).
-- **Alert System:** Triggers warnings when doctrine verification rate falls below 80% threshold.
-- **Binding Failure Analysis:** Tracks and displays top reasons for citation binding failures.
-- **Internal Recording:** Telemetry is recorded only from the chat pipeline (no public endpoint) to prevent data poisoning.
+- **Metrics Tracking:** PostgreSQL `citation_telemetry` table stores verification metrics per query with mode segmentation (STRICT/RESEARCH).
+- **Dashboard UI:** `/telemetry` page with mode toggle (STRICT/RESEARCH), verified rate cards, case-attributed unsupported metrics, latency (p50/p95), and per-doctrine drill-down.
+- **Mode Segmentation:** STRICT mode for litigation use (target: ≥90% verified, ≤0.5% case-attributed unsupported), RESEARCH mode for exploratory queries.
+- **Proposition Tracking:** Fields for propositions_total, propositions_case_attributed, propositions_unsupported, propositions_case_attributed_unsupported to track attorney-risk metrics.
+- **Failure Reason Taxonomy:** QUOTE_NOT_FOUND, WRONG_CASE_ID, WRONG_PAGE, TOO_SHORT, OCR_ARTIFACT_MISMATCH, ELLIPSIS_FRAGMENT, NORMALIZATION_MISMATCH, NO_CANDIDATE_PASSAGES, OTHER.
+- **Alert Rules:** Risk-based triggers: verified rate <90% in STRICT, case-attributed unsupported >0.5%, unverified >10%, p95 latency threshold.
+- **Drill-Down Analysis:** Click doctrine rows to see failure reasons breakdown and recent failing response IDs for debugging.
+- **Internal Recording:** Telemetry is recorded only from the chat pipeline (no public POST endpoint) to prevent data poisoning.
 
 ### Key Libraries
 - **`pdf-parse`:** PDF text extraction.
