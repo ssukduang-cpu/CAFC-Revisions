@@ -22,6 +22,8 @@ import statistics
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
 
+import asyncio
+
 from backend import db_postgres as db
 from backend.chat import generate_chat_response
 
@@ -492,15 +494,18 @@ def _run_single_prompt(prompt_text: str, doctrine: str) -> Dict:
     start_time = time.time()
     
     try:
-        response = generate_chat_response(
-            message=prompt_text,
-            conversation_id=None,
-            search_mode="all",
-            use_prior_context=False,
-            attorney_mode=True
-        )
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            response = loop.run_until_complete(generate_chat_response(
+                message=prompt_text,
+                conversation_id=None
+            ))
+        finally:
+            loop.close()
         
         latency_ms = int((time.time() - start_time) * 1000)
+        logger.info(f"[Eval] Prompt completed in {latency_ms}ms: '{prompt_text[:50]}...'")
         
         debug = response.get("debug", {})
         citation_metrics = debug.get("citation_metrics", {})

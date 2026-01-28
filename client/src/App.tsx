@@ -9,6 +9,7 @@ import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import CitationGuide from "@/pages/CitationGuide";
 import TelemetryDashboard from "@/pages/TelemetryDashboard";
+import EvalDashboard from "@/pages/EvalDashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/admin" component={Admin} />
       <Route path="/citation-guide" component={CitationGuide} />
       <Route path="/telemetry" component={TelemetryDashboard} />
+      <Route path="/eval" component={EvalDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
