@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import CitationGuide from "@/pages/CitationGuide";
+import TelemetryDashboard from "@/pages/TelemetryDashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/admin" component={Admin} />
       <Route path="/citation-guide" component={CitationGuide} />
+      <Route path="/telemetry" component={TelemetryDashboard} />
       <Route component={NotFound} />
     </Switch>
   );

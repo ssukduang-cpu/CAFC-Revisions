@@ -75,8 +75,10 @@ class SearchResponse(BaseModel):
 from backend.scraper import scrape_opinions
 from backend.chat import generate_chat_response, generate_chat_response_stream
 from backend.web_search import search_tavily
+from backend.telemetry import router as telemetry_router
 
 app = FastAPI(title="Federal Circuit AI")
+app.include_router(telemetry_router)
 
 def to_camel_case(snake_str: str) -> str:
     components = snake_str.split('_')

@@ -131,3 +131,21 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 export type SyncHistory = typeof syncHistory.$inferSelect;
 export type InsertSyncHistory = z.infer<typeof insertSyncHistorySchema>;
+
+// Citation telemetry table - tracks verification metrics per query
+export const citationTelemetry = pgTable("citation_telemetry", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id"),
+  doctrine: text("doctrine"), // 101, 103, 112, claim_construction, etc.
+  totalCitations: integer("total_citations").notNull().default(0),
+  verifiedCitations: integer("verified_citations").notNull().default(0),
+  unsupportedStatements: integer("unsupported_statements").notNull().default(0),
+  totalStatements: integer("total_statements").notNull().default(0),
+  latencyMs: integer("latency_ms"),
+  bindingFailureReasons: text("binding_failure_reasons"), // JSON array
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCitationTelemetrySchema = createInsertSchema(citationTelemetry).omit({ id: true, createdAt: true });
+export type CitationTelemetry = typeof citationTelemetry.$inferSelect;
+export type InsertCitationTelemetry = z.infer<typeof insertCitationTelemetrySchema>;

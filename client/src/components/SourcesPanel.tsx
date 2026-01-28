@@ -2,7 +2,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp, HelpCircle, Scale, Gavel } from "lucide-react";
+import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp, HelpCircle, Scale, Gavel, Search, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -190,11 +192,71 @@ export function SourcesPanel() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-3 pt-2">
+              <CardContent className="p-3 pt-2 space-y-2">
                 <div className="relative bg-muted/30 p-2.5 rounded text-sm text-foreground/80 leading-relaxed italic border border-muted/50">
                   <Quote className="absolute top-1 left-1 h-3 w-3 text-primary/20 transform -scale-x-100" />
                   <ExpandableQuote quote={citation.quote} index={index} />
                 </div>
+                
+                {citation.tier?.toUpperCase() === 'UNVERIFIED' && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full gap-2 text-xs border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                              data-testid={`button-show-passages-${index}`}
+                            >
+                              <Search className="h-3.5 w-3.5" />
+                              Show Candidate Passages
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-lg">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-red-500" />
+                                Unverified Citation
+                              </DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 text-sm">
+                              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                <p className="text-red-700 dark:text-red-300 text-xs mb-2">
+                                  <strong>Case:</strong> {citation.caseName}
+                                </p>
+                                <p className="text-red-600 dark:text-red-400 text-xs italic">
+                                  "{citation.quote.slice(0, 200)}{citation.quote.length > 200 ? '...' : ''}"
+                                </p>
+                              </div>
+                              <p className="text-muted-foreground">
+                                This quote could not be verified in the source document. 
+                                You may need to manually locate the passage in the PDF.
+                              </p>
+                              {(citation as any).pdfUrl && (
+                                <Button 
+                                  variant="outline" 
+                                  className="w-full gap-2"
+                                  onClick={() => window.open((citation as any).pdfUrl, '_blank')}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Open Source PDF
+                                </Button>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                Tip: Search for key phrases in the PDF to locate the passage.
+                              </p>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">View candidate passages and PDF link</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </CardContent>
             </Card>
           )) : (

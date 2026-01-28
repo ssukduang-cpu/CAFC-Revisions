@@ -1,0 +1,18 @@
+Finish validation & harden UX / rollout controls
+
+Deliverables and tasks:
+	1.	Large-scale verification run (acceptance test)
+	•	Run an evaluation on 200 representative attorney-style prompts (spread across the 10 doctrine families). Report: verification rate overall and by doctrine, median/95th latency, % of case-named holdings unsupported. Target: ≥90% verified overall; if not met, list top 10 failure modes with examples.
+	2.	Enforce per-statement provenance rule (if not fully enforced)
+	•	Ensure no sentence that attributes a holding to a named case is output unless statement_support lists at least one citation with tier ∈ {STRONG, MODERATE}. If not, rewrite the sentence to a generic doctrine statement or mark [UNSUPPORTED]. Provide a unit test that fails if a model output violates this rule.
+	3.	Add UI controls & documentation
+	•	Add a prominent toggle labeled Attorney Mode (STRICT PROVENANCE) default ON for internal deploys. When ON, use the strict gating and show a red [UNSUPPORTED] inline label and a tooltip explaining how to get supporting quotes. When OFF, show a yellow “Research Mode — provenance relaxed” banner.
+	•	Add a short “How to read citations” help page (1 paragraph + legend) describing color badges, tier meaning, and the controlling_authorities panel.
+	4.	Telemetry dashboard & alerts
+	•	Produce a daily report & dashboard with: verification_rate_by_doctrine, binding_fail_reasons (top 10), % UNSUPPORTED statements, median latency, and user feedback events (e.g., “request full passage”). Add an alert if verification_rate_by_doctrine < 80% for any doctrine.
+	5.	Failure handling UX
+	•	For any UNSUPPORTED named holding, surface a one-click action: “Show candidate passages” which opens the retrieved candidate passages (with page, PDF link, and normalized passage text) so a lawyer can inspect and copy the quote manually.
+	6.	Deliver artifacts
+	•	Provide: (a) evaluation report on the 200-prompt run, (b) 10 most common failure examples with root cause, (c) commits/PRs for UI toggle + help page + dashboard, and (d) unit tests added for per-statement gating.
+
+Stop after delivering the above artifacts; do not change the production toggle default without sign-off.

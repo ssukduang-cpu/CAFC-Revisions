@@ -1524,3 +1524,48 @@ def check_document_exists_by_cluster_id(cluster_id: int) -> Optional[Dict]:
 
 def get_pages_for_opinion(opinion_id: str) -> List[Dict]:
     return get_pages_for_document(opinion_id)
+
+
+# Telemetry functions
+def insert_telemetry(
+    conversation_id: Optional[str],
+    doctrine: Optional[str],
+    total_citations: int,
+    verified_citations: int,
+    unsupported_statements: int,
+    total_statements: int,
+    latency_ms: Optional[int],
+    binding_failure_reasons: Optional[str]
+):
+    """Insert a telemetry record for citation verification metrics."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO citation_telemetry 
+            (id, conversation_id, doctrine, total_citations, verified_citations, 
+             unsupported_statements, total_statements, latency_ms, binding_failure_reasons)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            str(uuid.uuid4()),
+            conversation_id,
+            doctrine,
+            total_citations,
+            verified_citations,
+            unsupported_statements,
+            total_statements,
+            latency_ms,
+            binding_failure_reasons
+        ))
+        conn.commit()
+
+
+def get_telemetry_records(start_date: datetime, end_date: datetime) -> List[Dict]:
+    """Get telemetry records within a date range."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM citation_telemetry 
+            WHERE created_at >= %s AND created_at <= %s
+            ORDER BY created_at DESC
+        """, (start_date, end_date))
+        return [dict(row) for row in cursor.fetchall()]

@@ -18,17 +18,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings, HelpCircle } from "lucide-react";
+import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings, HelpCircle, Shield, ShieldOff, BarChart3 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useConversations, useCreateConversation, useDeleteConversation, useClearAllConversations } from "@/hooks/useConversations";
 import { useStatus } from "@/hooks/useOpinions";
+import { HelpModal } from "@/components/HelpModal";
 
 export function Sidebar() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { currentConversationId, setCurrentConversationId, setShowOpinionLibrary, setSelectedCitations } = useApp();
+  const { currentConversationId, setCurrentConversationId, setShowOpinionLibrary, setSelectedCitations, attorneyMode, setAttorneyMode } = useApp();
   
   const handleConversationSwitch = (convId: string) => {
     setSelectedCitations([]);  // Clear old citations when switching
@@ -255,16 +258,65 @@ export function Sidebar() {
               </div>
             </Button>
           </a>
+          <a href="/telemetry">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full justify-start h-9 px-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
+              data-testid="button-telemetry"
+            >
+              <div className="flex items-center gap-2.5">
+                <BarChart3 className="h-4 w-4" />
+                <span className="text-xs font-medium">Citation Metrics</span>
+              </div>
+            </Button>
+          </a>
         </div>
       </div>
 
-      <div className="p-4 mt-auto border-t border-sidebar-border">
+      <div className="p-4 mt-auto border-t border-sidebar-border space-y-3">
+        <TooltipProvider>
+          <div className="flex items-center justify-between">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 cursor-help">
+                  {attorneyMode ? (
+                    <Shield className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <ShieldOff className="h-4 w-4 text-yellow-500" />
+                  )}
+                  <span className="text-xs font-medium text-sidebar-foreground/80">
+                    {attorneyMode ? "Attorney Mode" : "Research Mode"}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[250px]">
+                <p className="text-xs">
+                  {attorneyMode 
+                    ? "STRICT PROVENANCE: Citations require verified quotes. Unverified statements show [UNSUPPORTED] warning."
+                    : "RELAXED: Provenance checks are less strict. Good for exploratory research."
+                  }
+                </p>
+              </TooltipContent>
+            </Tooltip>
+            <Switch
+              checked={attorneyMode}
+              onCheckedChange={setAttorneyMode}
+              className="data-[state=checked]:bg-green-600"
+              data-testid="toggle-attorney-mode"
+            />
+          </div>
+        </TooltipProvider>
+        
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[10px] text-sidebar-foreground/40">
             <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
             Precedential Only
           </div>
-          <ThemeToggleButton />
+          <div className="flex items-center gap-1">
+            <HelpModal />
+            <ThemeToggleButton />
+          </div>
         </div>
       </div>
     </div>

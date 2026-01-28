@@ -103,6 +103,14 @@ Preferred communication style: Simple, everyday language.
 - **Search-to-Ingest Pipeline:** Automatically searches Tavily, extracts case names, looks up cases in CourtListener, and ingests new cases to enrich local context.
 - **Specific Case Detection:** Triggers web search for "X v. Y" patterns not found locally.
 
+### Citation Telemetry Dashboard
+- **Metrics Tracking:** PostgreSQL `citation_telemetry` table stores verification metrics per query.
+- **Dashboard UI:** `/telemetry` page showing overall verification rate, queries by doctrine, alerts for low-performing doctrines.
+- **Doctrine Breakdown:** Table view with verification rates, citation counts, and latency by doctrine family (101, 103, 112, etc.).
+- **Alert System:** Triggers warnings when doctrine verification rate falls below 80% threshold.
+- **Binding Failure Analysis:** Tracks and displays top reasons for citation binding failures.
+- **Internal Recording:** Telemetry is recorded only from the chat pipeline (no public endpoint) to prevent data poisoning.
+
 ### Key Libraries
 - **`pdf-parse`:** PDF text extraction.
 - **`axios`:** HTTP requests.

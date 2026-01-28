@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Users, FileText, Globe, Copy, Check } from "lucide-react";
+import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Users, FileText, Globe, Copy, Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
@@ -29,7 +29,7 @@ export function ChatInterface() {
       console.error("Failed to copy:", error);
     }
   };
-  const { currentConversationId, setCurrentConversationId, setSelectedCitations, setControllingAuthorities, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
+  const { currentConversationId, setCurrentConversationId, setSelectedCitations, setControllingAuthorities, setSourcePanelOpen, setShowOpinionLibrary, attorneyMode } = useApp();
   const { data: status } = useStatus();
   
   // Auto-dismiss web search cases after 10 seconds
@@ -485,6 +485,14 @@ export function ChatInterface() {
 
   return (
     <div className="flex flex-col h-full bg-background">
+      {!attorneyMode && (
+        <div className="bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <span className="text-sm text-yellow-700 dark:text-yellow-400">
+            <strong>Research Mode</strong> — Provenance relaxed. Enable Attorney Mode for strict citation verification.
+          </span>
+        </div>
+      )}
       <ScrollArea className="flex-1">
         <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">
           {isLoading ? (

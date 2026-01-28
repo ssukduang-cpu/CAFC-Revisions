@@ -333,3 +333,5 @@ def check_fts_health() -> Dict[str, Any]:
                 "error": str(e),
                 "message": f"FTS5 health check failed: {e}"
             }
+
+

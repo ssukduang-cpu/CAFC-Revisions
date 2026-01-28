@@ -14,6 +14,8 @@ interface AppContextType {
   setSourcePanelOpen: (open: boolean) => void;
   mobileSidebarOpen: boolean;
   setMobileSidebarOpen: (open: boolean) => void;
+  attorneyMode: boolean;
+  setAttorneyMode: (mode: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [showOpinionLibrary, setShowOpinionLibrary] = useState(false);
   const [sourcePanelOpen, setSourcePanelOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [attorneyMode, setAttorneyMode] = useState(true); // Default ON for strict provenance
 
   return (
     <AppContext.Provider 
@@ -41,6 +44,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSourcePanelOpen,
         mobileSidebarOpen,
         setMobileSidebarOpen,
+        attorneyMode,
+        setAttorneyMode,
       }}
     >
       {children}
