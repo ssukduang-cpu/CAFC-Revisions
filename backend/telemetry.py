@@ -92,7 +92,7 @@ class DoctrineDrilldown(BaseModel):
 @router.get("/dashboard")
 async def get_dashboard(
     days: int = Query(7, ge=1, le=90),
-    mode: Optional[str] = Query(None, regex="^(STRICT|RESEARCH)$")
+    mode: Optional[str] = Query(None, pattern="^(STRICT|RESEARCH)$")
 ):
     """Get telemetry dashboard summary for the last N days, optionally filtered by mode."""
     try:
@@ -261,7 +261,7 @@ async def get_dashboard(
 async def get_doctrine_drilldown(
     doctrine: str,
     days: int = Query(7, ge=1, le=90),
-    mode: Optional[str] = Query(None, regex="^(STRICT|RESEARCH)$")
+    mode: Optional[str] = Query(None, pattern="^(STRICT|RESEARCH)$")
 ):
     """Get detailed failure analysis for a specific doctrine."""
     try:
