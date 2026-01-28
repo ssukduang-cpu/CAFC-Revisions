@@ -1,0 +1,58 @@
+Priority Run: raise verification rate → implement high-impact fixes + re-run 200-prompt eval
+
+Context: The 10-prompt eval returned 75.6% verified (p50=16.8s, p95=22.2s). We need to push this ≥90% overall for Attorney Mode. Implement the changes below, prioritized by ROI. After implementing, run a stratified 200-prompt eval (STRICT mode) and return the evaluation report (per-doctrine verification rates, top 20 failure examples with failure_reason, latency p50/p95).
+
+A. Increase candidate passages / expand window
+	1.	For each intended citation, expand candidate passages from 3 → 5 (configurable) and fetch them from a window of ±3 pages around the initial match. Return these passages to the generator as QUOTABLE_PASSAGES.
+	2.	Prefer passages that contain:
+	•	holding verbs: we hold, we conclude, therefore, affirm, reverse
+	•	section headers, syllabus, or blockquote formatting.
+
+B. Enhance passage selection scoring
+	1.	Add a small boost to relevance_score for passages with holding language (+15%).
+	2.	If passage has low OCR confidence, deprioritize it unless no other options exist.
+
+C. Expand normalization rules (ingestion + retrieval + verification)
+	1.	Strip page headers/footers and running heads (regex heuristics) before indexing and before verification.
+	2.	Join hyphenated word linebreaks (pattern: (\w+)-\n(\w+) -> \1\2) at ingestion time.
+	3.	Normalize Unicode ligatures and common OCR errors (basic map) before substring checking.
+	4.	Keep verification as exact normalized substring match only (no semantic fuzzy matching).
+
+D. Improve OCR handling
+	1.	Identify pages with low OCR confidence and:
+	•	re-run OCR with alternative engine/settings for those pages, or
+	•	mark the page and prefer alternative passages.
+	2.	Log OCR confidence per page into telemetry for debugging.
+
+E. Quote extraction policy tweaks
+	1.	If the model outputs a quoted snippet with ellipses, require that the longest fragment matches exactly after normalization.
+	2.	Disallow stitching fragments; if no single fragment matches, mark citation UNVERIFIED.
+
+F. Telemetry & failure collection
+	1.	For the 200-run eval, capture and return top 20 failing response_ids with:
+	•	prompt text (redacted if necessary)
+	•	doctrine_tag
+	•	failure_reason (enum)
+	•	the candidate passages used
+	2.	Ensure failure_reason uses taxonomy (QUOTE_NOT_FOUND, NORMALIZATION_MISMATCH, OCR_ARTIFACT_MISMATCH, TOO_SHORT, WRONG_PAGE, NO_CANDIDATE_PASSAGES, OTHER).
+
+G. Prompt instruction hardening
+	1.	In the system prompt for generation, tighten instruction:
+	•	“Only quote exact substrings from QUOTABLE_PASSAGES. Do not invent or paraphrase quotes. If no exact match exists, rewrite the claim without case attribution or mark [UNSUPPORTED].”
+	2.	Return the exact passage offsets (page, start_index, end_index) for every quote used.
+
+H. Rerun evaluation
+	1.	Use the eval runner to schedule a 200-prompt run in STRICT mode, stratified across doctrines.
+	2.	Provide a report: overall verification rate, per-doctrine rates, p50/p95 latency, and top 20 failures (as above).
+
+Acceptance (must pass for Attorney Mode)
+	•	Overall verification ≥ 90% on 200 prompts.
+	•	Per-doctrine verification ≥ 85% (or call out which doctrines fail and why).
+	•	No named-case holding in outputs without at least one verified citation (enforced by statement_support).
+
+Deliverables
+	•	Commits/PRs implementing A–G.
+	•	200-prompt evaluation report and raw eval_results rows for auditing.
+	•	Top 20 failure examples with annotated failure_reason and candidate passages.
+
+Stop after delivering the evaluation report and failure artifacts.

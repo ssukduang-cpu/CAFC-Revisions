@@ -1180,6 +1180,65 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         return [dict(row) for row in cursor.fetchall()]
 
 
+def fetch_adjacent_pages(
+    pages: List[Dict],
+    window_size: int = 3,
+    max_text_chars: int = 2000
+) -> List[Dict]:
+    """Fetch adjacent pages (±window_size) for each given page.
+    
+    This expands context by fetching nearby pages from the same opinion,
+    increasing the likelihood of finding quotable passages that span page breaks.
+    
+    Returns a deduplicated list of pages including originals and adjacent pages.
+    """
+    if not pages:
+        return pages
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        all_pages = []
+        seen_keys = set()
+        
+        for page in pages:
+            opinion_id = page.get('opinion_id')
+            page_number = page.get('page_number', 0)
+            
+            if not opinion_id or page_number < 1:
+                continue
+            
+            # Define page range to fetch
+            min_page = max(1, page_number - window_size)
+            max_page = page_number + window_size
+            
+            cursor.execute("""
+                SELECT 
+                    p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
+                    d.case_name, d.appeal_number as appeal_no, 
+                    to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                    d.courtlistener_url, d.origin
+                FROM document_pages p
+                JOIN documents d ON p.document_id = d.id
+                WHERE p.document_id = %s
+                  AND p.page_number >= %s
+                  AND p.page_number <= %s
+                ORDER BY p.page_number
+            """, (max_text_chars, opinion_id, min_page, max_page))
+            
+            for row in cursor.fetchall():
+                key = (row['opinion_id'], row['page_number'])
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    all_pages.append(dict(row))
+        
+        # Sort by opinion_id then page_number for coherent context
+        all_pages.sort(key=lambda p: (str(p.get('opinion_id', '')), p.get('page_number', 0)))
+        
+        logging.info(f"[Adjacent Pages] Expanded {len(pages)} pages to {len(all_pages)} pages (±{window_size} window)")
+        return all_pages
+
+
 def search_pages_two_pass(
     query: str,
     limit: int = 20,

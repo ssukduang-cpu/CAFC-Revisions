@@ -525,13 +525,43 @@ def _run_single_prompt(prompt_text: str, doctrine: str) -> Dict:
             cv = s.get("citation_verification", {})
             if cv.get("tier", "").upper() == "UNVERIFIED":
                 signals = cv.get("signals", [])
+                quote = s.get("quote", "")
+                
+                # Classify failure using enhanced taxonomy
+                failure_classified = False
                 for sig in signals:
-                    if "not_found" in sig.lower():
+                    sig_lower = sig.lower()
+                    if "not_found" in sig_lower or "no_match" in sig_lower:
                         failure_reasons["QUOTE_NOT_FOUND"] += 1
-                    elif "wrong" in sig.lower():
+                        failure_classified = True
+                    elif "wrong_case" in sig_lower or "binding_failed" in sig_lower:
                         failure_reasons["WRONG_CASE_ID"] += 1
-                    else:
-                        failure_reasons["OTHER"] += 1
+                        failure_classified = True
+                    elif "wrong_page" in sig_lower:
+                        failure_reasons["WRONG_PAGE"] += 1
+                        failure_classified = True
+                    elif "too_short" in sig_lower:
+                        failure_reasons["TOO_SHORT"] += 1
+                        failure_classified = True
+                    elif "ocr" in sig_lower or "artifact" in sig_lower:
+                        failure_reasons["OCR_ARTIFACT_MISMATCH"] += 1
+                        failure_classified = True
+                    elif "normalization" in sig_lower:
+                        failure_reasons["NORMALIZATION_MISMATCH"] += 1
+                        failure_classified = True
+                
+                # Check for ellipsis fragments
+                if not failure_classified and ("..." in quote or "…" in quote):
+                    failure_reasons["ELLIPSIS_FRAGMENT"] += 1
+                    failure_classified = True
+                
+                # Check for short quotes
+                if not failure_classified and len(quote.strip()) < 25:
+                    failure_reasons["TOO_SHORT"] += 1
+                    failure_classified = True
+                
+                if not failure_classified:
+                    failure_reasons["OTHER"] += 1
         
         return {
             "success": True,

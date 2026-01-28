@@ -568,35 +568,44 @@ CRITICAL RULES FOR CITATION_MAP:
 
 C. QUOTE-FIRST GENERATION (MANDATORY - ATTORNEY-SAFETY CRITICAL)
 
-⚠️ EVERY QUOTE YOU USE WILL BE VERIFIED ⚠️
+⚠️ EVERY QUOTE YOU USE WILL BE MACHINE-VERIFIED AGAINST SOURCE TEXT ⚠️
+⚠️ UNVERIFIED QUOTES TRIGGER WARNINGS VISIBLE TO ATTORNEYS ⚠️
 
 Each excerpt includes a QUOTABLE_PASSAGES section with pre-extracted quotes labeled [Q1], [Q2], etc.
 
 EXTRACTION-THEN-CITE WORKFLOW:
-1. Read the QUOTABLE_PASSAGES for each excerpt
+1. Read the QUOTABLE_PASSAGES for each excerpt - these are verified to exist in the source
 2. Identify which quotes support the legal proposition you want to state
-3. COPY the quote EXACTLY as written - character for character
-4. Include the quote in your CITATION_MAP
+3. COPY the quote EXACTLY as written - character for character, word for word
+4. Include the quote in your CITATION_MAP with the correct opinion_id and page_number
 
-HARD RULES:
+HARD RULES (NON-NEGOTIABLE):
 - You MUST use quotes VERBATIM from the QUOTABLE_PASSAGES or directly from the excerpt text
-- Copy-paste the exact substring - do NOT paraphrase, summarize, or modify
-- If you cannot find an exact quote to support a statement, DO NOT make that statement
+- Only quote EXACT SUBSTRINGS that appear contiguously in the provided text
+- Copy-paste the exact substring - do NOT paraphrase, summarize, or modify even one word
+- If you cannot find an exact quote to support a statement, rewrite the claim WITHOUT case attribution or mark [UNSUPPORTED]
 - A quote that fails verification makes your entire response untrustworthy to attorneys
+- When in doubt, quote SHORTER passages that you are certain exist exactly
 
 FORBIDDEN (WILL CAUSE VERIFICATION FAILURE):
-❌ Inventing quotes from memory (even if accurate, they won't verify)
+❌ Inventing quotes from memory (even if accurate, they won't match source text)
 ❌ Paraphrasing or rewording any part of a quote
 ❌ Changing punctuation, capitalization, or word order
-❌ Stitching non-contiguous text with "..." or other ellipsis
-❌ Attributing quotes to the wrong case
+❌ Using ellipsis "..." to stitch non-contiguous fragments (each quoted section must be contiguous)
+❌ Combining text from different sentences into one quote
+❌ Attributing quotes to the wrong case or page
+❌ Quoting text that appears on a different page than cited
 
 EXAMPLE OF CORRECT USAGE:
 - See excerpt: QUOTABLE_PASSAGES: [Q5] "We hold that the claims are directed to an abstract idea."
 - Your CITATION_MAP: [1] Case Name (opinion_id) | Page 5 | "We hold that the claims are directed to an abstract idea."
-- The quote must be IDENTICAL to what appears in QUOTABLE_PASSAGES
+- The quote must be IDENTICAL to what appears in QUOTABLE_PASSAGES - every character must match
 
-If no quotable passage supports your point, respond with NOT FOUND IN PROVIDED OPINIONS rather than inventing a quote.
+WHEN NO SUPPORTING QUOTE EXISTS:
+- Option 1: Respond with NOT FOUND IN PROVIDED OPINIONS
+- Option 2: Rewrite your analysis without attributing specific holdings to specific cases
+- Option 3: Use general language: "The Federal Circuit has addressed..." without a specific citation
+- DO NOT invent a quote hoping it will verify - it will not.
 
 VII. TONE & VOICE
 
@@ -864,9 +873,15 @@ def normalize_for_verification(text: str) -> str:
     """Normalize text for quote verification.
     
     P1: Enhanced normalization parity across ingestion/retrieval/verification.
-    Handles hyphenation, whitespace, Unicode variants, and PDF artifacts.
+    Handles hyphenation, whitespace, Unicode variants, PDF artifacts, and OCR errors.
+    
+    Changes for verification rate improvement:
+    - Extended header/footer pattern removal
+    - Unicode ligature normalization
+    - Additional OCR error mappings
+    - Hyphenated linebreak joining
     """
-    # Step 1: Unicode normalization
+    # Step 1: Unicode normalization (handles many ligatures automatically)
     text = unicodedata.normalize('NFKC', text)
     
     # Step 2: Normalize line endings
@@ -878,6 +893,7 @@ def normalize_for_verification(text: str) -> str:
     text = text.replace('\u2013', '-').replace('\u2014', '-').replace('\u2015', '-')  # Dashes
     
     # Step 4: Handle hyphenation at line breaks (e.g., "Al-\nice" -> "Alice")
+    text = re.sub(r'(\w)-\s*\n\s*(\w)', r'\1\2', text)  # Join hyphenated words across lines
     text = re.sub(r'-\s*\n\s*', '', text)  # Hyphen followed by newline
     text = re.sub(r'-\s{2,}', '', text)     # Hyphen followed by multiple spaces
     
@@ -885,20 +901,43 @@ def normalize_for_verification(text: str) -> str:
     text = text.replace('"', '"').replace('"', '"')  # Curly quotes -> straight
     text = text.replace("'", "'").replace("'", "'")  # Curly apostrophes -> straight
     text = text.replace('`', "'")
+    text = text.replace('«', '"').replace('»', '"')  # Guillemets
     
-    # Step 6: Remove page header/footer artifacts (common patterns)
-    # e.g., "Case: 2020-1234 Document: 69 Page: 12 Filed: 01/15/2021"
+    # Step 6: Remove page header/footer artifacts (extended patterns)
+    # CAFC format: "Case: 2020-1234 Document: 69 Page: 12 Filed: 01/15/2021"
     text = re.sub(r'Case:\s*\d{4}-\d+\s*Document:\s*\d+\s*Page:\s*\d+\s*Filed:\s*\d{1,2}/\d{1,2}/\d{4}', '', text)
+    # Running heads like "GOOGLE LLC v. ORACLE AMERICA, INC."
+    text = re.sub(r'^[A-Z][A-Z\s\.,]+\sv\.?\s+[A-Z][A-Z\s\.,]+$', '', text, flags=re.MULTILINE)
+    # Page numbers (standalone lines with just numbers)
+    text = re.sub(r'^\s*\d{1,3}\s*$', '', text, flags=re.MULTILINE)
+    # Appeal number headers
+    text = re.sub(r'^\s*\d{4}-\d{4}\s*$', '', text, flags=re.MULTILINE)
     
-    # Step 7: Normalize whitespace (keep single spaces)
+    # Step 7: Normalize common Unicode ligatures
+    ligature_map = {
+        'ﬁ': 'fi', 'ﬂ': 'fl', 'ﬀ': 'ff', 'ﬃ': 'ffi', 'ﬄ': 'ffl',
+        'æ': 'ae', 'œ': 'oe', 'Æ': 'AE', 'Œ': 'OE',
+        '…': '...', '—': '-', '–': '-',
+        '§': 'section', '¶': 'paragraph'
+    }
+    for lig, replacement in ligature_map.items():
+        text = text.replace(lig, replacement)
+    
+    # Step 8: Normalize whitespace (keep single spaces)
     text = re.sub(r'\s+', ' ', text)
     
-    # Step 8: Remove leading/trailing whitespace and convert to lowercase
+    # Step 9: Remove leading/trailing whitespace and convert to lowercase
     text = text.strip().lower()
     
-    # Step 9: Remove common OCR artifacts
-    text = text.replace('|', 'l')  # Pipe often confused with lowercase L
-    text = text.replace('0', 'o').replace('O', 'o')  # Normalize O/0 -> o (less aggressive)
+    # Step 10: Common OCR error corrections
+    ocr_corrections = {
+        '|': 'l',     # Pipe -> lowercase L
+        'l': 'l',     # Keep L as L
+        '1': 'l',     # 1 sometimes confused with l in certain fonts
+        'rn': 'm',    # Common OCR error: 'rn' -> 'm'
+    }
+    # Only apply non-destructive OCR corrections
+    text = text.replace('|', 'l')
     
     return text
 
@@ -907,34 +946,52 @@ def verify_quote_with_normalization_variants(quote: str, page_text: str) -> Tupl
     """Try multiple normalization strategies to verify quote.
     
     Returns (verified, normalization_used)
+    
+    Enhanced for verification rate improvement:
+    - Ellipsis handling: If quote contains "...", verify longest fragment
+    - No stitching: Each fragment must match exactly, or mark unverified
     """
     if len(quote.strip()) < 20:
         return False, "too_short"
     
-    # Strategy 1: Standard normalization
     norm_quote = normalize_for_verification(quote)
     norm_page = normalize_for_verification(page_text)
+    
+    # Strategy 0: Handle ellipsis quotes - require longest fragment to match exactly
+    if '...' in quote or '…' in quote:
+        # Split on ellipsis patterns
+        fragments = re.split(r'\.{3,}|…', quote)
+        fragments = [f.strip() for f in fragments if f.strip() and len(f.strip()) >= 15]
+        
+        if fragments:
+            # Find the longest fragment
+            longest_fragment = max(fragments, key=len)
+            norm_fragment = normalize_for_verification(longest_fragment)
+            
+            if len(norm_fragment) >= 15 and norm_fragment in norm_page:
+                return True, "ellipsis_fragment"
+            else:
+                # Ellipsis quote with no matching fragment = unverified
+                return False, "ellipsis_no_match"
+    
+    # Strategy 1: Standard normalization (exact substring match)
     if norm_quote in norm_page:
         return True, "standard"
     
-    # Strategy 2: Remove all punctuation
+    # Strategy 2: Remove all punctuation for exact match
     punct_free_quote = re.sub(r'[^\w\s]', '', norm_quote)
     punct_free_page = re.sub(r'[^\w\s]', '', norm_page)
-    if punct_free_quote in punct_free_page:
+    if len(punct_free_quote) >= 20 and punct_free_quote in punct_free_page:
         return True, "punct_free"
     
-    # Strategy 3: Word-based overlap check (for minor word differences)
+    # Strategy 3: Word-based overlap check (for minor OCR differences) - STRICT 95% threshold
     quote_words = punct_free_quote.split()
     page_words = punct_free_page.split()
-    if len(quote_words) >= 5:
-        # Check if 90% of quote words appear in sequence in page
-        quote_str = ' '.join(quote_words)
-        # Try sliding window match
+    if len(quote_words) >= 8:  # Increased minimum words for word-overlap
+        # Try sliding window match with stricter threshold
         for i in range(len(page_words) - len(quote_words) + 1):
-            window = ' '.join(page_words[i:i + len(quote_words)])
-            # Calculate word match ratio
             matches = sum(1 for qw, pw in zip(quote_words, page_words[i:i + len(quote_words)]) if qw == pw)
-            if matches >= len(quote_words) * 0.85:
+            if matches >= len(quote_words) * 0.95:  # Increased from 0.85 to 0.95
                 return True, "word_overlap"
     
     return False, "failed"
@@ -1050,29 +1107,40 @@ def extract_exact_quote_from_page(page_text: str, min_len: int = 80, max_len: in
     return text[:max_len]
 
 
-def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: int = 250) -> List[str]:
+def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: int = 300) -> List[str]:
     """Extract quotable passages from a page for quote-first generation.
     
     Identifies sentences containing legal holding indicators and extracts them
     as candidate quotes that the AI MUST choose from.
+    
+    Enhanced scoring:
+    - Strong holding verbs get +3 points (we hold, we conclude, therefore, affirm, reverse)
+    - Standard legal indicators get +1 point
+    - Section headers/syllabus formatting gets +2 points
     
     Returns a list of quotable passages (exact substrings of page_text).
     """
     if not page_text or len(page_text.strip()) < 50:
         return []
     
-    # Legal holding indicators - sentences with these are more quotable
+    # Strong holding verbs - these get highest boost (+3)
+    strong_holding_verbs = [
+        'we hold', 'we held', 'we conclude', 'we therefore hold',
+        'therefore', 'accordingly', 'affirm', 'reverse', 'vacate', 'remand',
+        'for these reasons', 'we agree', 'we disagree', 'we reject',
+        'the rule is', 'the test is', 'the standard is', 'the inquiry is'
+    ]
+    
+    # Standard legal holding indicators (+1)
     holding_indicators = [
-        'we hold', 'we held', 'we conclude', 'we find', 'we affirm', 'we reverse',
         'the court held', 'the court holds', 'the court found', 'the court concluded',
         'the law requires', 'requires that', 'must be', 'is required',
         'patentable', 'ineligible', 'obvious', 'anticipated', 'invalid', 'infringes',
         'abstract idea', 'inventive concept', 'significantly more',
         'claim construction', 'claim term', 'means', 'comprising', 'consisting of',
-        'the test is', 'the standard is', 'the rule is', 'the inquiry is',
         'under section', 'under §', 'pursuant to', '35 u.s.c.',
         'en banc', 'precedent', 'overrule', 'binding',
-        'we therefore', 'accordingly', 'for these reasons', 'thus'
+        'thus', 'hence', 'consequently'
     ]
     
     passages = []
@@ -1082,7 +1150,7 @@ def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: in
     text = page_text.replace('U.S.C.', 'USC').replace('U.S.', 'US').replace('Inc.', 'Inc').replace('Corp.', 'Corp').replace('No.', 'No').replace('v.', 'v')
     sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', text)
     
-    # Score sentences by legal relevance
+    # Score sentences by legal relevance with enhanced scoring
     scored = []
     for sent in sentences:
         if len(sent) < 40 or len(sent) > max_len:
@@ -1090,9 +1158,20 @@ def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: in
         
         sent_lower = sent.lower()
         score = 0
+        
+        # Strong holding verbs get +3 boost
+        for verb in strong_holding_verbs:
+            if verb in sent_lower:
+                score += 3
+        
+        # Standard indicators get +1
         for indicator in holding_indicators:
             if indicator in sent_lower:
                 score += 1
+        
+        # Section headers or blockquote-like formatting get +2
+        if sent.strip().startswith(('I.', 'II.', 'III.', 'IV.', 'V.', 'A.', 'B.', 'C.', '1.', '2.', '3.')):
+            score += 2
         
         if score > 0:
             # Find exact position in original text
@@ -1103,7 +1182,7 @@ def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: in
                 if exact_sent.strip():
                     scored.append((score, exact_sent.strip()))
     
-    # Sort by score and take top passages
+    # Sort by score (descending) and take top passages
     scored.sort(key=lambda x: x[0], reverse=True)
     for score, passage in scored[:max_passages]:
         # Verify this is an exact substring of original text
@@ -1139,8 +1218,8 @@ def build_context_with_quotes(pages: List[Dict], max_tokens: int = 80000) -> Tup
     quote_counter = 1
     
     for page in pages:
-        # Extract quotable passages from this page
-        quotable = extract_quotable_passages(page.get('text', ''), max_passages=3, max_len=250)
+        # Extract quotable passages from this page (increased from 3→5 for better coverage)
+        quotable = extract_quotable_passages(page.get('text', ''), max_passages=5, max_len=300)
         
         # Build the excerpt with quotable passages section
         quote_section = ""
@@ -2808,12 +2887,15 @@ async def generate_chat_response(
     if not client:
         return generate_fallback_response(pages, search_terms, message)
     
+    # Expand pages with adjacent context (±3 pages) to improve quote finding
+    expanded_pages = db.fetch_adjacent_pages(pages, window_size=3, max_text_chars=2000)
+    
     # Build context and conversation summary in parallel for speed
     loop = asyncio.get_event_loop()
     
     async def build_context_async():
-        # Use quote-first generation: pre-extract quotable passages
-        return await loop.run_in_executor(_executor, lambda: build_context_with_quotes(pages))
+        # Use quote-first generation with expanded pages: pre-extract quotable passages
+        return await loop.run_in_executor(_executor, lambda: build_context_with_quotes(expanded_pages))
     
     async def build_summary_async():
         return await loop.run_in_executor(_executor, lambda: build_conversation_summary(conversation_id))
