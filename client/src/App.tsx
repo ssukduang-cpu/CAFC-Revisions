@@ -7,6 +7,7 @@ import { AppProvider } from "@/context/AppContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
+import CitationGuide from "@/pages/CitationGuide";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +15,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/admin" component={Admin} />
+      <Route path="/citation-guide" component={CitationGuide} />
       <Route component={NotFound} />
     </Switch>
   );

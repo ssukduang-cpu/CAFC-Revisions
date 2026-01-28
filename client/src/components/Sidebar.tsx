@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings } from "lucide-react";
+import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings, HelpCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -234,6 +234,19 @@ export function Sidebar() {
                 <span className="text-xs font-medium">CAFC Website</span>
               </div>
               <ExternalLink className="h-3.5 w-3.5 opacity-40" />
+            </Button>
+          </a>
+          <a href="/citation-guide">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full justify-start h-9 px-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
+              data-testid="link-citation-guide-sidebar"
+            >
+              <div className="flex items-center gap-2.5">
+                <HelpCircle className="h-4 w-4" />
+                <span className="text-xs font-medium">Citation Guide</span>
+              </div>
             </Button>
           </a>
           <a href="/admin">

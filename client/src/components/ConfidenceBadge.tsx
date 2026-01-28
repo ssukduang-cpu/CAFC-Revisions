@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Shield, ShieldAlert, ShieldCheck, ShieldQuestion, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "wouter";
 import type { ConfidenceTier, CitationSignal } from "@/lib/api";
 
 interface ConfidenceBadgeProps {
@@ -88,22 +90,39 @@ export function ConfidenceBadge({
     : "h-5 w-5 text-xs px-1.5 py-0.5";
   
   return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-1 rounded border",
-        config.bgColor,
-        config.textColor,
-        config.borderColor,
-        sizeClasses,
-        className
-      )}
-      title={`${config.label}: ${config.description}${signals.length > 0 ? `\nSignals: ${signals.map(s => signalLabels[s] || s).join(', ')}` : ''}`}
-      data-testid={`badge-confidence-${tier}`}
-    >
-      <Icon className={size === "sm" ? "h-3 w-3" : "h-4 w-4"} />
-      {showLabel && <span className="font-medium">{config.label}</span>}
-      {hasWarningSignal && <AlertTriangle className={size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"} />}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className={cn(
+            "inline-flex items-center gap-1 rounded border cursor-help",
+            config.bgColor,
+            config.textColor,
+            config.borderColor,
+            sizeClasses,
+            className
+          )}
+          data-testid={`badge-confidence-${tier}`}
+        >
+          <Icon className={size === "sm" ? "h-3 w-3" : "h-4 w-4"} />
+          {showLabel && <span className="font-medium">{config.label}</span>}
+          {hasWarningSignal && <AlertTriangle className={size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"} />}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <div className="space-y-1">
+          <p className="font-medium">{config.label}</p>
+          <p className="text-xs text-muted-foreground">{config.description}</p>
+          {signals.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Signals: {signals.map(s => signalLabels[s] || s).join(', ')}
+            </p>
+          )}
+          <Link href="/citation-guide" className="text-xs text-primary hover:underline block mt-1" data-testid="link-badge-guide">
+            Learn more about confidence scoring
+          </Link>
+        </div>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

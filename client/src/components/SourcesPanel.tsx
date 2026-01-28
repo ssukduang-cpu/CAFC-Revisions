@@ -2,9 +2,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
+import { Link } from "wouter";
 import { ConfidenceBadge, SignalsList } from "@/components/ConfidenceBadge";
 import type { ConfidenceTier, CitationSignal } from "@/lib/api";
 
@@ -60,9 +61,16 @@ export function SourcesPanel() {
             <p className="text-[10px] text-muted-foreground">Verified citations</p>
           </div>
         </div>
-        <Badge variant="secondary" className="font-mono text-[10px] font-semibold">
-          {selectedCitations.length}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Link href="/citation-guide">
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="How confidence scoring works" data-testid="link-citation-guide">
+              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </Link>
+          <Badge variant="secondary" className="font-mono text-[10px] font-semibold">
+            {selectedCitations.length}
+          </Badge>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 p-4">

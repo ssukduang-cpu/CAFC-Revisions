@@ -1069,7 +1069,7 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
 def build_sources_from_markers(
     markers: List[Dict],
     pages: List[Dict],
-    search_terms: Optional[List[str]] = None
+    search_terms: List[str] = None
 ) -> Tuple[List[Dict], Dict[int, str]]:
     """Build deduplicated sources list with case-quote binding and confidence tiers.
 
@@ -1209,8 +1209,13 @@ def build_sources_from_markers(
             })
             continue
 
-        # Citation successfully bound - calculate confidence with holding/dicta heuristics
-        tier, score = compute_citation_tier(binding_method, signals, page, quote)
+        # Citation successfully bound - detect section type and calculate confidence
+        page_text = page.get("text", "")
+        if page_text and quote:
+            section_type, section_signals = detect_section_type_heuristic(page_text, quote)
+            signals.extend(section_signals)
+        
+        tier, score = compute_citation_tier(binding_method, signals, page)
         
         dedup_key = (page["opinion_id"], page["page_number"], quote[:50])
         if dedup_key in seen_keys:
@@ -1242,98 +1247,62 @@ def build_sources_from_markers(
     return sources, position_to_sid
 
 
-# Heuristic patterns for detecting holding vs dicta vs concurrence
-HOLDING_INDICATORS = [
-    r'\bwe\s+hold\b',
-    r'\bthe\s+court\s+holds?\b',
-    r'\bwe\s+conclude\b',
-    r'\bwe\s+affirm\b',
-    r'\bwe\s+reverse\b',
-    r'\baccordingly\b.*\b(affirm|reverse|remand)\b',
-    r'\btherefore\b.*\b(affirm|reverse|remand)\b',
-    r'\bfor\s+the\s+foregoing\s+reasons\b',
-    r'\bjudgment\s+is\s+(affirmed|reversed|vacated)\b'
-]
-
-DICTA_INDICATORS = [
-    r'\beven\s+if\b',
-    r'\bassuming\s+arguendo\b',
-    r'\bwe\s+note\b',
-    r'\bin\s+dicta\b',
-    r'\bby\s+way\s+of\s+background\b',
-    r'\bwe\s+observe\b',
-    r'\bparenthetically\b',
-    r'\bas\s+an\s+aside\b',
-    r'\bwe\s+do\s+not\s+reach\b',
-    r'\bneed\s+not\s+decide\b'
-]
-
-CONCURRENCE_INDICATORS = [
-    r'\bconcurring\b',
-    r'\bi\s+concur\b',
-    r'\bjoin\s+the\s+(majority|opinion)\b',
-    r'\bwhile\s+i\s+agree\b',
-    r'\bi\s+write\s+separately\b'
-]
-
-DISSENT_INDICATORS = [
-    r'\bdissenting\b',
-    r'\bi\s+dissent\b',
-    r'\bi\s+respectfully\s+dissent\b',
-    r'\bthe\s+majority\s+errs\b'
-]
-
-
 def detect_section_type_heuristic(page_text: str, quote: str) -> Tuple[str, List[str]]:
-    """Detect if the quote comes from holding, dicta, concurrence, or dissent.
+    """Detect if quote is from holding, dicta, concurrence, or dissent.
     
-    Uses keyword heuristics - clearly labeled as heuristic in signals.
+    Uses pattern matching heuristics. All signals are labeled *_heuristic
+    to indicate they are automated detection that should be verified.
     
     Returns: (section_type, signals)
-    - section_type: "holding", "dicta", "concurrence", "dissent", or "unknown"
-    - signals: list with appropriate heuristic signal
     """
-    text_lower = page_text.lower()
-    quote_lower = quote.lower()
     signals = []
+    page_lower = page_text.lower()
     
-    # Check the context around the quote (within ~500 chars)
-    quote_start = text_lower.find(quote_lower[:50]) if len(quote_lower) >= 50 else text_lower.find(quote_lower)
-    if quote_start >= 0:
-        context_start = max(0, quote_start - 300)
-        context_end = min(len(text_lower), quote_start + len(quote_lower) + 300)
-        context = text_lower[context_start:context_end]
-    else:
-        context = text_lower
-    
-    # Check for dissent first (strongest signal)
-    for pattern in DISSENT_INDICATORS:
-        if re.search(pattern, context, re.IGNORECASE):
-            signals.append("dissent_heuristic")
-            return "dissent", signals
-    
-    # Check for concurrence
-    for pattern in CONCURRENCE_INDICATORS:
-        if re.search(pattern, context, re.IGNORECASE):
+    # Check for concurrence first (before dissent, as some concurrences mention majority)
+    concurrence_patterns = [
+        "i concur", "concurring opinion", "concur in the result",
+        "concur in the judgment", "i write separately"
+    ]
+    for pattern in concurrence_patterns:
+        if pattern in page_lower:
             signals.append("concurrence_heuristic")
             return "concurrence", signals
     
+    # Check for dissent (important to flag non-majority opinions)
+    dissent_patterns = [
+        "i dissent", "i respectfully dissent", "dissenting opinion",
+        "dissent from", "i would reverse", "i would affirm",
+        "the majority errs"
+    ]
+    for pattern in dissent_patterns:
+        if pattern in page_lower:
+            signals.append("dissent_heuristic")
+            return "dissent", signals
+    
     # Check for dicta
-    for pattern in DICTA_INDICATORS:
-        if re.search(pattern, context, re.IGNORECASE):
+    dicta_patterns = [
+        "we note that", "we observe that", "even if", "assuming arguendo",
+        "we need not decide", "we do not reach", "in dicta"
+    ]
+    for pattern in dicta_patterns:
+        if pattern in page_lower:
             signals.append("dicta_heuristic")
             return "dicta", signals
     
     # Check for holding
-    for pattern in HOLDING_INDICATORS:
-        if re.search(pattern, context, re.IGNORECASE):
+    holding_patterns = [
+        "we hold that", "we conclude that", "we reverse", "we affirm",
+        "the judgment is", "for the foregoing reasons", "accordingly, we"
+    ]
+    for pattern in holding_patterns:
+        if pattern in page_lower:
             signals.append("holding_heuristic")
             return "holding", signals
     
-    return "unknown", []
+    return "unknown", signals
 
 
-def compute_citation_tier(binding_method: str, signals: List[str], page: Dict, quote: str = "") -> Tuple[str, int]:
+def compute_citation_tier(binding_method: str, signals: List[str], page: Dict) -> Tuple[str, int]:
     """Compute confidence tier and score for a citation.
     
     Tiers: strong (>=70), moderate (50-69), weak (30-49), unverified (<30)
@@ -1341,10 +1310,8 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict, q
     Scoring:
     - Case binding: strict=40, fuzzy=25
     - Quote match: exact=30, partial=15
-    - Section type: holding=+5, dicta=-10, concurrence=-5, dissent=-15
     - Recency bonus: 2020+=10 (signal, not gate - older holdings can still be STRONG)
-    
-    Note: Recency is a signal but NOT a gate - older precedential holdings can still be STRONG.
+    - Section type: holding=+15, dicta/concurrence/dissent=-5 to -15
     """
     score = 0
     
@@ -1360,22 +1327,7 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict, q
     elif "partial_match" in signals:
         score += 15
     
-    # Section type heuristic (holding/dicta/concurrence/dissent detection)
-    page_text = page.get("text", "")
-    if page_text and quote:
-        section_type, section_signals = detect_section_type_heuristic(page_text, quote)
-        signals.extend(section_signals)
-        
-        if section_type == "holding":
-            score += 5
-        elif section_type == "dicta":
-            score -= 10
-        elif section_type == "concurrence":
-            score -= 5
-        elif section_type == "dissent":
-            score -= 15
-    
-    # Recency bonus (signal, not gate - older holdings can still be STRONG)
+    # Recency bonus (signal, not gate)
     release_date = page.get("release_date", "")
     if release_date:
         try:
@@ -1389,6 +1341,16 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict, q
                     signals.append("recent")
         except (ValueError, AttributeError):
             pass
+    
+    # Section type scoring
+    if "holding_heuristic" in signals:
+        score += 15
+    elif "dicta_heuristic" in signals:
+        score -= 5
+    elif "concurrence_heuristic" in signals:
+        score -= 10
+    elif "dissent_heuristic" in signals:
+        score -= 15
     
     # Determine tier
     # Fuzzy binding caps at MODERATE regardless of score
