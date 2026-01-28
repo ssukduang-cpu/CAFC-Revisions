@@ -24,6 +24,15 @@ export type CitationSignal =
 
 export type Court = 'CAFC' | 'SCOTUS';
 
+export interface ControllingAuthority {
+  case_name: string;
+  court: Court;
+  opinion_id: string;
+  release_date: string;
+  why_recommended: string;
+  doctrine_tag: string;
+}
+
 export interface ApplicationBreakdown {
   holding_indicator: number;
   analysis_depth: number;
@@ -141,6 +150,7 @@ export interface ChatResult {
   assistantMessage: MessageWithCitations;
   webSearchTriggered?: boolean;
   webSearchCases?: string[];
+  controllingAuthorities?: ControllingAuthority[];
 }
 
 // API functions
@@ -233,5 +243,6 @@ export async function sendMessage(conversationId: string, content: string, searc
     },
     webSearchTriggered: data.webSearchTriggered ?? false,
     webSearchCases: data.webSearchCases ?? [],
+    controllingAuthorities: data.controllingAuthorities ?? [],
   };
 }

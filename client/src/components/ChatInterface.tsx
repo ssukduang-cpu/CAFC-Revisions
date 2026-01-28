@@ -29,7 +29,7 @@ export function ChatInterface() {
       console.error("Failed to copy:", error);
     }
   };
-  const { currentConversationId, setCurrentConversationId, setSelectedCitations, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
+  const { currentConversationId, setCurrentConversationId, setSelectedCitations, setControllingAuthorities, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
   const { data: status } = useStatus();
   
   // Auto-dismiss web search cases after 10 seconds
@@ -44,10 +44,11 @@ export function ChatInterface() {
   const sendMessage = useSendMessage();
   const createConversation = useCreateConversation();
 
-  // Clear citations when conversation changes
+  // Clear citations and controlling authorities when conversation changes
   useEffect(() => {
     setSelectedCitations([]);
-  }, [currentConversationId, setSelectedCitations]);
+    setControllingAuthorities([]);
+  }, [currentConversationId, setSelectedCitations, setControllingAuthorities]);
 
   // Messages come from React Query cache (includes optimistic updates from useSendMessage)
   const messages = conversation?.messages || [];
@@ -78,6 +79,13 @@ export function ChatInterface() {
       // Show web search cases if any were ingested
       if (result.webSearchCases && result.webSearchCases.length > 0) {
         setWebSearchCases(result.webSearchCases);
+      }
+      
+      // Update controlling authorities for doctrine queries
+      if (result.controllingAuthorities && result.controllingAuthorities.length > 0) {
+        setControllingAuthorities(result.controllingAuthorities);
+      } else {
+        setControllingAuthorities([]);
       }
     } catch (error) {
       console.error("Failed to send message:", error);

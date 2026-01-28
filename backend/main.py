@@ -1111,6 +1111,7 @@ async def chat(request: ChatRequest):
         "conversation_id": conv_id,
         "answer_markdown": result.get("answer_markdown", ""),
         "sources": result.get("sources", []),
+        "controlling_authorities": result.get("controlling_authorities", []),
         "action_items": result.get("action_items", []),
         "debug": result.get("debug", {}),
         "return_branch": result.get("return_branch", "unknown"),

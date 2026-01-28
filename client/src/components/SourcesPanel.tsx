@@ -2,12 +2,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp, HelpCircle, Scale, Gavel } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
 import { Link } from "wouter";
 import { ConfidenceBadge, SignalsList } from "@/components/ConfidenceBadge";
-import type { ConfidenceTier, CitationSignal } from "@/lib/api";
+import type { ConfidenceTier, CitationSignal, ControllingAuthority } from "@/lib/api";
 
 function ExpandableQuote({ quote, index }: { quote: string; index: number }) {
   const [expanded, setExpanded] = useState(false);
@@ -35,8 +35,53 @@ function ExpandableQuote({ quote, index }: { quote: string; index: number }) {
   );
 }
 
+function ControllingAuthoritiesSection({ authorities }: { authorities: ControllingAuthority[] }) {
+  if (authorities.length === 0) return null;
+  
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="h-6 w-6 rounded bg-purple-500/20 flex items-center justify-center">
+          <Scale className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-xs text-foreground">Controlling Authorities</h3>
+          <p className="text-[9px] text-muted-foreground">Recommended framework cases; not necessarily cited in answer</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {authorities.map((auth, index) => (
+          <Card 
+            key={`${auth.opinion_id}-${index}`}
+            className="border border-purple-200 dark:border-purple-800/50 bg-purple-50/30 dark:bg-purple-900/10"
+            data-testid={`controlling-authority-${index}`}
+          >
+            <CardContent className="p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Gavel className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                    <span className="font-semibold text-sm text-foreground">{auth.case_name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold">
+                      {auth.court === 'SCOTUS' ? 'Supreme Court' : auth.court}
+                    </span>
+                    {auth.release_date && <span>{auth.release_date}</span>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">{auth.why_recommended}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SourcesPanel() {
-  const { selectedCitations } = useApp();
+  const { selectedCitations, controllingAuthorities } = useApp();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   const handleCopy = async (text: string, index: number) => {
@@ -57,8 +102,8 @@ export function SourcesPanel() {
             <BookOpen className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h2 className="font-bold text-sm tracking-tight text-foreground">Cited Sources</h2>
-            <p className="text-[10px] text-muted-foreground">Verified citations</p>
+            <h2 className="font-bold text-sm tracking-tight text-foreground">Sources</h2>
+            <p className="text-[10px] text-muted-foreground">Framework & cited references</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -75,6 +120,20 @@ export function SourcesPanel() {
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
+          <ControllingAuthoritiesSection authorities={controllingAuthorities} />
+          
+          {selectedCitations.length > 0 && (
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-6 w-6 rounded bg-primary/10 flex items-center justify-center">
+                <BookOpen className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-xs text-foreground">Cited Sources</h3>
+                <p className="text-[9px] text-muted-foreground">Referenced in the answer with verification</p>
+              </div>
+            </div>
+          )}
+          
           {selectedCitations.length > 0 ? selectedCitations.map((citation, index) => (
             <Card 
               key={index} 

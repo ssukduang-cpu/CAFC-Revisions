@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, ReactNode } from "react";
-import type { Citation } from "@/lib/api";
+import type { Citation, ControllingAuthority } from "@/lib/api";
 
 interface AppContextType {
   currentConversationId: string | null;
   setCurrentConversationId: (id: string | null) => void;
   selectedCitations: Citation[];
   setSelectedCitations: (citations: Citation[]) => void;
+  controllingAuthorities: ControllingAuthority[];
+  setControllingAuthorities: (authorities: ControllingAuthority[]) => void;
   showOpinionLibrary: boolean;
   setShowOpinionLibrary: (show: boolean) => void;
   sourcePanelOpen: boolean;
@@ -19,6 +21,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [selectedCitations, setSelectedCitations] = useState<Citation[]>([]);
+  const [controllingAuthorities, setControllingAuthorities] = useState<ControllingAuthority[]>([]);
   const [showOpinionLibrary, setShowOpinionLibrary] = useState(false);
   const [sourcePanelOpen, setSourcePanelOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -30,6 +33,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCurrentConversationId,
         selectedCitations,
         setSelectedCitations,
+        controllingAuthorities,
+        setControllingAuthorities,
         showOpinionLibrary,
         setShowOpinionLibrary,
         sourcePanelOpen,

@@ -314,7 +314,7 @@ def standardize_response(response: Dict[str, Any], web_search_result: Optional[D
     """
     Standardize chat response by promoting debug fields to top-level.
     Ensures consistent schema: return_branch, markers_count, sources_count at top level.
-    Also promotes web_search info if provided.
+    Also promotes web_search info and controlling_authorities if provided.
     """
     debug = response.get("debug", {})
     
@@ -322,6 +322,11 @@ def standardize_response(response: Dict[str, Any], web_search_result: Optional[D
     response["return_branch"] = debug.get("return_branch", "unknown")
     response["markers_count"] = debug.get("markers_count", 0)
     response["sources_count"] = debug.get("sources_count", 0)
+    
+    # Ensure controlling_authorities is always present (empty array if not set)
+    # These are SEPARATE from sources - recommended framework cases for the doctrine
+    if "controlling_authorities" not in response:
+        response["controlling_authorities"] = []
     
     # Promote web search info to top-level for UI consumption
     if web_search_result:
@@ -2742,9 +2747,13 @@ async def generate_chat_response(
                 }]
             })
         
+        # Build controlling authorities (separate from cited sources for provenance)
+        controlling_authorities = build_controlling_authorities(pages, doctrine_tag)
+        
         return standardize_response({
             "answer_markdown": answer_markdown,
             "sources": sources,
+            "controlling_authorities": controlling_authorities,
             "debug": {
                 "claims": claims,
                 "support_audit": {
@@ -2761,7 +2770,9 @@ async def generate_chat_response(
                 "sources_count": len(sources),
                 "sources": [{"sid": s.get("sid"), "opinion_id": s.get("opinion_id"), "page_number": s.get("page_number"), "quote": s.get("quote", "")[:120]} for s in sources[:10]],
                 "raw_response": raw_answer,
-                "return_branch": "ok"
+                "return_branch": "ok",
+                "doctrine_tag": doctrine_tag,
+                "controlling_authorities_count": len(controlling_authorities)
             }
         })
         
