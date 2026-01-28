@@ -36,7 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Quote-First Prompt:** Strict system prompt requiring AI to use only pre-extracted QUOTABLE_PASSAGES; warns that all quotes will be verified.
 - **Quotable Passage Extraction:** `extract_quotable_passages()` identifies legal holding indicators (~50 passages per context) labeled [Q1], [Q2], etc.
 - **Normalized Verification:** `normalize_for_verification()` handles OCR artifacts, hyphenation, Unicode variants, curly quotes; requires exact contiguous substring match after normalization.
-- **Per-Statement Provenance Gating:** `apply_per_statement_provenance_gating()` detects case-attributed statements and tags unsupported ones with [UNSUPPORTED].
+- **Per-Statement Provenance Gating:** `apply_per_statement_provenance_gating()` detects case-attributed statements and tracks unsupported ones in statement_support metadata; frontend displays an amber warning notice box when Attorney Mode is enabled.
 - **Citation Telemetry:** Logs total_citations, verified_citations, unverified_rate_pct per query; target: >80% verified with strict matching.
 - **Litigation-Grade Integrity:** No fuzzy word-overlap matching; only exact normalized substring matches are accepted to prevent false positives.
 
