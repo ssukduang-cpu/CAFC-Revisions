@@ -1526,6 +1526,20 @@ def get_pages_for_opinion(opinion_id: str) -> List[Dict]:
     return get_pages_for_document(opinion_id)
 
 
+# Failure reason taxonomy for citation verification
+FAILURE_REASONS = [
+    "QUOTE_NOT_FOUND",
+    "WRONG_CASE_ID",
+    "WRONG_PAGE",
+    "TOO_SHORT",
+    "OCR_ARTIFACT_MISMATCH",
+    "ELLIPSIS_FRAGMENT",
+    "NORMALIZATION_MISMATCH",
+    "NO_CANDIDATE_PASSAGES",
+    "OTHER"
+]
+
+
 # Telemetry functions
 def insert_telemetry(
     conversation_id: Optional[str],
@@ -1535,18 +1549,27 @@ def insert_telemetry(
     unsupported_statements: int,
     total_statements: int,
     latency_ms: Optional[int],
-    binding_failure_reasons: Optional[str]
-):
-    """Insert a telemetry record for citation verification metrics."""
+    binding_failure_reasons: Optional[str],
+    mode: str = "STRICT",
+    response_id: Optional[str] = None,
+    propositions_total: int = 0,
+    propositions_case_attributed: int = 0,
+    propositions_unsupported: int = 0,
+    propositions_case_attributed_unsupported: int = 0
+) -> str:
+    """Insert a telemetry record for citation verification metrics. Returns the telemetry ID."""
+    telemetry_id = str(uuid.uuid4())
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO citation_telemetry 
             (id, conversation_id, doctrine, total_citations, verified_citations, 
-             unsupported_statements, total_statements, latency_ms, binding_failure_reasons)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             unsupported_statements, total_statements, latency_ms, binding_failure_reasons,
+             mode, response_id, propositions_total, propositions_case_attributed,
+             propositions_unsupported, propositions_case_attributed_unsupported)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
-            str(uuid.uuid4()),
+            telemetry_id,
             conversation_id,
             doctrine,
             total_citations,
@@ -1554,18 +1577,125 @@ def insert_telemetry(
             unsupported_statements,
             total_statements,
             latency_ms,
-            binding_failure_reasons
+            binding_failure_reasons,
+            mode,
+            response_id,
+            propositions_total,
+            propositions_case_attributed,
+            propositions_unsupported,
+            propositions_case_attributed_unsupported
+        ))
+        conn.commit()
+    return telemetry_id
+
+
+def insert_citation_verification_result(
+    telemetry_id: str,
+    response_id: Optional[str],
+    citation_text: str,
+    case_name: Optional[str],
+    verified: bool,
+    failure_reason: Optional[str]
+):
+    """Insert an individual citation verification result."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO citation_verification_results
+            (id, telemetry_id, response_id, citation_text, case_name, verified, failure_reason)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            str(uuid.uuid4()),
+            telemetry_id,
+            response_id,
+            citation_text[:500] if citation_text else None,
+            case_name,
+            verified,
+            failure_reason
         ))
         conn.commit()
 
 
-def get_telemetry_records(start_date: datetime, end_date: datetime) -> List[Dict]:
-    """Get telemetry records within a date range."""
+def get_telemetry_records(start_date: datetime, end_date: datetime, mode: Optional[str] = None) -> List[Dict]:
+    """Get telemetry records within a date range, optionally filtered by mode."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if mode:
+            cursor.execute("""
+                SELECT * FROM citation_telemetry 
+                WHERE created_at >= %s AND created_at <= %s AND mode = %s
+                ORDER BY created_at DESC
+            """, (start_date, end_date, mode))
+        else:
+            cursor.execute("""
+                SELECT * FROM citation_telemetry 
+                WHERE created_at >= %s AND created_at <= %s
+                ORDER BY created_at DESC
+            """, (start_date, end_date))
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_failure_reason_breakdown(start_date: datetime, end_date: datetime, mode: Optional[str] = None) -> List[Dict]:
+    """Get breakdown of failure reasons."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if mode:
+            cursor.execute("""
+                SELECT cvr.failure_reason, COUNT(*) as count
+                FROM citation_verification_results cvr
+                JOIN citation_telemetry ct ON cvr.telemetry_id = ct.id
+                WHERE ct.created_at >= %s AND ct.created_at <= %s 
+                AND ct.mode = %s AND cvr.verified = FALSE
+                GROUP BY cvr.failure_reason
+                ORDER BY count DESC
+            """, (start_date, end_date, mode))
+        else:
+            cursor.execute("""
+                SELECT failure_reason, COUNT(*) as count
+                FROM citation_verification_results
+                WHERE verified = FALSE
+                GROUP BY failure_reason
+                ORDER BY count DESC
+            """)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_failing_responses(doctrine: str, start_date: datetime, end_date: datetime, limit: int = 50) -> List[Dict]:
+    """Get recent failing response IDs for a doctrine."""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT * FROM citation_telemetry 
-            WHERE created_at >= %s AND created_at <= %s
-            ORDER BY created_at DESC
-        """, (start_date, end_date))
+            SELECT DISTINCT ct.response_id, ct.created_at, ct.total_citations, ct.verified_citations
+            FROM citation_telemetry ct
+            WHERE ct.doctrine = %s 
+            AND ct.created_at >= %s AND ct.created_at <= %s
+            AND ct.verified_citations < ct.total_citations
+            ORDER BY ct.created_at DESC
+            LIMIT %s
+        """, (doctrine, start_date, end_date, limit))
         return [dict(row) for row in cursor.fetchall()]
+
+
+def get_latency_percentiles(start_date: datetime, end_date: datetime, mode: Optional[str] = None) -> Dict:
+    """Get p50 and p95 latency percentiles."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if mode:
+            cursor.execute("""
+                SELECT 
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY latency_ms) as p50,
+                    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) as p95
+                FROM citation_telemetry
+                WHERE created_at >= %s AND created_at <= %s 
+                AND mode = %s AND latency_ms IS NOT NULL
+            """, (start_date, end_date, mode))
+        else:
+            cursor.execute("""
+                SELECT 
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY latency_ms) as p50,
+                    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) as p95
+                FROM citation_telemetry
+                WHERE created_at >= %s AND created_at <= %s AND latency_ms IS NOT NULL
+            """, (start_date, end_date))
+        result = cursor.fetchone()
+        return {"p50": result["p50"] or 0, "p95": result["p95"] or 0} if result else {"p50": 0, "p95": 0}
