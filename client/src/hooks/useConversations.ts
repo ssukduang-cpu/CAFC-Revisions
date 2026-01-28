@@ -121,15 +121,22 @@ export function parseCitations(message: Message): Citation[] {
       ? JSON.parse(message.citations) 
       : message.citations;
     
-    return rawCitations.map((c: any) => ({
-      opinionId: c.opinion_id || c.opinionId || '',
-      caseName: c.case_name || c.caseName || '',
-      appealNo: c.appeal_no || c.appealNo || '',
-      releaseDate: c.release_date || c.releaseDate || '',
-      pageNumber: c.page_number || c.pageNumber || 0,
-      quote: c.quote || '',
-      verified: c.verified ?? true
-    }));
+    return rawCitations.map((c: any) => {
+      const tier = c.tier || 'unverified';
+      return {
+        opinionId: c.opinion_id || c.opinionId || '',
+        caseName: c.case_name || c.caseName || '',
+        appealNo: c.appeal_no || c.appealNo || '',
+        releaseDate: c.release_date || c.releaseDate || '',
+        pageNumber: c.page_number || c.pageNumber || 0,
+        quote: c.quote || '',
+        verified: tier === 'strong' || tier === 'moderate',
+        tier: tier,
+        score: c.score ?? 0,
+        signals: c.signals || [],
+        bindingMethod: c.binding_method || c.bindingMethod || 'failed'
+      };
+    });
   } catch {
     return [];
   }
@@ -147,15 +154,22 @@ export function parseClaims(message: Message): Claim[] {
       return data.claims.map((claim: any) => ({
         id: claim.id,
         text: claim.text,
-        citations: (claim.citations || []).map((c: any) => ({
-          opinionId: c.opinion_id || c.opinionId || '',
-          caseName: c.case_name || c.caseName || '',
-          appealNo: c.appeal_no || c.appealNo || '',
-          releaseDate: c.release_date || c.releaseDate || '',
-          pageNumber: c.page_number || c.pageNumber || 0,
-          quote: c.quote || '',
-          verified: c.verified ?? true
-        }))
+        citations: (claim.citations || []).map((c: any) => {
+          const tier = c.tier || 'unverified';
+          return {
+            opinionId: c.opinion_id || c.opinionId || '',
+            caseName: c.case_name || c.caseName || '',
+            appealNo: c.appeal_no || c.appealNo || '',
+            releaseDate: c.release_date || c.releaseDate || '',
+            pageNumber: c.page_number || c.pageNumber || 0,
+            quote: c.quote || '',
+            verified: tier === 'strong' || tier === 'moderate',
+            tier: tier,
+            score: c.score ?? 0,
+            signals: c.signals || [],
+            bindingMethod: c.binding_method || c.bindingMethod || 'failed'
+          };
+        })
       }));
     }
     return [];
@@ -211,7 +225,11 @@ export function parseSources(message: Message): Source[] {
         quote: s.quote || '',
         viewerUrl: s.viewer_url || s.viewerUrl || '',
         pdfUrl: s.pdf_url || s.pdfUrl || '',
-        courtlistenerUrl: s.courtlistener_url || s.courtlistenerUrl || ''
+        courtlistenerUrl: s.courtlistener_url || s.courtlistenerUrl || '',
+        tier: s.tier || 'unverified',
+        score: s.score ?? 0,
+        signals: s.signals || [],
+        bindingMethod: s.binding_method || s.bindingMethod || 'failed'
       }));
     }
     return [];

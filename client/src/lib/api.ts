@@ -1,6 +1,26 @@
 import { apiRequest } from "./queryClient";
 import type { Opinion, Conversation, Message } from "@shared/schema";
 
+export type ConfidenceTier = 'strong' | 'moderate' | 'weak' | 'unverified';
+
+export type BindingMethod = 'strict' | 'fuzzy' | 'failed';
+
+export type CitationSignal = 
+  | 'case_bound'
+  | 'exact_match'
+  | 'partial_match'
+  | 'fuzzy_case_binding'
+  | 'binding_failed'
+  | 'unverified'
+  | 'recent'
+  | 'holding_heuristic'
+  | 'dicta_heuristic'
+  | 'concurrence_heuristic'
+  | 'dissent_heuristic'
+  | 'ellipsis_in_quote'
+  | 'db_fetched'
+  | 'no_case_name';
+
 export interface Citation {
   opinionId: string;
   caseName: string;
@@ -9,6 +29,10 @@ export interface Citation {
   pageNumber: number;
   quote: string;
   verified?: boolean;
+  tier?: ConfidenceTier;
+  score?: number;
+  signals?: CitationSignal[];
+  bindingMethod?: BindingMethod;
 }
 
 export interface Source {
@@ -22,6 +46,10 @@ export interface Source {
   viewerUrl: string;
   pdfUrl: string;
   courtlistenerUrl: string;
+  tier?: ConfidenceTier;
+  score?: number;
+  signals?: CitationSignal[];
+  bindingMethod?: BindingMethod;
 }
 
 export interface Claim {

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
+import { ConfidenceBadge, SignalsList } from "@/components/ConfidenceBadge";
+import type { ConfidenceTier, CitationSignal } from "@/lib/api";
 
 function ExpandableQuote({ quote, index }: { quote: string; index: number }) {
   const [expanded, setExpanded] = useState(false);
@@ -73,16 +75,29 @@ export function SourcesPanel() {
             >
               <CardHeader className="p-4 pb-3 space-y-0 bg-muted/30">
                 <div className="flex justify-between items-start gap-2">
-                  <div className="space-y-1">
-                    <CardTitle className="text-sm font-bold leading-tight text-foreground">
-                      {citation.caseName}
-                    </CardTitle>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-sm font-bold leading-tight text-foreground">
+                        {citation.caseName}
+                      </CardTitle>
+                      {citation.tier && (
+                        <ConfidenceBadge 
+                          tier={citation.tier as ConfidenceTier} 
+                          signals={(citation.signals || []) as CitationSignal[]}
+                          showLabel
+                          size="sm"
+                        />
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
                       <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">{citation.appealNo}</span>
                       <span>{citation.releaseDate}</span>
                       <span>•</span>
                       <span>Page {citation.pageNumber}</span>
                     </div>
+                    {citation.signals && citation.signals.length > 0 && (
+                      <SignalsList signals={(citation.signals || []) as CitationSignal[]} className="mt-1" />
+                    )}
                   </div>
                   <Button 
                     variant="ghost" 

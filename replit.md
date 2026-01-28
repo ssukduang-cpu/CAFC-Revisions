@@ -24,6 +24,14 @@ Preferred communication style: Simple, everyday language.
 - **Smart NOT FOUND Detection:** Triggers web search fallback only when responses are primarily "NOT FOUND".
 - **Advanced FTS Queries:** Uses OR-based `to_tsquery` for long queries, extracting up to 12 key legal terms for flexible matching.
 
+### Citation Confidence System
+- **Case-Quote Binding:** Strict opinion_id binding for citations; fuzzy case-name fallback (when opinion_id unavailable) capped at MODERATE tier.
+- **Confidence Tiers:** Four-tier scoring system (STRONG ≥70, MODERATE 50-69, WEAK 30-49, UNVERIFIED <30).
+- **Scoring Formula:** binding (strict=40, fuzzy=25) + match (exact=30, partial=15) + section_type (+/-5-15) + recency (+10 for 2020+).
+- **Heuristic Detection:** Detects holding/dicta/concurrence/dissent with clearly labeled *_heuristic signals for transparency.
+- **No Silent Substitution:** UNVERIFIED citations display binding_failed signal; misattribution is detected and flagged rather than silently corrected.
+- **UI Integration:** ConfidenceBadge component with color-coded tiers; SignalsList for detailed signal display; inline citation buttons colored by tier.
+
 ### Data Layer
 - **Database:** PostgreSQL with Drizzle ORM.
 - **Schema:** Tables for opinions, chunks, conversations, and messages.

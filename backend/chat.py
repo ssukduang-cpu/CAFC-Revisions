@@ -833,12 +833,98 @@ def normalize_for_verification(text: str) -> str:
     text = text.strip().lower()
     return text
 
+def normalize_case_name_for_binding(name: str) -> str:
+    """Normalize case name for fuzzy binding comparison.
+    'Google LLC v. Oracle America, Inc.' -> 'google oracle america'
+    """
+    if not name:
+        return ""
+    name = name.lower()
+    name = re.sub(r'\b(v\.?|vs\.?|llc|inc|corp|co\.|ltd|l\.p\.|lp)\b', '', name)
+    name = re.sub(r'[^\w\s]', ' ', name)
+    name = re.sub(r'\s+', ' ', name)
+    return name.strip()
+
 def verify_quote_strict(quote: str, page_text: str) -> bool:
     if len(quote.strip()) < 20:
         return False
     norm_quote = normalize_for_verification(quote)
     norm_page = normalize_for_verification(page_text)
     return norm_quote in norm_page
+
+def verify_quote_partial(quote: str, page_text: str, threshold: float = 0.7) -> Tuple[bool, float]:
+    """Check if quote partially matches page text. Returns (matched, ratio)."""
+    if len(quote.strip()) < 20:
+        return False, 0.0
+    norm_quote = normalize_for_verification(quote)
+    norm_page = normalize_for_verification(page_text)
+    
+    if norm_quote in norm_page:
+        return True, 1.0
+    
+    words_quote = set(norm_quote.split())
+    words_page = set(norm_page.split())
+    if not words_quote:
+        return False, 0.0
+    
+    overlap = len(words_quote & words_page)
+    ratio = overlap / len(words_quote)
+    return ratio >= threshold, ratio
+
+def verify_quote_with_case_binding(
+    quote: str,
+    claimed_opinion_id: str,
+    pages: List[Dict]
+) -> Tuple[Optional[Dict], str, List[str]]:
+    """Verify quote exists in the CLAIMED opinion (strict binding).
+    
+    Returns: (matching_page, binding_method, signals)
+    - binding_method: "strict" if opinion_id matched, "failed" otherwise
+    - signals: list of signal strings for confidence calculation
+    """
+    signals = []
+    
+    for page in pages:
+        if page.get('page_number', 0) < 1:
+            continue
+        if page.get('opinion_id') == claimed_opinion_id:
+            if verify_quote_strict(quote, page.get('text', '')):
+                signals.append("case_bound")
+                signals.append("exact_match")
+                return page, "strict", signals
+    
+    return None, "failed", ["binding_failed"]
+
+def verify_quote_with_fuzzy_fallback(
+    quote: str,
+    claimed_case_name: str,
+    pages: List[Dict]
+) -> Tuple[Optional[Dict], str, List[str]]:
+    """Fuzzy case-name binding when opinion_id is missing.
+    
+    Returns: (matching_page, binding_method, signals)
+    - binding_method: "fuzzy" if case name matched, "failed" otherwise
+    - signals: includes "fuzzy_case_binding" if fuzzy match used
+    """
+    signals = []
+    norm_claimed = normalize_case_name_for_binding(claimed_case_name)
+    
+    if not norm_claimed:
+        return None, "failed", ["no_case_name"]
+    
+    for page in pages:
+        if page.get('page_number', 0) < 1:
+            continue
+        
+        norm_page_case = normalize_case_name_for_binding(page.get('case_name', ''))
+        
+        if norm_claimed == norm_page_case or norm_claimed in norm_page_case or norm_page_case in norm_claimed:
+            if verify_quote_strict(quote, page.get('text', '')):
+                signals.append("fuzzy_case_binding")
+                signals.append("exact_match")
+                return page, "fuzzy", signals
+    
+    return None, "failed", ["binding_failed"]
 
 def find_matching_page_strict(quote: str, pages: List[Dict]) -> Optional[Dict]:
     for page in pages:
@@ -983,15 +1069,18 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
 def build_sources_from_markers(
     markers: List[Dict],
     pages: List[Dict],
-    search_terms: List[str] = None
+    search_terms: Optional[List[str]] = None
 ) -> Tuple[List[Dict], Dict[int, str]]:
-    """Build deduplicated sources list and position-to-sid mapping.
+    """Build deduplicated sources list with case-quote binding and confidence tiers.
 
-    Behavior:
-    - Prefer using the cited page from `pages` (top search results).
-    - If the cited page is not present, fetch it directly from DB via db.get_page_text().
-    - Only accept citations if the quoted text can be strictly verified against the page text.
-      (If the model used ellipses "...", verify the longest literal fragment first.)
+    CRITICAL BEHAVIOR (P0 - Case-Quote Binding):
+    - A quote is only verified if it matches text from the CLAIMED opinion_id (strict binding).
+    - If opinion_id is missing, fall back to fuzzy case-name binding with MODERATE cap.
+    - If binding fails, the citation is marked UNVERIFIED - NO silent substitution.
+    
+    Returns:
+    - sources: List of citation dicts with tier, score, signals
+    - position_to_sid: Mapping for inline citation placement
     """
     if search_terms is None:
         search_terms = []
@@ -1001,102 +1090,128 @@ def build_sources_from_markers(
     seen_keys: Dict[Tuple[str, int, str], str] = {}
     sid_counter = 1
 
-    # Index the pages we already have by (opinion_id, page_number) AND (case_name normalized, page_number)
-    pages_by_opinion: Dict[Tuple[str, int], Dict] = {}
-    pages_by_case: Dict[Tuple[str, int], Dict] = {}
-    case_to_opinion_id: Dict[str, str] = {}  # Map case_name -> opinion_id for fallback DB lookup
-    
+    # Index pages by opinion_id for strict binding
+    pages_by_opinion: Dict[str, List[Dict]] = {}
     for page in pages:
-        case_name_lower = (page.get("case_name") or "").lower().strip()
-        page_num_key = page.get("page_number")
         opinion_id = page.get("opinion_id")
-        
-        if opinion_id and page_num_key:
-            pages_by_opinion[(opinion_id, page_num_key)] = page
-        if case_name_lower and page_num_key:
-            pages_by_case[(case_name_lower, page_num_key)] = page
-        if case_name_lower and opinion_id:
-            case_to_opinion_id[case_name_lower] = opinion_id
+        if opinion_id:
+            if opinion_id not in pages_by_opinion:
+                pages_by_opinion[opinion_id] = []
+            pages_by_opinion[opinion_id].append(page)
 
     for marker in markers:
         quote = (marker.get("quote") or "").strip()
         case_name = (marker.get("case_name") or "").strip()
-        opinion_id = (marker.get("opinion_id") or "").strip()  # Now extracted from marker
+        claimed_opinion_id = (marker.get("opinion_id") or "").strip()
         page_num = int(marker.get("page_number") or 0)
+        citation_num = marker.get("citation_num", 0)
 
         if page_num < 1 or not quote:
             continue
-        if not opinion_id and not case_name:
+        if not claimed_opinion_id and not case_name:
             continue
 
         page = None
+        binding_method = "failed"
+        signals = []
         
-        # 1) PREFERRED: Look up by opinion_id if provided (deterministic)
-        if opinion_id:
-            page = pages_by_opinion.get((opinion_id, page_num))
+        # Handle ellipses in quote by getting longest fragment for verification
+        quote_to_verify = quote
+        if "..." in quote:
+            parts = [p.strip() for p in quote.split("...") if p.strip()]
+            if parts:
+                parts.sort(key=len, reverse=True)
+                quote_to_verify = parts[0]
+                if len(parts) > 1:
+                    signals.append("ellipsis_in_quote")
+
+        # STRATEGY 1: Strict opinion_id binding (PREFERRED)
+        if claimed_opinion_id:
+            # First check pages already in context
+            opinion_pages = pages_by_opinion.get(claimed_opinion_id, [])
             
-            # 1b) If not in cache, fetch from DB by opinion_id (unconditional fallback)
+            for p in opinion_pages:
+                if verify_quote_strict(quote_to_verify, p.get('text', '')):
+                    page = p
+                    binding_method = "strict"
+                    signals.append("case_bound")
+                    signals.append("exact_match")
+                    break
+            
+            # If not found in context, try DB fetch for specific page
             if not page:
                 try:
-                    fetched = db.get_page_text(opinion_id, page_num)
+                    fetched = db.get_page_text(claimed_opinion_id, page_num)
                     if fetched and fetched.get("text"):
-                        page = fetched
-                except Exception:
-                    page = None
-
-        # 2) Fallback to case_name lookup if opinion_id not provided or failed
-        if not page and case_name:
-            case_name_lower = case_name.lower().strip()
-            page = pages_by_case.get((case_name_lower, page_num))
-            
-            # 2b) Try partial matching on case name
-            if not page:
-                for (cn_key, pn_key), p in pages_by_case.items():
-                    if page_num == pn_key and (case_name_lower in cn_key or cn_key in case_name_lower):
-                        page = p
-                        break
-            
-            # 2c) Try DB fallback using mapped opinion_id from case_name
-            if not page:
-                mapped_opinion_id = case_to_opinion_id.get(case_name_lower)
-                if mapped_opinion_id:
-                    try:
-                        fetched = db.get_page_text(mapped_opinion_id, page_num)
-                        if fetched and fetched.get("text"):
+                        if verify_quote_strict(quote_to_verify, fetched["text"]):
                             page = fetched
-                    except Exception:
-                        page = None
+                            binding_method = "strict"
+                            signals.append("case_bound")
+                            signals.append("exact_match")
+                            signals.append("db_fetched")
+                except Exception:
+                    pass
 
-        # 3) Last resort: scan pages we already have and accept one where quote verifies
-        if not page:
+        # STRATEGY 2: Fuzzy case-name binding (only if opinion_id missing)
+        if not page and not claimed_opinion_id and case_name:
+            norm_claimed = normalize_case_name_for_binding(case_name)
+            
             for p in pages:
-                if p.get("page_number", 0) >= 1 and verify_quote_strict(quote, p.get("text", "")):
-                    page = p
-                    break
+                if p.get('page_number', 0) < 1:
+                    continue
+                
+                norm_page_case = normalize_case_name_for_binding(p.get('case_name', ''))
+                
+                # Check if case names match (fuzzy)
+                if norm_claimed and norm_page_case:
+                    if (norm_claimed == norm_page_case or 
+                        norm_claimed in norm_page_case or 
+                        norm_page_case in norm_claimed):
+                        
+                        if verify_quote_strict(quote_to_verify, p.get('text', '')):
+                            page = p
+                            binding_method = "fuzzy"
+                            signals.append("fuzzy_case_binding")
+                            signals.append("exact_match")
+                            break
 
-        if not page or not page.get("text"):
+        # NO STRATEGY 3 - We do NOT silently substitute from another case
+        # If binding failed, mark as UNVERIFIED and include in results with warning
+        
+        if not page:
+            # Create UNVERIFIED citation entry - do not silently drop or substitute
+            signals.append("binding_failed")
+            signals.append("unverified")
+            
+            # Log the failed binding for debugging
+            logging.warning(f"Citation binding failed: case='{case_name}', opinion_id='{claimed_opinion_id}', quote='{quote[:50]}...'")
+            
+            # Still add to sources but marked as unverified
+            sid = str(sid_counter)
+            sid_counter += 1
+            position_to_sid[marker.get("position", 0)] = sid
+            
+            sources.append({
+                "sid": sid,
+                "opinion_id": claimed_opinion_id or "",
+                "case_name": case_name,
+                "appeal_no": "",
+                "release_date": "",
+                "page_number": page_num,
+                "quote": quote[:300],
+                "viewer_url": "",
+                "pdf_url": "",
+                "courtlistener_url": "",
+                "tier": "unverified",
+                "score": 0,
+                "signals": signals,
+                "binding_method": binding_method
+            })
             continue
 
-        page_text = page["text"]
-
-        # Verify the quote strictly; handle ellipses by checking the longest literal fragment
-        if not verify_quote_strict(quote, page_text):
-            quote_frag = quote
-            if "..." in quote:
-                parts = [p.strip() for p in quote.split("...") if p.strip()]
-                parts.sort(key=len, reverse=True)
-                if parts:
-                    quote_frag = parts[0]
-
-            if verify_quote_strict(quote_frag, page_text):
-                quote = quote_frag
-            else:
-                exact_quote = find_best_quote_in_page(search_terms, page_text, max_len=150)
-                if exact_quote and verify_quote_strict(exact_quote, page_text):
-                    quote = exact_quote
-                else:
-                    continue
-
+        # Citation successfully bound - calculate confidence with holding/dicta heuristics
+        tier, score = compute_citation_tier(binding_method, signals, page, quote)
+        
         dedup_key = (page["opinion_id"], page["page_number"], quote[:50])
         if dedup_key in seen_keys:
             position_to_sid[marker.get("position", 0)] = seen_keys[dedup_key]
@@ -1117,10 +1232,179 @@ def build_sources_from_markers(
             "quote": quote[:300],
             "viewer_url": f"/pdf/{page.get('opinion_id')}?page={page.get('page_number', 1)}",
             "pdf_url": page.get("pdf_url", ""),
-            "courtlistener_url": page.get("courtlistener_url", "")
+            "courtlistener_url": page.get("courtlistener_url", ""),
+            "tier": tier,
+            "score": score,
+            "signals": signals,
+            "binding_method": binding_method
         })
 
     return sources, position_to_sid
+
+
+# Heuristic patterns for detecting holding vs dicta vs concurrence
+HOLDING_INDICATORS = [
+    r'\bwe\s+hold\b',
+    r'\bthe\s+court\s+holds?\b',
+    r'\bwe\s+conclude\b',
+    r'\bwe\s+affirm\b',
+    r'\bwe\s+reverse\b',
+    r'\baccordingly\b.*\b(affirm|reverse|remand)\b',
+    r'\btherefore\b.*\b(affirm|reverse|remand)\b',
+    r'\bfor\s+the\s+foregoing\s+reasons\b',
+    r'\bjudgment\s+is\s+(affirmed|reversed|vacated)\b'
+]
+
+DICTA_INDICATORS = [
+    r'\beven\s+if\b',
+    r'\bassuming\s+arguendo\b',
+    r'\bwe\s+note\b',
+    r'\bin\s+dicta\b',
+    r'\bby\s+way\s+of\s+background\b',
+    r'\bwe\s+observe\b',
+    r'\bparenthetically\b',
+    r'\bas\s+an\s+aside\b',
+    r'\bwe\s+do\s+not\s+reach\b',
+    r'\bneed\s+not\s+decide\b'
+]
+
+CONCURRENCE_INDICATORS = [
+    r'\bconcurring\b',
+    r'\bi\s+concur\b',
+    r'\bjoin\s+the\s+(majority|opinion)\b',
+    r'\bwhile\s+i\s+agree\b',
+    r'\bi\s+write\s+separately\b'
+]
+
+DISSENT_INDICATORS = [
+    r'\bdissenting\b',
+    r'\bi\s+dissent\b',
+    r'\bi\s+respectfully\s+dissent\b',
+    r'\bthe\s+majority\s+errs\b'
+]
+
+
+def detect_section_type_heuristic(page_text: str, quote: str) -> Tuple[str, List[str]]:
+    """Detect if the quote comes from holding, dicta, concurrence, or dissent.
+    
+    Uses keyword heuristics - clearly labeled as heuristic in signals.
+    
+    Returns: (section_type, signals)
+    - section_type: "holding", "dicta", "concurrence", "dissent", or "unknown"
+    - signals: list with appropriate heuristic signal
+    """
+    text_lower = page_text.lower()
+    quote_lower = quote.lower()
+    signals = []
+    
+    # Check the context around the quote (within ~500 chars)
+    quote_start = text_lower.find(quote_lower[:50]) if len(quote_lower) >= 50 else text_lower.find(quote_lower)
+    if quote_start >= 0:
+        context_start = max(0, quote_start - 300)
+        context_end = min(len(text_lower), quote_start + len(quote_lower) + 300)
+        context = text_lower[context_start:context_end]
+    else:
+        context = text_lower
+    
+    # Check for dissent first (strongest signal)
+    for pattern in DISSENT_INDICATORS:
+        if re.search(pattern, context, re.IGNORECASE):
+            signals.append("dissent_heuristic")
+            return "dissent", signals
+    
+    # Check for concurrence
+    for pattern in CONCURRENCE_INDICATORS:
+        if re.search(pattern, context, re.IGNORECASE):
+            signals.append("concurrence_heuristic")
+            return "concurrence", signals
+    
+    # Check for dicta
+    for pattern in DICTA_INDICATORS:
+        if re.search(pattern, context, re.IGNORECASE):
+            signals.append("dicta_heuristic")
+            return "dicta", signals
+    
+    # Check for holding
+    for pattern in HOLDING_INDICATORS:
+        if re.search(pattern, context, re.IGNORECASE):
+            signals.append("holding_heuristic")
+            return "holding", signals
+    
+    return "unknown", []
+
+
+def compute_citation_tier(binding_method: str, signals: List[str], page: Dict, quote: str = "") -> Tuple[str, int]:
+    """Compute confidence tier and score for a citation.
+    
+    Tiers: strong (>=70), moderate (50-69), weak (30-49), unverified (<30)
+    
+    Scoring:
+    - Case binding: strict=40, fuzzy=25
+    - Quote match: exact=30, partial=15
+    - Section type: holding=+5, dicta=-10, concurrence=-5, dissent=-15
+    - Recency bonus: 2020+=10 (signal, not gate - older holdings can still be STRONG)
+    
+    Note: Recency is a signal but NOT a gate - older precedential holdings can still be STRONG.
+    """
+    score = 0
+    
+    # Binding score
+    if binding_method == "strict":
+        score += 40
+    elif binding_method == "fuzzy":
+        score += 25  # Cap at MODERATE for fuzzy binding
+    
+    # Quote match score
+    if "exact_match" in signals:
+        score += 30
+    elif "partial_match" in signals:
+        score += 15
+    
+    # Section type heuristic (holding/dicta/concurrence/dissent detection)
+    page_text = page.get("text", "")
+    if page_text and quote:
+        section_type, section_signals = detect_section_type_heuristic(page_text, quote)
+        signals.extend(section_signals)
+        
+        if section_type == "holding":
+            score += 5
+        elif section_type == "dicta":
+            score -= 10
+        elif section_type == "concurrence":
+            score -= 5
+        elif section_type == "dissent":
+            score -= 15
+    
+    # Recency bonus (signal, not gate - older holdings can still be STRONG)
+    release_date = page.get("release_date", "")
+    if release_date:
+        try:
+            if isinstance(release_date, str):
+                year = int(release_date[:4])
+            else:
+                year = release_date.year
+            if year >= 2020:
+                score += 10
+                if "recent" not in signals:
+                    signals.append("recent")
+        except (ValueError, AttributeError):
+            pass
+    
+    # Determine tier
+    # Fuzzy binding caps at MODERATE regardless of score
+    if binding_method == "fuzzy" and score >= 70:
+        score = 69  # Cap score to ensure MODERATE
+    
+    if score >= 70:
+        tier = "strong"
+    elif score >= 50:
+        tier = "moderate"
+    elif score >= 30:
+        tier = "weak"
+    else:
+        tier = "unverified"
+    
+    return tier, score
 
 def build_answer_markdown(response_text: str, markers: List[Dict], position_to_sid: Dict[int, str]) -> str:
     """Convert LLM response to markdown with [1], [2] markers.

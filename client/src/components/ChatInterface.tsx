@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { useConversation, useSendMessage, useCreateConversation, parseSources, parseAnswerMarkdown, parseActionItems } from "@/hooks/useConversations";
+import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import type { ConfidenceTier, CitationSignal } from "@/lib/api";
 import { useStatus } from "@/hooks/useOpinions";
 import { SearchProgress } from "@/components/SearchProgress";
 import type { Citation, Source } from "@/lib/api";
@@ -80,7 +82,11 @@ export function ChatInterface() {
       releaseDate: source.releaseDate,
       pageNumber: source.pageNumber,
       quote: source.quote,
-      verified: true
+      verified: source.tier === 'strong' || source.tier === 'moderate',
+      tier: source.tier,
+      score: source.score,
+      signals: source.signals,
+      bindingMethod: source.bindingMethod
     };
     setSelectedCitations([citation]);
     setSourcePanelOpen(true);
@@ -160,15 +166,27 @@ export function ChatInterface() {
         const sourceNum = citationMatch[1];
         const source = sources.find(s => s.sid === sourceNum);
         if (source) {
+          const tier = (source.tier || 'unverified') as ConfidenceTier;
+          const signals = (source.signals || []) as CitationSignal[];
+          const tierBgColor = tier === 'strong' ? 'bg-green-500/10 hover:bg-green-500/20' 
+            : tier === 'moderate' ? 'bg-yellow-500/10 hover:bg-yellow-500/20'
+            : tier === 'weak' ? 'bg-orange-500/10 hover:bg-orange-500/20'
+            : 'bg-red-500/10 hover:bg-red-500/20';
+          const tierTextColor = tier === 'strong' ? 'text-green-700 dark:text-green-400' 
+            : tier === 'moderate' ? 'text-yellow-700 dark:text-yellow-400'
+            : tier === 'weak' ? 'text-orange-700 dark:text-orange-400'
+            : 'text-red-700 dark:text-red-400';
+          
           return (
             <button
               key={idx}
               onClick={() => handleSourceClick(source)}
-              className="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors"
-              title={`${source.caseName}, p.${source.pageNumber}`}
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 text-[10px] font-medium rounded transition-colors ${tierBgColor} ${tierTextColor}`}
+              title={`${source.caseName}, p.${source.pageNumber}${tier !== 'strong' ? ` (${tier})` : ''}`}
               data-testid={`source-marker-${source.sid}`}
             >
               [{source.sid}]
+              {tier !== 'strong' && <ConfidenceBadge tier={tier} signals={signals} size="sm" />}
             </button>
           );
         }
