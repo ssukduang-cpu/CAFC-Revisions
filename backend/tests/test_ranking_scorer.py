@@ -22,6 +22,8 @@ from ranking_scorer import (
     compute_composite_score,
     generate_application_reason,
     get_authority_type,
+    normalize_origin,
+    compute_framework_boost,
     AUTHORITY_BOOST
 )
 
@@ -167,24 +169,55 @@ class TestProximityScore:
 
 
 class TestApplicationSignal:
-    """Test full application_signal computation."""
+    """Test full application_signal computation with [0.8, 1.5] cap."""
     
-    def test_applies_case_high_signal(self):
+    def test_deep_application_capped_at_1_5(self):
+        """P0 Test 1: Deep application chunk must return <= 1.5"""
         text = """
-        Applying the two-step Alice framework, we hold that the claims are patent-eligible.
-        Under step one, we examine whether the claims are directed to an abstract idea.
-        Because the claims recite a specific technological improvement, they pass step one.
-        Therefore, we conclude that the claims are not abstract under Alice step one.
+        FEDERAL CIRCUIT COURT OF APPEALS
+        Applying the Supreme Court's two-step Alice framework, we hold that
+        the claims at issue are not directed to an abstract idea under step one.
+        At step two, we examine whether the claims contain an inventive concept.
+        Because the claims recite specific technical improvements to computer
+        functionality, we conclude that they satisfy the inventive concept.
+        For the foregoing reasons, we reverse the district court's judgment.
+        Therefore, under Alice and Mayo, we hold these claims are patent-eligible.
         """
         result = compute_application_signal(text)
         signal = result["application_signal"]
-        assert signal >= 2.0, f"Application case should have high signal >= 2.0, got {signal}"
+        assert signal <= 1.5, f"Deep application signal must be <= 1.5, got {signal}"
+        assert signal >= 1.3, f"Deep application should have high signal >= 1.3, got {signal}"
     
-    def test_mentions_case_low_signal(self):
-        text = "See Alice Corp. v. CLS Bank Int'l, 573 U.S. 208 (2014)."
+    def test_mention_only_near_baseline(self):
+        """P0 Test 2: Mention-only chunk returns near baseline (~1.0)"""
+        text = """
+        The plaintiff argues that the claims are similar to those in Alice Corp.
+        v. CLS Bank Int'l, 573 U.S. 208 (2014) and Mayo Collaborative Services.
+        The defendant disputes this characterization of the prior art.
+        """
         result = compute_application_signal(text)
         signal = result["application_signal"]
-        assert signal < 1.5, f"Mention-only case should have low signal < 1.5, got {signal}"
+        assert 0.9 <= signal <= 1.2, f"Mention-only should be near baseline (0.9-1.2), got {signal}"
+    
+    def test_no_doctrine_penalized(self):
+        """P0 Test 3: No doctrine chunk returns <= 1.0 (penalized or baseline)"""
+        text = "The plaintiff brought suit alleging patent infringement. The defendant filed a motion to dismiss."
+        result = compute_application_signal(text)
+        signal = result["application_signal"]
+        assert signal <= 1.0, f"No-doctrine chunk must be <= 1.0, got {signal}"
+        assert signal >= 0.8, f"No-doctrine chunk must be >= 0.8 (floor), got {signal}"
+    
+    def test_signal_never_exceeds_cap(self):
+        """Verify no result can exceed 1.5 application_signal."""
+        extreme_text = """
+        We hold that Alice applies. We conclude under Mayo. Therefore we reverse.
+        For the foregoing reasons, we affirm under KSR. The court finds under Teva.
+        Applying Markman analysis, we hold the claims are construed narrowly.
+        Because the analysis shows, therefore we determine, thus we agree.
+        """ * 10  # Repeat to maximize all components
+        result = compute_application_signal(extreme_text)
+        signal = result["application_signal"]
+        assert signal <= 1.5, f"Signal must NEVER exceed 1.5, got {signal}"
 
 
 class TestCompositeScore:
@@ -287,6 +320,83 @@ class TestApplicationReason:
         assert "holding" in reason.lower(), f"Should mention holding: {reason}"
 
 
+class TestOriginNormalization:
+    """Test origin normalization (P0.3)."""
+    
+    def test_scotus_direct(self):
+        result = normalize_origin("SCOTUS", "")
+        assert result == "SCOTUS", f"Direct SCOTUS should stay SCOTUS, got {result}"
+    
+    def test_scotus_from_casename(self):
+        result = normalize_origin("courtlistener_api", "KSR International Co. v. Teleflex Inc.")
+        assert result == "SCOTUS", f"KSR case name should normalize to SCOTUS, got {result}"
+    
+    def test_courtlistener_normalizes_to_cafc(self):
+        result = normalize_origin("courtlistener_api", "Some CAFC Case v. Another")
+        assert result == "CAFC", f"courtlistener_api should normalize to CAFC, got {result}"
+    
+    def test_dct_normalizes_to_cafc(self):
+        result = normalize_origin("DCT", "District Court Case")
+        assert result == "CAFC", f"DCT should normalize to CAFC, got {result}"
+    
+    def test_web_search_normalizes_to_cafc(self):
+        result = normalize_origin("web_search", "Web Search Case")
+        assert result == "CAFC", f"web_search should normalize to CAFC, got {result}"
+    
+    def test_ptab_stays_ptab(self):
+        result = normalize_origin("PTAB", "Some PTAB Case")
+        assert result == "PTAB", f"PTAB should stay PTAB, got {result}"
+
+
+class TestFrameworkBoost:
+    """Test framework_boost for controlling authorities (P1.4)."""
+    
+    def test_alice_gets_boost(self):
+        boost = compute_framework_boost("Alice Corp. v. CLS Bank", ["Alice"])
+        assert boost == 1.25, f"Alice should get 1.25 boost, got {boost}"
+    
+    def test_ksr_gets_boost(self):
+        boost = compute_framework_boost("KSR International Co. v. Teleflex Inc.", ["KSR"])
+        assert boost == 1.25, f"KSR should get 1.25 boost, got {boost}"
+    
+    def test_markman_gets_boost(self):
+        boost = compute_framework_boost("Markman v. Westview Instruments, Inc.", [])
+        assert boost == 1.25, f"Markman should get 1.25 boost, got {boost}"
+    
+    def test_ebay_gets_boost(self):
+        boost = compute_framework_boost("eBay Inc. v. MercExchange", ["eBay"])
+        assert boost == 1.25, f"eBay should get 1.25 boost, got {boost}"
+    
+    def test_non_controlling_no_boost(self):
+        boost = compute_framework_boost("Some Random v. Case", [])
+        assert boost == 1.0, f"Non-controlling case should have 1.0 boost, got {boost}"
+
+
+class TestConsistency:
+    """Test court/authority_type/authority_boost consistency (P0.3)."""
+    
+    def test_scotus_consistency(self):
+        page = {"origin": "SCOTUS", "case_name": "Alice Corp. v. CLS Bank"}
+        auth_type = get_authority_type(page)
+        boost = compute_authority_boost(page)
+        assert auth_type == "SCOTUS", f"Authority type should be SCOTUS, got {auth_type}"
+        assert boost == 1.8, f"SCOTUS should have 1.8 boost, got {boost}"
+    
+    def test_scotus_from_casename_consistency(self):
+        page = {"origin": "courtlistener_api", "case_name": "KSR International Co. v. Teleflex Inc."}
+        auth_type = get_authority_type(page)
+        boost = compute_authority_boost(page)
+        assert auth_type == "SCOTUS", f"KSR authority type should be SCOTUS, got {auth_type}"
+        assert boost == 1.8, f"KSR should have 1.8 boost, got {boost}"
+    
+    def test_cafc_consistency(self):
+        page = {"origin": "CAFC", "is_precedential": True}
+        auth_type = get_authority_type(page)
+        boost = compute_authority_boost(page)
+        assert auth_type == "CAFC_precedential", f"Authority type should be CAFC_precedential, got {auth_type}"
+        assert boost == 1.3, f"CAFC precedential should have 1.3 boost, got {boost}"
+
+
 def run_all_tests():
     """Run all tests and report results."""
     print("=" * 60)
@@ -304,7 +414,10 @@ def run_all_tests():
         TestApplicationSignal,
         TestCompositeScore,
         TestSyntheticRegression,
-        TestApplicationReason
+        TestApplicationReason,
+        TestOriginNormalization,
+        TestFrameworkBoost,
+        TestConsistency
     ]
     
     total_passed = 0

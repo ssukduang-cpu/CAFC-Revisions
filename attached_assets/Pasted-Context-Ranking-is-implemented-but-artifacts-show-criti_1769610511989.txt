@@ -1,0 +1,79 @@
+Context: Ranking is implemented, but artifacts show critical issues: application_signal cap violation, provenance fields leaking into search ranking, origin inconsistencies, missing claim-construction framework detection, and missing SCOTUS framework surfacing (Alice/Mayo).
+
+P0 — Fix correctness bugs (blockers)
+	1.	Fix application_signal range + component caps
+	•	application_signal must be bounded to [0.8, 1.5] (or at minimum ≤ 1.5 as specified).
+	•	Right now we see values like 2.50 and 1.92, which indicates the cap logic is wrong.
+	•	Provide the exact updated formula and show 3 unit tests:
+	•	A “deep application” chunk returns ≤ 1.5
+	•	A “mention-only” chunk returns near baseline (≈1.0)
+	•	A “no doctrine” chunk returns ≤ 1.0
+	•	Acceptance: no result in golden-query top 20 may have application_signal > 1.5.
+	2.	Separate ranking from citation tiers/binding_failed (trust boundary)
+	•	Search ranking results must NOT display tier, binding_failed, or binding_method unless those fields refer to retrieval verification, not model-generated quote verification.
+	•	binding_failed is a generation-time quote verification signal; it should not appear on retrieval hits.
+	•	Update result schema:
+	•	Retrieval hits show: court, precedential_status, authority_type, explain, why_this_case
+	•	Citation tiers remain only in response citations tied to generated statements.
+	•	Acceptance: golden-query artifacts must show no “Tier” column for ranking results, and no binding_failed in ranking outputs.
+	3.	Fix court/origin labeling and authority_boost mapping
+	•	Ensure court is always derived from documents.origin (SCOTUS/CAFC/etc.) and passed through to API correctly.
+	•	Ensure authority_boost is computed from court + precedential_status, not from case name heuristics.
+	•	Fix cases like “Cuozzo v. Lee” showing Court=CAFC but getting auth_boost=1.8.
+	•	Acceptance: for the top 20 hits of each golden query, court label and authority_boost must be internally consistent.
+
+⸻
+
+P1 — Make controlling frameworks surface (SCOTUS “defines” should rank, not be penalized)
+	4.	Add “Controlling Framework” retrieval mode
+	•	For doctrine-tagged queries (e.g., §101, §103, §112, PTAB reviewability, claim construction, remedies):
+	•	Always retrieve top controlling SCOTUS frameworks even if they “define” rather than “apply.”
+	•	Implement framework_boost:
+	•	If query doctrine tag is §101 → boost SCOTUS {Alice, Mayo, Bilski, Diehr}
+	•	§103 → {Graham, KSR}
+	•	§112 → {Nautilus, Amgen}
+	•	Claim construction → {Markman, Teva} and CAFC {Phillips} (en banc CAFC is controlling within CAFC)
+	•	PTAB reviewability → {Cuozzo, Thryv, SAS}
+	•	Remedies → {eBay, Halo, Octane}
+	•	This should be a modest multiplier (e.g., 1.15–1.30) so it doesn’t swamp relevance, but ensures framework cases appear in top results.
+	•	Acceptance: Query 1 (§101) must surface SCOTUS Alice in top 5 as controlling authority (unless not ingested).
+	5.	Fix framework_reference list and doctrine tagging
+	•	Add missing framework terms: Markman, Teva, Phillips, Nautilus, Amgen, Graham, eBay, Octane, Halo, Festo, Warner-Jenkinson.
+	•	Ensure the doctrine classifier maps claim construction queries to the correct tags.
+	•	Acceptance: Claim construction query must return non-empty results with correct controlling authorities.
+
+⸻
+
+P1 — Regenerate the Golden Query artifacts (correct format)
+	6.	Re-run Top 10 Golden Queries and provide corrected outputs
+For each query, provide:
+	•	Top 5 hits with:
+	•	Case name
+	•	court
+	•	precedential_status
+	•	authority_type
+	•	explain values: relevance_score, authority_boost, gravity_factor, recency_factor, application_signal, composite_score
+	•	why_this_case
+	•	Plus a YES/NO check:
+	•	Does top 5 include controlling authority OR high application CAFC (holding_indicator≥1)?
+	•	Any internal inconsistencies (court vs boost)? Should be NO.
+
+⸻
+
+P2 — Only after the above: tackle quote-level binding_failed prevalence
+	7.	Do not conflate ranking with binding_failed
+	•	Once ranking is clean, separately evaluate why generated quotes fail verification:
+	•	Is the generator quoting paraphrases?
+	•	Is the quote extraction truncating?
+	•	Is normalization too strict for OCR artifacts?
+	•	We will treat this as Step 4 after ranking is fixed.
+
+⸻
+
+Deliverables (must include)
+	•	Commit hashes / PRs
+	•	Files changed
+	•	Updated unit tests proving application_signal cap + origin correctness
+	•	Corrected golden-query artifact tables (no tiers/binding_failed in ranking outputs)
+
+Stop after completing this.

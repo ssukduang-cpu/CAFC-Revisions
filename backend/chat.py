@@ -1203,10 +1203,17 @@ def build_sources_from_markers(
                 "viewer_url": "",
                 "pdf_url": "",
                 "courtlistener_url": "",
-                "tier": "unverified",
-                "score": 0,
-                "signals": signals,
-                "binding_method": binding_method
+                # Ranking fields (unknown for unverified)
+                "court": "CAFC",  # Default, unknown for unverified
+                "precedential_status": "unknown",
+                "is_en_banc": False,
+                # Citation verification fields
+                "citation_verification": {
+                    "tier": "unverified",
+                    "score": 0,
+                    "signals": signals,
+                    "binding_method": binding_method
+                }
             })
             continue
 
@@ -1239,11 +1246,17 @@ def build_sources_from_markers(
             "viewer_url": f"/pdf/{page.get('opinion_id')}?page={page.get('page_number', 1)}",
             "pdf_url": page.get("pdf_url", ""),
             "courtlistener_url": page.get("courtlistener_url", ""),
+            # Ranking fields (from document metadata)
             "court": page.get("origin", "CAFC"),
-            "tier": tier,
-            "score": score,
-            "signals": signals,
-            "binding_method": binding_method
+            "precedential_status": "precedential" if page.get("is_precedential", True) else "nonprecedential",
+            "is_en_banc": page.get("is_en_banc", False),
+            # Citation verification fields (separate from ranking)
+            "citation_verification": {
+                "tier": tier,
+                "score": score,
+                "signals": signals,
+                "binding_method": binding_method
+            }
         })
 
     # Apply composite scoring for precedence-aware ranking

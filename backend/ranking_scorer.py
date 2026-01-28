@@ -19,19 +19,80 @@ AUTHORITY_BOOST = {
 }
 
 FRAMEWORK_TERMS = [
-    "Alice", "Mayo", "KSR", "Cuozzo", "Thryv", "SAS", "eBay", 
-    "Halo", "Octane", "Teva", "Markman", "Nautilus", "Amgen",
-    "Bilski", "Festo", "Warner-Jenkinson", "Phillips", "Vitronics"
+    # §101 eligibility
+    "Alice", "Mayo", "Bilski", "Diehr", "Benson", "Flook",
+    # §103 obviousness
+    "KSR", "Graham", "TSM",
+    # §112 disclosure
+    "Nautilus", "Amgen", "Ariad", "Gentry", "Williamson",
+    # Claim construction
+    "Markman", "Teva", "Phillips", "Vitronics", "Innova",
+    # PTAB reviewability
+    "Cuozzo", "Thryv", "SAS",
+    # Remedies
+    "eBay", "Halo", "Octane", "Stryker",
+    # DOE/estoppel
+    "Festo", "Warner-Jenkinson", "Graver Tank"
 ]
+
+# Framework boost mapping: query doctrine tag -> controlling frameworks to boost
+DOCTRINE_FRAMEWORKS = {
+    "101": ["Alice", "Mayo", "Bilski", "Diehr", "Benson", "Flook"],
+    "103": ["Graham", "KSR", "TSM"],
+    "112": ["Nautilus", "Amgen", "Ariad", "Williamson"],
+    "claim_construction": ["Markman", "Teva", "Phillips", "Vitronics"],
+    "ptab": ["Cuozzo", "Thryv", "SAS"],
+    "remedies": ["eBay", "Halo", "Octane", "Stryker"],
+    "doe": ["Festo", "Warner-Jenkinson", "Graver Tank"]
+}
+
+def normalize_origin(origin: str, case_name: str = "") -> str:
+    """Normalize origin field to standard court labels.
+    
+    Maps various ingestion sources to standard court labels:
+    - courtlistener_api, web_search, DCT, cafc_website -> CAFC (default)
+    - SCOTUS -> SCOTUS
+    - PTAB -> PTAB
+    
+    Also checks case_name for SCOTUS indicators.
+    """
+    origin_upper = origin.upper() if origin else ""
+    case_lower = case_name.lower() if case_name else ""
+    
+    # Check case_name for SCOTUS indicators
+    scotus_indicators = ["u.s.", "s.ct.", "s. ct.", "supreme court", " v. "]
+    scotus_cases = ["alice corp", "mayo collaborative", "ksr international", 
+                    "ebay inc", "halo electronics", "octane fitness", "teva pharm",
+                    "markman v. westview", "bilski v. kappos", "cuozzo speed",
+                    "thryv, inc", "sas institute", "amgen inc. v. sanofi",
+                    "nautilus, inc", "festo corp", "warner-jenkinson"]
+    
+    for case in scotus_cases:
+        if case in case_lower:
+            return "SCOTUS"
+    
+    # Direct origin matches
+    if origin_upper == "SCOTUS":
+        return "SCOTUS"
+    
+    if origin_upper == "PTAB":
+        return "PTAB"
+    
+    # Everything else normalizes to CAFC (including courtlistener_api, web_search, DCT)
+    return "CAFC"
+
 
 def get_authority_type(page: Dict) -> str:
     """Determine the authority type of a document."""
-    origin = page.get("origin", "").upper()
-    case_name = page.get("case_name", "").lower()
+    raw_origin = page.get("origin", "")
+    case_name = page.get("case_name", "")
     is_en_banc = page.get("is_en_banc", False)
     is_precedential = page.get("is_precedential", True)
     
-    if "u.s.c." in case_name or "§" in case_name:
+    # Normalize origin
+    origin = normalize_origin(raw_origin, case_name)
+    
+    if "u.s.c." in case_name.lower() or "§" in case_name:
         return "statute"
     
     if origin == "SCOTUS":
@@ -268,14 +329,19 @@ def compute_proximity_score(text: str) -> float:
 def compute_application_signal(text: str) -> Dict[str, Any]:
     """Compute full application signal for 'applies vs mentions' ranking.
     
-    Formula:
-        application_signal = 1 + min(
-            0.5*holding_indicator + 
-            0.6*analysis_depth + 
-            0.3*framework_reference + 
-            0.2*proximity_score, 
-            1.5
-        )
+    Capped to [0.8, 1.5] range:
+    - 0.8: No doctrine / mention-only content (penalized)
+    - 1.0: Baseline / neutral
+    - 1.5: Deep application with holding language (maximum boost)
+    
+    Component weights (normalized to yield 0-0.5 boost):
+    - holding_indicator: 0.15 per level (max 0.30 for level 2)
+    - analysis_depth: 0.10 (max 0.10)
+    - framework_reference: 0.05 (max 0.05)
+    - proximity_score: 0.05 (max 0.05)
+    Total max boost: 0.50 -> signal = 1.5
+    
+    Penalty for no doctrine: -0.2 -> signal = 0.8
     
     Returns dict with breakdown and final signal.
     """
@@ -284,12 +350,22 @@ def compute_application_signal(text: str) -> Dict[str, Any]:
     framework_ref, frameworks_detected = detect_framework_reference(text)
     proximity = compute_proximity_score(text)
     
-    raw = (0.5 * holding_indicator + 
-           0.6 * analysis_depth + 
-           0.3 * framework_ref + 
-           0.2 * proximity)
+    # Normalized weights to cap boost at 0.5
+    boost = (0.15 * holding_indicator +      # max 0.30 (holding=2)
+             0.10 * analysis_depth +          # max 0.10
+             0.05 * framework_ref +           # max 0.05
+             0.05 * proximity)                # max 0.05
+    # Total max boost = 0.50
     
-    application_signal = 1 + min(raw, 1.5)
+    # Base signal is 1.0, with boost capped at 0.5
+    raw_signal = 1.0 + min(boost, 0.50)
+    
+    # Apply penalty for "mention-only" (no framework, no holding, low analysis)
+    if framework_ref == 0 and holding_indicator == 0 and analysis_depth < 0.3:
+        raw_signal = 0.8  # Penalize mention-only content
+    
+    # Final cap to [0.8, 1.5]
+    application_signal = min(1.5, max(0.8, raw_signal))
     
     return {
         "holding_indicator": holding_indicator,
@@ -382,15 +458,63 @@ def generate_application_reason(explain: Dict, page: Dict) -> str:
     return "; ".join(reasons) + "."
 
 
+def compute_framework_boost(case_name: str, frameworks_detected: List[str], doctrine_tag: Optional[str] = None) -> float:
+    """Compute framework_boost for controlling frameworks.
+    
+    Boosts SCOTUS cases that DEFINE controlling frameworks (not just apply them).
+    Also boosts CAFC cases that are themselves controlling authority (e.g., Phillips for claim construction).
+    
+    Args:
+        case_name: Name of the case
+        frameworks_detected: Frameworks detected in the text
+        doctrine_tag: Optional doctrine classification of the query (e.g., "101", "103")
+    
+    Returns:
+        Framework boost multiplier (1.0 = no boost, up to 1.25 for controlling authority)
+    """
+    case_lower = case_name.lower() if case_name else ""
+    
+    # Check if this case IS a controlling framework (the case that defines the doctrine)
+    controlling_cases = {
+        "alice": 1.25,  # Alice Corp. v. CLS Bank defines §101 software test
+        "mayo": 1.20,   # Mayo defines §101 natural phenomena test
+        "bilski": 1.15, # Bilski defines abstract idea category
+        "ksr": 1.25,    # KSR defines §103 obviousness
+        "graham": 1.15, # Graham v. John Deere defines §103 factors
+        "markman": 1.25,# Markman defines claim construction as law
+        "teva": 1.20,   # Teva defines deference standard
+        "phillips": 1.20,# Phillips defines intrinsic evidence priority
+        "nautilus": 1.20,# Nautilus defines indefiniteness standard
+        "amgen": 1.25,  # Amgen defines enablement for genus claims
+        "ebay": 1.25,   # eBay defines injunction factors
+        "halo": 1.20,   # Halo defines willfulness standard
+        "octane": 1.20, # Octane defines exceptional case
+        "cuozzo": 1.20, # Cuozzo defines PTAB reviewability
+        "thryv": 1.20,  # Thryv defines time-bar non-reviewability
+        "sas": 1.20,    # SAS defines partial institution
+        "festo": 1.20,  # Festo defines prosecution history estoppel
+        "warner-jenkinson": 1.15,  # Warner-Jenkinson defines DOE
+    }
+    
+    for framework, boost in controlling_cases.items():
+        if framework in case_lower:
+            return boost
+    
+    # No boost if not a defining case
+    return 1.0
+
+
 def rank_sources_by_composite(
     sources: List[Dict],
-    pages_by_id: Dict[str, Dict]
+    pages_by_id: Dict[str, Dict],
+    doctrine_tag: Optional[str] = None
 ) -> List[Dict]:
     """Re-rank sources by composite score and add explain metadata.
     
     Args:
         sources: List of source dicts (from build_sources_with_binding)
         pages_by_id: Dict mapping opinion_id to page data
+        doctrine_tag: Optional doctrine classification for framework boost
     
     Returns:
         Sources sorted by composite_score with explain added
@@ -401,20 +525,56 @@ def rank_sources_by_composite(
         opinion_id = source.get("opinion_id", "")
         page = pages_by_id.get(opinion_id, {})
         
-        base_score = source.get("score", 0) / 100.0 if source.get("score") else 0.5
-        if source.get("tier") == "strong":
+        # Get citation verification score if available (new structure)
+        citation_verif = source.get("citation_verification", {})
+        verif_score = citation_verif.get("score", 0)
+        verif_tier = citation_verif.get("tier", "")
+        
+        # Compute base relevance score from verification or default
+        if verif_score:
+            base_score = verif_score / 100.0
+        else:
+            base_score = 0.5
+        
+        if verif_tier == "strong":
             base_score = max(base_score, 0.7)
-        elif source.get("tier") == "moderate":
+        elif verif_tier == "moderate":
             base_score = max(base_score, 0.5)
         
+        # Merge page metadata with source metadata
         page_with_meta = {**page, **source}
+        
+        # Use origin from source if available (P0.3 fix)
+        if source.get("court"):
+            page_with_meta["origin"] = source.get("court")
+        if source.get("precedential_status") == "precedential":
+            page_with_meta["is_precedential"] = True
+        elif source.get("precedential_status") == "nonprecedential":
+            page_with_meta["is_precedential"] = False
+        if source.get("is_en_banc"):
+            page_with_meta["is_en_banc"] = True
+        
         text = page.get("text", "") or source.get("quote", "")
         
         explain = compute_composite_score(base_score, page_with_meta, text)
+        
+        # Apply framework boost for controlling authorities (P1.4)
+        case_name = source.get("case_name", "")
+        frameworks = explain.get("application_breakdown", {}).get("frameworks_detected", [])
+        framework_boost = compute_framework_boost(case_name, frameworks, doctrine_tag)
+        
+        if framework_boost > 1.0:
+            explain["framework_boost"] = framework_boost
+            explain["composite_score"] = round(explain["composite_score"] * framework_boost, 4)
+        
         application_reason = generate_application_reason(explain, page_with_meta)
+        
+        # Normalize court in output (P0.3)
+        normalized_court = normalize_origin(source.get("court", ""), case_name)
         
         enriched.append({
             **source,
+            "court": normalized_court,  # Override with normalized court
             "explain": explain,
             "application_reason": application_reason
         })
