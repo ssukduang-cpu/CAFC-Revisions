@@ -1,0 +1,117 @@
+STEP 2 (P1): Precedence-aware ranking + “applies vs mentions” scoring
+
+Context: SCOTUS ingestion + binding is verified. Next, we need ranking that surfaces the most legally authoritative and on-point results (statute/SCOTUS/en banc/precedential CAFC) and demotes cases that merely mention controlling authority.
+
+Deliverables (reply with these artifacts)
+	1.	PR-sized task list (or commits) implementing items A–E below, with DoD + acceptance tests per PR.
+	2.	Run the Top 10 queries below before/after and provide the top 5 ranked hits per query with explain breakdown.
+	3.	Run the synthetic A/B regression test (“applies” outranks “mentions”) and provide output.
+
+⸻
+
+A) Composite scorer + explain (backend)
+
+Implement composite_score per hit and return explain metadata in API response:
+
+Formula
+composite_score = relevance_score * authority_boost * gravity_factor * recency_factor * application_signal
+
+authority_boost
+	•	statute: 2.0
+	•	SCOTUS: 1.8
+	•	CAFC en banc: 1.6
+	•	CAFC precedential: 1.3
+	•	PTAB precedential: 1.1
+	•	nonprecedential: 0.8
+
+recency_factor: 0.95–1.10 (small boost)
+gravity_factor: 0.60–1.00 from document metadata (if absent default 0.85)
+
+API must return
+explain = {relevance_score, authority_boost, gravity_factor, recency_factor, application_signal, composite_score} for every result.
+
+DoD
+	•	composite_score computed for all hits
+	•	explain present for all hits
+
+⸻
+
+B) application_signal (“applies vs mentions”) (backend)
+
+Compute application_signal per hit to reward substantive application:
+
+Components
+	•	holding_indicator (0/1/2)
+	•	2 if regex near doctrine terms: \bwe (hold|conclude|reverse|affirm)\b, \btherefore\b.*\bwe\b
+	•	1 if the court finds|we agree|we determine
+	•	analysis_depth (0–1): length/structure heuristic (cap 1)
+	•	framework_reference (0/1): applying (Alice|Mayo|KSR|Cuozzo|Thryv|SAS|eBay|Halo|Octane|Teva|Markman|Nautilus|Amgen)
+	•	proximity_score (0–1): proximity between doctrine terms and holding/analysis terms
+
+Combine
+application_signal = 1 + min(0.5*holding_indicator + 0.6*analysis_depth + 0.3*framework_reference + 0.2*proximity_score, 1.5)
+
+DoD
+	•	application_signal computed and included in explain
+
+⸻
+
+C) Merge authoritative + case retrieval (backend)
+
+Run two retrieval passes and merge by composite_score:
+	1.	authoritative: statute + SCOTUS + CAFC en banc (boosted)
+	2.	case: CAFC precedential + PTAB precedential (normal)
+
+Deduplicate by opinion_id + page/chunk. Keep highest composite_score.
+
+DoD
+	•	merged list sorted by composite_score
+	•	no duplicates
+
+⸻
+
+D) “Why this case?” (backend → frontend)
+
+Return application_reason (1 sentence) per top hit derived from explain (e.g., “Applies Alice step two with majority holding language; §101.”)
+
+Frontend: show this under each top result card.
+
+DoD
+	•	“Why this case?” visible in search results
+	•	SCOTUS/CAFC label remains visible
+
+⸻
+
+E) Tests + Golden queries
+
+Add:
+	1.	Unit tests for composite_score arithmetic + application_signal components
+	2.	Synthetic regression test:
+	•	Doc A: deep application (“we hold… applying Alice…”)
+	•	Doc B: mention-only (“see Alice…”)
+	•	Query “Alice step two inventive concept” must rank A > B
+	3.	Golden query suite (10 queries below): for each query, assert top 5 includes at least one of:
+	•	controlling SCOTUS/statute, OR
+	•	CAFC precedential hit with application_signal high and holding_indicator ≥1
+
+DoD
+	•	CI runs tests and passes
+	•	Provide before/after snapshots for golden queries (top 5 + explain)
+
+⸻
+
+Top 10 golden queries (run before/after)
+	1.	§101 (Alice/Mayo): “How does the Federal Circuit apply Alice step two to computer-implemented claims, and what makes an ‘inventive concept’?”
+	2.	Claim construction: “What are the Federal Circuit’s current rules for claim construction, including when extrinsic evidence matters (Teva/Markman/Phillips)?”
+	3.	§103 (KSR): “How does the Federal Circuit apply KSR to combinations of known elements, and what evidence supports/defeats motivation to combine?”
+	4.	Damages/apportionment: “What are the Federal Circuit standards for reasonable royalty and apportionment, and what evidence is required?”
+	5.	PTAB reviewability: “What institution issues are reviewable after Cuozzo/Thryv/SAS, and how does the Federal Circuit treat time-bar and institution challenges?”
+	6.	§112 enablement: “Post-Amgen, what does the Federal Circuit require for enablement of genus/function claims and how does this interact with written description?”
+	7.	Willfulness (Halo): “What is the Federal Circuit’s framework for willfulness and enhanced damages after Halo?”
+	8.	Injunctions (eBay): “How does the Federal Circuit apply the eBay factors to permanent injunctions in patent cases?”
+	9.	Fees (Octane): “What makes a case ‘exceptional’ for fees under Octane and how does the Federal Circuit apply it?”
+	10.	DOE/estoppel: “What is the current Federal Circuit approach to doctrine of equivalents and prosecution history estoppel (Festo/Warner-Jenkinson)?”
+
+⸻
+
+Stop after implementing A–E and returning the deliverables. Do not change citation binding.
