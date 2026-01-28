@@ -1,0 +1,35 @@
+Step 1 (P0): Confirm SCOTUS ingestion is “citation-verifiable” end-to-end and expose authority metadata.
+Since SCOTUS ingestion is already underway, before we touch ranking or prompts, I need you to produce a verification report that proves SCOTUS is fully integrated into the same provenance guarantees as CAFC.
+
+Deliverables (must send back in your next message):
+	1.	Schema/metadata confirmation
+	•	Confirm every SCOTUS chunk/page carries: court="SCOTUS", unique opinion_id, case_name, release_date, page_number (or paragraph index if available).
+	•	Confirm no opinion_id collisions with CAFC.
+	2.	Verifier parity
+	•	Demonstrate that verify_quote_strict and verify_quote_with_case_binding work identically for SCOTUS citations (same normalization, same 20-char minimum, same ellipsis handling, same signals).
+	•	Provide 2 unit tests (or references to existing tests) showing:
+(a) SCOTUS strict binding passes on a real SCOTUS quote present in the claimed SCOTUS opinion_id
+(b) Misattribution fails when a SCOTUS quote is attributed to the wrong SCOTUS opinion_id (returns binding_failed, tier=unverified).
+	3.	UI/API exposure
+	•	Confirm the API response for citations includes and the UI displays: court, bindingMethod, tier, score, signals.
+	•	In SourcesPanel and citation hover/tooltip, SCOTUS must show clearly as Supreme Court (not just case name).
+	4.	“Top 10 high-value questions” baseline run (no ranking changes yet)
+Run the following 10 queries and report:
+	•	which SCOTUS cases are retrieved (if any), and
+	•	which CAFC cases are retrieved, and
+	•	whether the top CAFC hits apply the controlling SCOTUS framework or merely mention it (quick qualitative note).
+
+Top 10 queries (with estimated probability of being asked by patent litigators):
+	1.	§101 eligibility (Alice/Mayo): “How does the Federal Circuit apply Alice step two to computer-implemented claims, and what makes an ‘inventive concept’?” (18%)
+	2.	Claim construction: “What are the Federal Circuit’s current rules for claim construction, including when extrinsic evidence matters (Teva/Markman/Phillips)?” (14%)
+	3.	§103 obviousness (KSR): “How does the Federal Circuit apply KSR to combinations of known elements, and what evidence supports/defeats motivation to combine?” (12%)
+	4.	Damages (reasonable royalty/apportionment): “What are the Federal Circuit standards for reasonable royalty and apportionment, and what evidence is required?” (10%)
+	5.	IPR/PTAB reviewability & procedure: “What institution/APA issues are reviewable after Cuozzo/Thryv/SAS, and how does the Federal Circuit treat time-bar and institution challenges?” (10%)
+	6.	§112 enablement (Amgen) + written description: “Post-Amgen, what does the Federal Circuit require for enablement of genus/function claims and how does this interact with written description?” (9%)
+	7.	Willfulness/enhanced damages (Halo): “What is the Federal Circuit’s framework for willfulness and enhanced damages after Halo?” (8%)
+	8.	Injunctions (eBay): “How does the Federal Circuit apply the eBay factors to permanent injunctions in patent cases?” (7%)
+	9.	Attorney fees (Octane): “What makes a case ‘exceptional’ for fees under Octane and how does the Federal Circuit apply it?” (6%)
+	10.	Doctrine of equivalents / prosecution history estoppel (Festo/Warner-Jenkinson): “What is the current Federal Circuit approach to DOE and prosecution history estoppel?” (6%)
+
+Stop after producing this report. Do not change ranking/prompting yet.
+Once we confirm SCOTUS provenance + UI exposure is correct, we’ll proceed to Step 2 (precedence-aware ranking + ‘applies vs mentions’ scoring).

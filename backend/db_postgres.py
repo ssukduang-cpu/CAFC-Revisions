@@ -1010,7 +1010,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
-                    d.courtlistener_url,
+                    d.courtlistener_url, d.origin,
                     1.0 as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
@@ -1026,7 +1026,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
-                    d.courtlistener_url,
+                    d.courtlistener_url, d.origin,
                     ts_rank(p.text_search_vector, plainto_tsquery('english', %s)) as rank
                 FROM document_pages p
                 JOIN documents d ON p.document_id = d.id
@@ -1041,7 +1041,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
             cursor.execute("""
                 WITH matched_docs AS (
                     SELECT d.id, d.case_name, d.appeal_number, d.release_date, 
-                           d.pdf_url, d.courtlistener_url
+                           d.pdf_url, d.courtlistener_url, d.origin
                     FROM documents d
                     WHERE d.ingested = TRUE 
                       AND d.case_name ILIKE '%%' || %s || '%%'
@@ -1051,7 +1051,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                     d.case_name, d.appeal_number as appeal_no, 
                     to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
-                    d.courtlistener_url,
+                    d.courtlistener_url, d.origin,
                     1.0 as rank
                 FROM document_pages p
                 JOIN matched_docs d ON p.document_id = d.id
@@ -1073,7 +1073,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                         p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                         d.case_name, d.appeal_number as appeal_no, 
                         to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
-                        d.courtlistener_url,
+                        d.courtlistener_url, d.origin,
                         (
                             ts_rank(p.text_search_vector, to_tsquery('english', %s)) +
                             CASE WHEN d.case_name ILIKE '%%' || %s || '%%' THEN 10.0 ELSE 0.0 END
@@ -1096,7 +1096,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                         p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
                         d.case_name, d.appeal_number as appeal_no, 
                         to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
-                        d.courtlistener_url,
+                        d.courtlistener_url, d.origin,
                         1.0 as rank
                     FROM document_pages p
                     JOIN documents d ON p.document_id = d.id

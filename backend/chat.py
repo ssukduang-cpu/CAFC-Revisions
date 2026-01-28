@@ -1238,6 +1238,7 @@ def build_sources_from_markers(
             "viewer_url": f"/pdf/{page.get('opinion_id')}?page={page.get('page_number', 1)}",
             "pdf_url": page.get("pdf_url", ""),
             "courtlistener_url": page.get("courtlistener_url", ""),
+            "court": page.get("origin", "CAFC"),
             "tier": tier,
             "score": score,
             "signals": signals,

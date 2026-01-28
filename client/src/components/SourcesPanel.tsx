@@ -98,6 +98,9 @@ export function SourcesPanel() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
+                      {citation.court === 'SCOTUS' && (
+                        <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold">Supreme Court</span>
+                      )}
                       <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold">{citation.appealNo}</span>
                       <span>{citation.releaseDate}</span>
                       <span>•</span>
@@ -142,7 +145,7 @@ export function SourcesPanel() {
       <div className="p-4 border-t border-border">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
-          <p>All citations verified against official CAFC documents</p>
+          <p>Citations verified against official CAFC and Supreme Court documents</p>
         </div>
       </div>
     </div>

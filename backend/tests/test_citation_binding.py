@@ -263,6 +263,96 @@ class TestHelperFunctions:
         assert score <= 69, f"Score should be capped at 69 for MODERATE, got: {score}"
 
 
+class TestSCOTUSBinding:
+    """Test SCOTUS citation binding - verifier parity with CAFC."""
+    
+    # Real SCOTUS case data (simulated from ingested Alice Corp)
+    SCOTUS_ALICE = {
+        "opinion_id": "scotus-alice-uuid-1234",
+        "case_name": "Alice Corp. v. CLS Bank International",
+        "appeal_no": "13-298",
+        "release_date": "2014-06-19",
+        "page_number": 2,
+        "origin": "SCOTUS",
+        "text": "We hold that the claims at issue are drawn to the abstract idea of intermediated settlement, and that merely requiring generic computer implementation fails to transform that abstract idea into a patent-eligible invention.",
+        "pdf_url": "",
+        "courtlistener_url": ""
+    }
+    
+    SCOTUS_KSR = {
+        "opinion_id": "scotus-ksr-uuid-5678",
+        "case_name": "KSR International Co. v. Teleflex Inc.",
+        "appeal_no": "04-1350",
+        "release_date": "2007-04-30",
+        "page_number": 8,
+        "origin": "SCOTUS",
+        "text": "The combination of familiar elements according to known methods is likely to be obvious when it does no more than yield predictable results.",
+        "pdf_url": "",
+        "courtlistener_url": ""
+    }
+    
+    SCOTUS_PAGES = [SCOTUS_ALICE, SCOTUS_KSR]
+    
+    def test_scotus_strict_binding_passes(self):
+        """
+        TEST A: SCOTUS strict binding passes on real SCOTUS quote + correct opinion_id
+        
+        Scenario: Alice Corp quote correctly attributed to Alice Corp SCOTUS opinion
+        Expected: Binding succeeds, tier is STRONG or MODERATE
+        """
+        quote = "We hold that the claims at issue are drawn to the abstract idea of intermediated settlement"
+        
+        markers = [{
+            "quote": quote,
+            "opinion_id": self.SCOTUS_ALICE["opinion_id"],
+            "case_name": "Alice Corp. v. CLS Bank",
+            "page_number": 2,
+            "position": 0,
+            "citation_num": 1
+        }]
+        
+        sources, _ = build_sources_from_markers(markers, self.SCOTUS_PAGES)
+        
+        assert len(sources) == 1, "Should create one source"
+        source = sources[0]
+        
+        assert source["tier"] in ["strong", "moderate"], f"SCOTUS binding should be STRONG or MODERATE, got: {source['tier']}"
+        assert source["binding_method"] == "strict", f"Should use strict binding, got: {source['binding_method']}"
+        assert "case_bound" in source["signals"], f"Must have 'case_bound' signal"
+        assert "exact_match" in source["signals"], f"Must have 'exact_match' signal"
+        
+        print("✓ TEST A PASSED: SCOTUS strict binding passes on correct quote + opinion_id")
+    
+    def test_scotus_misattribution_fails(self):
+        """
+        TEST B: SCOTUS misattribution fails - binding_failed, tier=unverified
+        
+        Scenario: KSR quote attributed to Alice Corp SCOTUS opinion (WRONG!)
+        Expected: UNVERIFIED with binding_failed signal
+        """
+        quote_from_ksr = "The combination of familiar elements according to known methods is likely to be obvious"
+        
+        markers = [{
+            "quote": quote_from_ksr,
+            "opinion_id": self.SCOTUS_ALICE["opinion_id"],  # WRONG - this is Alice's ID
+            "case_name": "Alice Corp. v. CLS Bank",
+            "page_number": 2,
+            "position": 0,
+            "citation_num": 1
+        }]
+        
+        sources, _ = build_sources_from_markers(markers, self.SCOTUS_PAGES)
+        
+        assert len(sources) == 1, "Should still create a source entry"
+        source = sources[0]
+        
+        assert source["tier"] == "unverified", f"SCOTUS misattribution must be UNVERIFIED, got: {source['tier']}"
+        assert "binding_failed" in source["signals"], f"Must have 'binding_failed' signal"
+        assert source["binding_method"] == "failed", f"Binding method must be 'failed'"
+        
+        print("✓ TEST B PASSED: SCOTUS misattribution fails with binding_failed + UNVERIFIED")
+
+
 class TestHeuristicDetection:
     """Test holding/dicta/concurrence/dissent heuristics."""
     
@@ -349,8 +439,15 @@ def run_all_tests():
     print("✓ TEST 13 PASSED: Concurrence detection works")
     
     print()
+    
+    # SCOTUS binding tests
+    scotus_tests = TestSCOTUSBinding()
+    scotus_tests.test_scotus_strict_binding_passes()
+    scotus_tests.test_scotus_misattribution_fails()
+    
+    print()
     print("=" * 60)
-    print("ALL 13 TESTS PASSED")
+    print("ALL 15 TESTS PASSED")
     print("=" * 60)
 
 

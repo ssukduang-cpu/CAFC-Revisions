@@ -21,6 +21,8 @@ export type CitationSignal =
   | 'db_fetched'
   | 'no_case_name';
 
+export type Court = 'CAFC' | 'SCOTUS';
+
 export interface Citation {
   opinionId: string;
   caseName: string;
@@ -33,6 +35,7 @@ export interface Citation {
   score?: number;
   signals?: CitationSignal[];
   bindingMethod?: BindingMethod;
+  court?: Court;
 }
 
 export interface Source {
@@ -46,6 +49,7 @@ export interface Source {
   viewerUrl: string;
   pdfUrl: string;
   courtlistenerUrl: string;
+  court?: Court;
   tier?: ConfidenceTier;
   score?: number;
   signals?: CitationSignal[];
