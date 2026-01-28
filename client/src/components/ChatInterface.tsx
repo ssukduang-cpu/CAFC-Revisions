@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Users, FileText, Globe } from "lucide-react";
+import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Users, FileText, Globe, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
@@ -17,7 +17,18 @@ export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const [searchMode, setSearchMode] = useState<"all" | "parties">("all");
   const [webSearchCases, setWebSearchCases] = useState<string[]>([]);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const handleCopyMessage = async (content: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+    }
+  };
   const { currentConversationId, setCurrentConversationId, setSelectedCitations, setSourcePanelOpen, setShowOpinionLibrary } = useApp();
   const { data: status } = useStatus();
   
@@ -490,8 +501,24 @@ export function ChatInterface() {
                   data-testid={`message-${msg.id}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Scale className="h-3.5 w-3.5 text-primary" />
+                    <div className="flex flex-col gap-1 shrink-0 mt-0.5">
+                      <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Scale className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-60 hover:opacity-100 transition-opacity"
+                        onClick={() => handleCopyMessage(msg.content, msg.id)}
+                        title="Copy response"
+                        data-testid={`button-copy-assistant-${msg.id}`}
+                      >
+                        {copiedMessageId === msg.id ? (
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
                     </div>
                   )}
                   
@@ -500,8 +527,22 @@ export function ChatInterface() {
                     msg.role === "user" ? "items-end" : "items-start"
                   )}>
                     {msg.role === "user" ? (
-                      <div className="bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-md text-sm leading-relaxed">
+                      <div className="group relative bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-md text-sm leading-relaxed">
                         <div className="whitespace-pre-wrap">{msg.content}</div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute -left-8 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 hover:bg-background border border-border/50"
+                          onClick={() => handleCopyMessage(msg.content, msg.id)}
+                          title="Copy message"
+                          data-testid={`button-copy-user-${msg.id}`}
+                        >
+                          {copiedMessageId === msg.id ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </Button>
                       </div>
                     ) : answerMarkdown ? (() => {
                       const { mainContent, suggestions } = parseSuggestedNextSteps(answerMarkdown);
