@@ -1,0 +1,23 @@
+Yes—please create the task list. Before you do, let’s lock a few requirements and acceptance criteria so we can validate the fix.
+
+A. Case–quote binding (P0 / blocker)
+	•	Implement Option A (strict opinion_id binding) as the default behavior.
+	•	Only fall back to fuzzy case-name binding if opinion_id is missing from the CITATION_MAP entry (that should be rare); if fallback is used, mark the citation tier at most MODERATE and include a signals: ["fuzzy_case_binding"].
+	•	If a quote cannot be bound to the claimed case, the system must not silently substitute a different quote from another case. It must return the claim as UNVERIFIED (or exclude the citation and mark the statement [NOT FOUND IN PROVIDED OPINIONS] per the prompt rules).
+
+Acceptance tests
+	1.	Regression: the DDR/Recognicorp-style misattribution must be detected and prevented.
+	2.	A quote that exists in the corpus but not in the claimed opinion must fail binding and be labeled UNVERIFIED.
+	3.	A correct opinion_id + correct quote must pass, with tier STRONG/MODERATE depending on other signals.
+
+B. Confidence tier system (P1)
+	•	Implement compute_citation_confidence() and persist {tier, score, signals} in the citation object returned to the UI.
+	•	Please keep “recency” as a signal but not a gating criterion for STRONG; older precedential cases can still be STRONG if they’re core holdings. (Recency should adjust score, not flip a holding to MODERATE by itself.)
+	•	Add an explicit section_type signal if you can reliably detect majority vs concurrence/dissent. If not available structurally, keep the heuristic but label it as heuristic in signals.
+
+C. UI signaling (P1)
+	•	Add badges in both the inline citation buttons and SourcesPanel cards.
+	•	Display tier + key signals (e.g., dicta, fuzzy_case_binding, partial_match) so users can audit why something is weak.
+
+Deliverables
+	•	Please return a task list broken into PR-sized chunks with estimated complexity, plus a small regression test suite that includes the misattribution example and at least 3 synthetic cases for exact match / wrong case / missing quote.
