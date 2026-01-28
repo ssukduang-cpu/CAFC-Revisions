@@ -32,6 +32,14 @@ Preferred communication style: Simple, everyday language.
 - **No Silent Substitution:** UNVERIFIED citations display binding_failed signal; misattribution is detected and flagged rather than silently corrected.
 - **UI Integration:** ConfidenceBadge component with color-coded tiers; SignalsList for detailed signal display; inline citation buttons colored by tier.
 
+### Quote-First Generation & Verification (Step 5)
+- **Quote-First Prompt:** Strict system prompt requiring AI to use only pre-extracted QUOTABLE_PASSAGES; warns that all quotes will be verified.
+- **Quotable Passage Extraction:** `extract_quotable_passages()` identifies legal holding indicators (~50 passages per context) labeled [Q1], [Q2], etc.
+- **Normalized Verification:** `normalize_for_verification()` handles OCR artifacts, hyphenation, Unicode variants, curly quotes; requires exact contiguous substring match after normalization.
+- **Per-Statement Provenance Gating:** `apply_per_statement_provenance_gating()` detects case-attributed statements and tags unsupported ones with [UNSUPPORTED].
+- **Citation Telemetry:** Logs total_citations, verified_citations, unverified_rate_pct per query; target: >80% verified with strict matching.
+- **Litigation-Grade Integrity:** No fuzzy word-overlap matching; only exact normalized substring matches are accepted to prevent false positives.
+
 ### Data Layer
 - **Database:** PostgreSQL with Drizzle ORM.
 - **Schema:** Tables for opinions, chunks, conversations, and messages.

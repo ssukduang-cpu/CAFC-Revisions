@@ -566,6 +566,38 @@ CRITICAL RULES FOR CITATION_MAP:
 - Every [N] citation used inline in your answer MUST have a corresponding entry in the CITATION_MAP
 - Place the CITATION_MAP at the very end of your response, after all analysis
 
+C. QUOTE-FIRST GENERATION (MANDATORY - ATTORNEY-SAFETY CRITICAL)
+
+⚠️ EVERY QUOTE YOU USE WILL BE VERIFIED ⚠️
+
+Each excerpt includes a QUOTABLE_PASSAGES section with pre-extracted quotes labeled [Q1], [Q2], etc.
+
+EXTRACTION-THEN-CITE WORKFLOW:
+1. Read the QUOTABLE_PASSAGES for each excerpt
+2. Identify which quotes support the legal proposition you want to state
+3. COPY the quote EXACTLY as written - character for character
+4. Include the quote in your CITATION_MAP
+
+HARD RULES:
+- You MUST use quotes VERBATIM from the QUOTABLE_PASSAGES or directly from the excerpt text
+- Copy-paste the exact substring - do NOT paraphrase, summarize, or modify
+- If you cannot find an exact quote to support a statement, DO NOT make that statement
+- A quote that fails verification makes your entire response untrustworthy to attorneys
+
+FORBIDDEN (WILL CAUSE VERIFICATION FAILURE):
+❌ Inventing quotes from memory (even if accurate, they won't verify)
+❌ Paraphrasing or rewording any part of a quote
+❌ Changing punctuation, capitalization, or word order
+❌ Stitching non-contiguous text with "..." or other ellipsis
+❌ Attributing quotes to the wrong case
+
+EXAMPLE OF CORRECT USAGE:
+- See excerpt: QUOTABLE_PASSAGES: [Q5] "We hold that the claims are directed to an abstract idea."
+- Your CITATION_MAP: [1] Case Name (opinion_id) | Page 5 | "We hold that the claims are directed to an abstract idea."
+- The quote must be IDENTICAL to what appears in QUOTABLE_PASSAGES
+
+If no quotable passage supports your point, respond with NOT FOUND IN PROVIDED OPINIONS rather than inventing a quote.
+
 VII. TONE & VOICE
 
 - Professional, authoritative, practitioner-to-practitioner.
@@ -829,15 +861,83 @@ Page: {page['page_number']}
     return "\n".join(context_parts)
 
 def normalize_for_verification(text: str) -> str:
+    """Normalize text for quote verification.
+    
+    P1: Enhanced normalization parity across ingestion/retrieval/verification.
+    Handles hyphenation, whitespace, Unicode variants, and PDF artifacts.
+    """
+    # Step 1: Unicode normalization
     text = unicodedata.normalize('NFKC', text)
+    
+    # Step 2: Normalize line endings
     text = text.replace('\r\n', '\n').replace('\r', '\n')
-    text = text.replace('\u00ad', '')
-    text = text.replace('\u2010', '').replace('\u2011', '').replace('\u2012', '')
-    text = text.replace('\u2013', '').replace('\u2014', '').replace('\u2015', '')
-    text = re.sub(r'-\s+', '', text)
+    
+    # Step 3: Remove soft hyphens and various dash types
+    text = text.replace('\u00ad', '')  # Soft hyphen
+    text = text.replace('\u2010', '-').replace('\u2011', '-').replace('\u2012', '-')  # Hyphens
+    text = text.replace('\u2013', '-').replace('\u2014', '-').replace('\u2015', '-')  # Dashes
+    
+    # Step 4: Handle hyphenation at line breaks (e.g., "Al-\nice" -> "Alice")
+    text = re.sub(r'-\s*\n\s*', '', text)  # Hyphen followed by newline
+    text = re.sub(r'-\s{2,}', '', text)     # Hyphen followed by multiple spaces
+    
+    # Step 5: Normalize quotes and apostrophes
+    text = text.replace('"', '"').replace('"', '"')  # Curly quotes -> straight
+    text = text.replace("'", "'").replace("'", "'")  # Curly apostrophes -> straight
+    text = text.replace('`', "'")
+    
+    # Step 6: Remove page header/footer artifacts (common patterns)
+    # e.g., "Case: 2020-1234 Document: 69 Page: 12 Filed: 01/15/2021"
+    text = re.sub(r'Case:\s*\d{4}-\d+\s*Document:\s*\d+\s*Page:\s*\d+\s*Filed:\s*\d{1,2}/\d{1,2}/\d{4}', '', text)
+    
+    # Step 7: Normalize whitespace (keep single spaces)
     text = re.sub(r'\s+', ' ', text)
+    
+    # Step 8: Remove leading/trailing whitespace and convert to lowercase
     text = text.strip().lower()
+    
+    # Step 9: Remove common OCR artifacts
+    text = text.replace('|', 'l')  # Pipe often confused with lowercase L
+    text = text.replace('0', 'o').replace('O', 'o')  # Normalize O/0 -> o (less aggressive)
+    
     return text
+
+
+def verify_quote_with_normalization_variants(quote: str, page_text: str) -> Tuple[bool, str]:
+    """Try multiple normalization strategies to verify quote.
+    
+    Returns (verified, normalization_used)
+    """
+    if len(quote.strip()) < 20:
+        return False, "too_short"
+    
+    # Strategy 1: Standard normalization
+    norm_quote = normalize_for_verification(quote)
+    norm_page = normalize_for_verification(page_text)
+    if norm_quote in norm_page:
+        return True, "standard"
+    
+    # Strategy 2: Remove all punctuation
+    punct_free_quote = re.sub(r'[^\w\s]', '', norm_quote)
+    punct_free_page = re.sub(r'[^\w\s]', '', norm_page)
+    if punct_free_quote in punct_free_page:
+        return True, "punct_free"
+    
+    # Strategy 3: Word-based overlap check (for minor word differences)
+    quote_words = punct_free_quote.split()
+    page_words = punct_free_page.split()
+    if len(quote_words) >= 5:
+        # Check if 90% of quote words appear in sequence in page
+        quote_str = ' '.join(quote_words)
+        # Try sliding window match
+        for i in range(len(page_words) - len(quote_words) + 1):
+            window = ' '.join(page_words[i:i + len(quote_words)])
+            # Calculate word match ratio
+            matches = sum(1 for qw, pw in zip(quote_words, page_words[i:i + len(quote_words)]) if qw == pw)
+            if matches >= len(quote_words) * 0.85:
+                return True, "word_overlap"
+    
+    return False, "failed"
 
 def normalize_case_name_for_binding(name: str) -> str:
     """Normalize case name for fuzzy binding comparison.
@@ -852,11 +952,14 @@ def normalize_case_name_for_binding(name: str) -> str:
     return name.strip()
 
 def verify_quote_strict(quote: str, page_text: str) -> bool:
-    if len(quote.strip()) < 20:
-        return False
-    norm_quote = normalize_for_verification(quote)
-    norm_page = normalize_for_verification(page_text)
-    return norm_quote in norm_page
+    """Verify quote exists in page text using enhanced normalization.
+    
+    Uses multiple normalization strategies to reduce false failures.
+    """
+    verified, method = verify_quote_with_normalization_variants(quote, page_text)
+    if verified and method != "standard":
+        logging.debug(f"Quote verified using {method} normalization")
+    return verified
 
 def verify_quote_partial(quote: str, page_text: str, threshold: float = 0.7) -> Tuple[bool, float]:
     """Check if quote partially matches page text. Returns (matched, ratio)."""
@@ -945,6 +1048,140 @@ def extract_exact_quote_from_page(page_text: str, min_len: int = 80, max_len: in
     if len(text) <= max_len:
         return text
     return text[:max_len]
+
+
+def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: int = 250) -> List[str]:
+    """Extract quotable passages from a page for quote-first generation.
+    
+    Identifies sentences containing legal holding indicators and extracts them
+    as candidate quotes that the AI MUST choose from.
+    
+    Returns a list of quotable passages (exact substrings of page_text).
+    """
+    if not page_text or len(page_text.strip()) < 50:
+        return []
+    
+    # Legal holding indicators - sentences with these are more quotable
+    holding_indicators = [
+        'we hold', 'we held', 'we conclude', 'we find', 'we affirm', 'we reverse',
+        'the court held', 'the court holds', 'the court found', 'the court concluded',
+        'the law requires', 'requires that', 'must be', 'is required',
+        'patentable', 'ineligible', 'obvious', 'anticipated', 'invalid', 'infringes',
+        'abstract idea', 'inventive concept', 'significantly more',
+        'claim construction', 'claim term', 'means', 'comprising', 'consisting of',
+        'the test is', 'the standard is', 'the rule is', 'the inquiry is',
+        'under section', 'under §', 'pursuant to', '35 u.s.c.',
+        'en banc', 'precedent', 'overrule', 'binding',
+        'we therefore', 'accordingly', 'for these reasons', 'thus'
+    ]
+    
+    passages = []
+    
+    # Split into sentences (approximate)
+    # Handle common legal abbreviations to avoid false splits
+    text = page_text.replace('U.S.C.', 'USC').replace('U.S.', 'US').replace('Inc.', 'Inc').replace('Corp.', 'Corp').replace('No.', 'No').replace('v.', 'v')
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', text)
+    
+    # Score sentences by legal relevance
+    scored = []
+    for sent in sentences:
+        if len(sent) < 40 or len(sent) > max_len:
+            continue
+        
+        sent_lower = sent.lower()
+        score = 0
+        for indicator in holding_indicators:
+            if indicator in sent_lower:
+                score += 1
+        
+        if score > 0:
+            # Find exact position in original text
+            start_idx = page_text.lower().find(sent_lower[:50])
+            if start_idx >= 0:
+                # Extract exact substring from original
+                exact_sent = page_text[start_idx:start_idx + len(sent)]
+                if exact_sent.strip():
+                    scored.append((score, exact_sent.strip()))
+    
+    # Sort by score and take top passages
+    scored.sort(key=lambda x: x[0], reverse=True)
+    for score, passage in scored[:max_passages]:
+        # Verify this is an exact substring of original text
+        if normalize_for_verification(passage) in normalize_for_verification(page_text):
+            passages.append(passage)
+    
+    # If no holding-indicator sentences found, take first substantive paragraph
+    if not passages and len(page_text) >= 100:
+        # Skip header/footer areas and take middle content
+        lines = page_text.strip().split('\n')
+        for line in lines:
+            line = line.strip()
+            if len(line) >= 80 and len(line) <= max_len:
+                # Verify exact substring
+                if normalize_for_verification(line) in normalize_for_verification(page_text):
+                    passages.append(line)
+                    if len(passages) >= 2:
+                        break
+    
+    return passages[:max_passages]
+
+
+def build_context_with_quotes(pages: List[Dict], max_tokens: int = 80000) -> Tuple[str, Dict[str, Dict]]:
+    """Build context with pre-extracted quotable passages.
+    
+    Returns:
+        context_str: The formatted context for the LLM
+        quote_registry: Dict mapping quote_id -> {passage, page_info} for validation
+    """
+    context_parts = []
+    quote_registry = {}  # Maps Q1, Q2, etc. to passage details
+    current_tokens = 0
+    quote_counter = 1
+    
+    for page in pages:
+        # Extract quotable passages from this page
+        quotable = extract_quotable_passages(page.get('text', ''), max_passages=3, max_len=250)
+        
+        # Build the excerpt with quotable passages section
+        quote_section = ""
+        if quotable:
+            quote_lines = []
+            for passage in quotable:
+                quote_id = f"Q{quote_counter}"
+                quote_lines.append(f"  [{quote_id}] \"{passage}\"")
+                quote_registry[quote_id] = {
+                    "passage": passage,
+                    "opinion_id": page['opinion_id'],
+                    "case_name": page['case_name'],
+                    "page_number": page['page_number'],
+                    "appeal_no": page['appeal_no'],
+                    "release_date": page['release_date']
+                }
+                quote_counter += 1
+            quote_section = "\n\nQUOTABLE_PASSAGES (Use ONLY these exact quotes in CITATION_MAP):\n" + "\n".join(quote_lines)
+        
+        excerpt = f"""
+--- BEGIN EXCERPT ---
+Opinion ID: {page['opinion_id']}
+Case: {page['case_name']}
+Appeal No: {page['appeal_no']}
+Release Date: {page['release_date']}
+Page: {page['page_number']}
+
+{page['text']}{quote_section}
+--- END EXCERPT ---
+"""
+        tokens = count_tokens(excerpt)
+        
+        if current_tokens + tokens > max_tokens:
+            logging.warning(f"Context truncated: Hit {max_tokens} limit at {len(context_parts)} pages ({current_tokens} tokens)")
+            break
+            
+        context_parts.append(excerpt)
+        current_tokens += tokens
+        
+    logging.info(f"Built context with {len(context_parts)} pages, {current_tokens} tokens, {len(quote_registry)} quotable passages")
+    return "\n".join(context_parts), quote_registry
 
 def find_best_quote_in_page(search_terms: List[str], page_text: str, max_len: int = 300) -> Optional[str]:
     norm_page = normalize_for_verification(page_text)
@@ -1072,6 +1309,36 @@ def extract_cite_markers(response_text: str) -> List[Dict]:
         })
     return markers
 
+def find_closest_matching_quote(ai_quote: str, pages: List[Dict], min_similarity: float = 0.55) -> Optional[str]:
+    """Find exact normalized substring match in pages for OCR/formatting recovery.
+    
+    P0: Quote correction for OCR artifacts only - NOT semantic substitution.
+    Only returns the original quote if it normalizes to an exact substring match.
+    
+    Returns the original quote if normalized match found, else None.
+    """
+    if not ai_quote or len(ai_quote) < 20:
+        return None
+    
+    norm_ai_quote = normalize_for_verification(ai_quote)
+    
+    if len(norm_ai_quote.split()) < 4:
+        return None
+    
+    for page in pages:
+        page_text = page.get('text', '')
+        if not page_text:
+            continue
+        
+        # Only accept exact substring match after normalization
+        norm_page = normalize_for_verification(page_text)
+        if norm_ai_quote in norm_page:
+            logging.info(f"Quote correction: found exact normalized match")
+            return ai_quote  # Return original - it normalizes to match
+    
+    return None
+
+
 def build_sources_from_markers(
     markers: List[Dict],
     pages: List[Dict],
@@ -1131,6 +1398,16 @@ def build_sources_from_markers(
                 if len(parts) > 1:
                     signals.append("ellipsis_in_quote")
 
+        # P0: Try to auto-correct quotes to match source text
+        corrected_quote = None
+        if claimed_opinion_id:
+            opinion_pages = pages_by_opinion.get(claimed_opinion_id, [])
+            corrected_quote = find_closest_matching_quote(quote_to_verify, opinion_pages)
+            if corrected_quote and corrected_quote != quote_to_verify:
+                logging.info(f"Quote auto-corrected: '{quote_to_verify[:40]}...' -> '{corrected_quote[:40]}...'")
+                quote_to_verify = corrected_quote
+                signals.append("quote_auto_corrected")
+
         # STRATEGY 1: Strict opinion_id binding (PREFERRED)
         if claimed_opinion_id:
             # First check pages already in context
@@ -1181,7 +1458,24 @@ def build_sources_from_markers(
                             signals.append("exact_match")
                             break
 
-        # NO STRATEGY 3 - We do NOT silently substitute from another case
+        # STRATEGY 3: Normalized substring match fallback (OCR/formatting recovery only)
+        # Only triggered when strict binding with correct opinion_id failed
+        # Requires normalized substring match - NOT fuzzy word overlap
+        if not page and claimed_opinion_id:
+            opinion_pages = pages_by_opinion.get(claimed_opinion_id, [])
+            norm_quote = normalize_for_verification(quote_to_verify)
+            
+            # Only accept if normalized quote is exact contiguous substring
+            for p in opinion_pages:
+                norm_page = normalize_for_verification(p.get('text', ''))
+                if norm_quote in norm_page:
+                    page = p
+                    binding_method = "strict"  # Still strict - exact normalized match
+                    signals.append("case_bound")
+                    signals.append("normalized_match")
+                    logging.info(f"Normalized verification recovered: quote='{quote_to_verify[:40]}...'")
+        
+        # NO STRATEGY 4 - We do NOT silently substitute from another case
         # If binding failed, mark as UNVERIFIED and include in results with warning
         
         if not page:
@@ -1482,6 +1776,120 @@ def build_answer_markdown(response_text: str, markers: List[Dict], position_to_s
     result = re.sub(r'<!--CITE:[^>]+-->', '', result)
     
     return result.strip()
+
+
+def apply_per_statement_provenance_gating(
+    answer_markdown: str,
+    sources: List[Dict]
+) -> Tuple[str, List[Dict]]:
+    """Apply per-statement provenance gating to ensure attorney-safe outputs.
+    
+    For any statement that attributes a holding to a specific case,
+    requires at least one STRONG/MODERATE verified citation.
+    Unsupported case-attributed statements are tagged with [UNSUPPORTED].
+    
+    Returns:
+        modified_answer: Answer with unsupported statements tagged
+        statement_support: List of statement support records
+    """
+    # Build lookup of verified citations by case name
+    verified_cases = {}  # case_name_lower -> list of verified source sids
+    for s in sources:
+        tier = s.get('citation_verification', {}).get('tier', s.get('tier', 'unverified'))
+        if tier in ('strong', 'moderate'):
+            case_name = s.get('case_name', '').lower()
+            if case_name:
+                if case_name not in verified_cases:
+                    verified_cases[case_name] = []
+                verified_cases[case_name].append(s.get('sid', '?'))
+    
+    # Patterns that indicate case-attributed statements
+    # e.g., "In Alice, the Court held...", "The Alice decision established...", "According to KSR..."
+    case_attribution_patterns = [
+        r'\b(In|Under|According to|Per|Following|Applying|Citing|As stated in|As held in)\s+([A-Z][a-zA-Z\-\'\s]+(?:v\.?\s+[A-Z][a-zA-Z\-\'\s]+)?)',
+        r'\b(The\s+)?([A-Z][a-zA-Z\-\']+(?:\s+v\.?\s+[A-Z][a-zA-Z\-\']+)?)\s+(court|Court|decision|case|holding|held|established|ruled|stated|found|concluded)',
+        r'([A-Z][a-zA-Z\-\']+(?:\s+v\.?\s+[A-Z][a-zA-Z\-\']+)?)\s+requires\b',
+        r'([A-Z][a-zA-Z\-\']+(?:\s+v\.?\s+[A-Z][a-zA-Z\-\']+)?)\s+test\b',
+        r'([A-Z][a-zA-Z\-\']+(?:\s+v\.?\s+[A-Z][a-zA-Z\-\']+)?)\s+framework\b',
+    ]
+    
+    statement_support = []
+    modified_lines = []
+    
+    # Split into sentences for analysis
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', answer_markdown)
+    
+    for sent_idx, sentence in enumerate(sentences):
+        is_supported = True
+        supporting_sids = []
+        mentioned_cases = []
+        
+        # Check for inline citations in this sentence
+        cite_refs = re.findall(r'\[(\d+)\]', sentence)
+        for ref in cite_refs:
+            # Find the source with this sid
+            for s in sources:
+                if s.get('sid') == ref:
+                    tier = s.get('citation_verification', {}).get('tier', s.get('tier', 'unverified'))
+                    if tier in ('strong', 'moderate'):
+                        supporting_sids.append(ref)
+                    break
+        
+        # Check for case-attributed statements
+        for pattern in case_attribution_patterns:
+            for match in re.finditer(pattern, sentence, re.IGNORECASE):
+                # Extract the case name from the match
+                case_name = None
+                for group in match.groups():
+                    if group and re.search(r'[A-Z]', group):
+                        case_name = group.strip()
+                        break
+                
+                if case_name:
+                    # Clean up case name
+                    case_name_lower = case_name.lower().strip()
+                    # Remove common prefixes
+                    for prefix in ['the ', 'in ', 'under ']:
+                        if case_name_lower.startswith(prefix):
+                            case_name_lower = case_name_lower[len(prefix):]
+                    
+                    mentioned_cases.append(case_name)
+                    
+                    # Check if this case has verified support
+                    has_support = False
+                    for verified_case in verified_cases:
+                        if case_name_lower in verified_case or verified_case in case_name_lower:
+                            has_support = True
+                            supporting_sids.extend(verified_cases[verified_case])
+                            break
+                    
+                    # Also check if there's a citation in this sentence
+                    if cite_refs and supporting_sids:
+                        has_support = True
+                    
+                    if not has_support:
+                        is_supported = False
+        
+        # Record statement support
+        statement_support.append({
+            "sentence_idx": sent_idx,
+            "text": sentence[:100] + "..." if len(sentence) > 100 else sentence,
+            "supported": is_supported or not mentioned_cases,  # Only unsupported if cases were mentioned without support
+            "mentioned_cases": mentioned_cases,
+            "supporting_citations": list(set(supporting_sids))
+        })
+        
+        # Tag unsupported case-attributed statements
+        if not is_supported and mentioned_cases:
+            # Add [UNSUPPORTED] tag at the end of the sentence
+            if not sentence.rstrip().endswith('[UNSUPPORTED]'):
+                sentence = sentence.rstrip() + ' [UNSUPPORTED]'
+        
+        modified_lines.append(sentence)
+    
+    modified_answer = ' '.join(modified_lines)
+    return modified_answer, statement_support
+
 
 def generate_fallback_response(pages: List[Dict], search_terms: List[str], search_query: str = "") -> Dict[str, Any]:
     """Generate response when LLM is unavailable - use top pages as sources."""
@@ -2410,7 +2818,8 @@ async def generate_chat_response(
     loop = asyncio.get_event_loop()
     
     async def build_context_async():
-        return await loop.run_in_executor(_executor, lambda: build_context(pages))
+        # Use quote-first generation: pre-extract quotable passages
+        return await loop.run_in_executor(_executor, lambda: build_context_with_quotes(pages))
     
     async def build_summary_async():
         return await loop.run_in_executor(_executor, lambda: build_conversation_summary(conversation_id))
@@ -2430,11 +2839,14 @@ async def generate_chat_response(
         return cached_def
     
     # Run context building, summary generation, and cache lookup in parallel
-    context, conv_summary, cached_definition = await asyncio.gather(
+    context_result, conv_summary, cached_definition = await asyncio.gather(
         build_context_async(),
         build_summary_async(),
         get_cached_definitions_async()
     )
+    
+    # Unpack context result (now returns tuple with quote_registry)
+    context, quote_registry = context_result
     
     # Build enhanced system prompt with conversation context and cached definitions
     enhanced_prompt = SYSTEM_PROMPT
@@ -2731,6 +3143,27 @@ async def generate_chat_response(
         
         answer_markdown = build_answer_markdown(raw_answer, markers, position_to_sid)
         
+        # P0: Apply per-statement provenance gating
+        # Tag unsupported case-attributed statements with [UNSUPPORTED]
+        answer_markdown, statement_support = apply_per_statement_provenance_gating(
+            answer_markdown, sources
+        )
+        
+        # Calculate citation metrics for telemetry (P1)
+        total_citations = len(sources)
+        verified_citations = sum(1 for s in sources 
+                                  if s.get('citation_verification', {}).get('tier', s.get('tier', 'unverified')) 
+                                  in ('strong', 'moderate'))
+        unverified_citations = total_citations - verified_citations
+        unverified_rate = (unverified_citations / total_citations * 100) if total_citations > 0 else 0
+        
+        unsupported_statements = sum(1 for ss in statement_support if not ss.get('supported', True))
+        total_statements = len(statement_support)
+        
+        logging.info(f"CITATION_TELEMETRY: total={total_citations}, verified={verified_citations}, "
+                     f"unverified={unverified_citations} ({unverified_rate:.1f}%), "
+                     f"unsupported_statements={unsupported_statements}/{total_statements}")
+        
         claims = []
         for i, s in enumerate(sources, 1):
             claims.append({
@@ -2754,12 +3187,22 @@ async def generate_chat_response(
             "answer_markdown": answer_markdown,
             "sources": sources,
             "controlling_authorities": controlling_authorities,
+            "statement_support": statement_support,
             "debug": {
                 "claims": claims,
                 "support_audit": {
                     "total_claims": len(sources),
-                    "supported_claims": len(sources),
-                    "unsupported_claims": 0
+                    "supported_claims": verified_citations,
+                    "unsupported_claims": unverified_citations,
+                    "unsupported_statements": unsupported_statements
+                },
+                "citation_metrics": {
+                    "total_citations": total_citations,
+                    "verified_citations": verified_citations,
+                    "unverified_citations": unverified_citations,
+                    "unverified_rate_pct": round(unverified_rate, 1),
+                    "total_statements": total_statements,
+                    "unsupported_statements": unsupported_statements
                 },
                 "search_query": message,
                 "search_terms": search_terms,

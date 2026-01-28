@@ -100,6 +100,24 @@ export interface SupportAudit {
   total_claims: number;
   supported_claims: number;
   unsupported_claims: number;
+  unsupported_statements?: number;
+}
+
+export interface CitationMetrics {
+  total_citations: number;
+  verified_citations: number;
+  unverified_citations: number;
+  unverified_rate_pct: number;
+  total_statements: number;
+  unsupported_statements: number;
+}
+
+export interface StatementSupport {
+  sentence_idx: number;
+  text: string;
+  supported: boolean;
+  mentioned_cases: string[];
+  supporting_citations: string[];
 }
 
 export interface ActionItem {
@@ -151,6 +169,8 @@ export interface ChatResult {
   webSearchTriggered?: boolean;
   webSearchCases?: string[];
   controllingAuthorities?: ControllingAuthority[];
+  statementSupport?: StatementSupport[];
+  citationMetrics?: CitationMetrics;
 }
 
 // API functions

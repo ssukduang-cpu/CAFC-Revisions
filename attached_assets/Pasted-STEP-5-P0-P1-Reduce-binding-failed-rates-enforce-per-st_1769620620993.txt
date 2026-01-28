@@ -1,0 +1,73 @@
+STEP 5 (P0/P1): Reduce binding_failed rates + enforce per-statement provenance gating (attorney-safe outputs)
+
+Problem: Many generated citations show citation_verification.tier=unverified / binding_method=failed because AI-generated quotes don’t match page text. This undermines trust. We need to (1) change generation behavior to quote from retrieved text, not invent/paraphrase, and (2) gate case-specific propositions on verified support.
+
+P0 — Quote-first generation (no invented quotes)
+	1.	Change citation workflow to “extract then cite,” not “generate then verify.”
+	•	After retrieval, select the top N candidate passages per intended citation (e.g., 3 passages).
+	•	The model must choose quotes only from those passages (copy exact substrings) and cite them.
+	•	Prohibit free-form quoting: quotes must be exact substrings of retrieved passage text (post-normalization).
+	•	Keep existing verify_quote_strict, but goal is to make it almost always pass.
+
+Acceptance tests
+	•	For a set of 20 prompts, tier=unverified rate must drop below 5% (or show before/after metric).
+	•	Zero cases where quote is not present in retrieved passage when tier != unverified.
+
+P0 — Per-statement provenance gating
+	2.	For any statement that names a case (or attributes a holding to a case), require at least one STRONG/MODERATE verified citation.
+	•	If verification fails, the system must:
+	•	rewrite the sentence generically without naming the case, OR
+	•	tag the sentence explicitly as [UNSUPPORTED].
+	•	Do not allow “Case X held Y” with only unverified citations.
+
+DoD
+	•	Add a statement_support structure in the response:
+	•	each sentence/proposition includes supported: true/false and list of citation IDs.
+	•	UI: if unsupported, show a subtle “UNSUPPORTED” label inline (or in a tooltip).
+
+Acceptance tests
+	•	Golden query outputs contain no case-attributed holdings without at least one verified citation (tier strong/moderate).
+	•	If citations are unverified, the answer must not attribute the holding to the case by name.
+
+P1 — Improve normalization to reduce false failures (without loosening too far)
+	3.	Normalization parity across ingestion → retrieval → verification
+	•	Ensure identical normalization is applied to:
+	•	stored page text
+	•	retrieved snippets
+	•	quote verification
+	•	Expand normalization to handle:
+	•	hyphenation line breaks
+	•	multiple whitespace/newlines
+	•	page header/footer artifacts
+	•	Keep a strict substring requirement after normalization (no semantic matching in strict mode).
+
+Acceptance
+	•	Reduction in binding_failed driven by normalization differences (show example before/after).
+
+P1 — Ellipsis and truncation rules
+	4.	Ellipsis policy
+	•	If AI wants to use “…”, it must still quote an exact contiguous substring from the passage.
+	•	Disallow “stitching” separate fragments into one quote.
+	•	If quote is truncated in UI, ensure raw quote stored is full.
+
+Acceptance
+	•	No quote passes verification when it is a stitched fragment.
+	•	ellipsis_in_quote remains informational only, not permissive.
+
+P1 — Metrics & reporting
+	5.	Add telemetry counters
+	•	% citations unverified
+	•	% case-attributed propositions unsupported
+	•	top failure reasons: too short quote, not found, wrong page, OCR, etc.
+	•	store in logs for each response in debug mode.
+
+Deliverables
+	•	Commit hash/PR numbers + file list
+	•	Before/after metric report on unverified citation rate (20 prompt set)
+	•	Example JSON output showing:
+	•	controlling_authorities
+	•	sources with mostly verified tiers
+	•	statement_support with unsupported tagging when needed
+	•	UI screenshot showing UNSUPPORTED labeling behavior
+
+Stop after Step 5 deliverables are complete.
