@@ -113,6 +113,15 @@ Preferred communication style: Simple, everyday language.
 - **Drill-Down Analysis:** Click doctrine rows to see failure reasons breakdown and recent failing response IDs for debugging.
 - **Internal Recording:** Telemetry is recorded only from the chat pipeline (no public POST endpoint) to prevent data poisoning.
 
+### Internal Eval Runner
+- **Purpose:** Batch prompt evaluation system for validating verification rates and system performance across doctrine families.
+- **Database:** `eval_runs` and `eval_results` tables store run metadata and per-prompt results.
+- **Prompt Bank:** 200 prompts organized by 10 doctrine families (101_eligibility, 103_obviousness, 112_disclosure, claim_construction, infringement, remedies, ptab, doe_equivalents, validity, procedure).
+- **Endpoints:** POST `/api/internal/eval/start`, GET `/api/internal/eval/status`, GET `/api/internal/eval/results`, GET `/api/internal/eval/runs`.
+- **Background Worker:** Threading-based execution with batching (5 prompts, then 2s sleep) and per-prompt persistence for partial result viewing.
+- **Frontend:** `/eval` page with run controls (10/50/100/200 prompts, STRICT/RESEARCH mode), real-time progress polling, and per-doctrine breakdown tables.
+- **Metrics:** Verification rate, p50/p95 latency, case-attributed unsupported rate per doctrine.
+
 ### Key Libraries
 - **`pdf-parse`:** PDF text extraction.
 - **`axios`:** HTTP requests.
