@@ -36,9 +36,13 @@ LEGAL_KEY_TERMS = {
     'experimentation', 'undue', 'genus', 'species', 'functional', 'structural',
     # Case names (important landmarks)
     'amgen', 'sanofi', 'honeywell', 'athena', 'diagnostics', 'berkheimer',
+    'enfish', 'bilski', 'electric', 'ddr', 'ariosa', 'myriad',
     # Obviousness specific
     'desirable', 'optimal', 'modification', 'motivation', 'combine', 'teaching',
-    'suggestion', 'rationale', 'predictable', 'reasonable', 'expectation'
+    'suggestion', 'rationale', 'predictable', 'reasonable', 'expectation',
+    # Alice/101 specific
+    'inventive', 'concept', 'preemption', 'significantly', 'conventional', 'routine',
+    'improvement', 'technical', 'computer', 'software', 'implementation'
 }
 
 
