@@ -1,0 +1,20 @@
+Supreme Court Patent Case Ingestion Task
+	1.	Download the official Supreme Court PDF opinions for the following cases:
+
+	•	Alice Corp. v. CLS Bank Int’l (573 U.S. 208, 2014) — https://www.supremecourt.gov/opinions/13pdf/13-298_7lh8.pdf  ￼
+	•	Bilski v. Kappos (561 U.S. 593, 2010) — https://www.supremecourt.gov/opinions/09pdf/08-964.pdf
+	•	Diamond v. Diehr (450 U.S. 175, 1981) — https://www.supremecourt.gov/opinions/80pdf/79-1111.pdf
+	•	KSR Int’l Co. v. Teleflex Inc. (550 U.S. 398, 2007) — https://www.supremecourt.gov/opinions/06pdf/04-1350.pdf
+	•	Graham v. John Deere Co. (383 U.S. 1, 1966) — https://www.supremecourt.gov/opinions/USReports/383/383.US.1.pdf
+	•	eBay Inc. v. MercExchange, L.L.C. (547 U.S. 388, 2006) — https://www.supremecourt.gov/opinions/05pdf/05-130.pdf  ￼
+	•	Mayo Collaborative Servs. v. Prometheus Labs., Inc. (566 U.S. 66, 2012) — https://www.supremecourt.gov/opinions/11pdf/10-1150.pdf
+	•	Markman v. Westview Instruments, Inc. (517 U.S. 370, 1996) — https://www.supremecourt.gov/opinions/95pdf/95-1180.pdf
+	•	Teva Pharmaceuticals USA, Inc. v. Sandoz, Inc. (574 U.S. ___, 2015) — https://www.supremecourt.gov/opinions/14pdf/13-854_10n2.pdf
+	•	Nautilus Inc. v. Biosig Instruments, Inc. (572 U.S. ___, 2014) — https://www.supremecourt.gov/opinions/13pdf/12-780_8n59.pdf
+	•	Octane Fitness, LLC v. ICON Health & Fitness, Inc. (572 U.S. 545, 2014) — https://www.supremecourt.gov/opinions/13pdf/12-1184_8m58.pdf
+	•	Halo Electronics, Inc. v. Pulse Electronics, Inc. (579 U.S. ___, 2016) — https://www.supremecourt.gov/opinions/15pdf/14-1513_1a4a.pdf
+	•	Cuozzo Speed Technologies, LLC v. Lee (579 U.S. ___, 2016) — https://www.supremecourt.gov/opinions/15pdf/15-446_1oc2.pdf
+	•	Thryv, Inc. v. Click-to-Call Technologies, LP (591 U.S. ___, 2020) — https://www.supremecourt.gov/opinions/19pdf/19-1341_0p8b.pdf
+	•	SAS Institute Inc. v. Iancu (584 U.S. ___, 2018) — https://www.supremecourt.gov/opinions/17pdf/17-715_0p3d.pdf
+
+Ingest these into the citation corpus with court = "SCOTUS", enable text search vectors, and allow retrieval + quote verification similar to federal circuit cases.
