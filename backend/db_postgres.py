@@ -1109,6 +1109,100 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         
         return [dict(row) for row in cursor.fetchall()]
 
+
+def search_pages_two_pass(
+    query: str,
+    limit: int = 20,
+    max_text_chars: int = 2000
+) -> List[Dict]:
+    """Two-pass search: authoritative sources first, then all precedential.
+    
+    Pass 1: SCOTUS + CAFC en banc (authoritative)
+    Pass 2: CAFC precedential + PTAB precedential
+    
+    Results are merged by composite_score and deduplicated by (opinion_id, page_number).
+    """
+    from backend import ranking_scorer
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        if not query.strip():
+            return []
+        
+        terms = extract_search_terms(query, max_terms=8)
+        or_query = build_or_tsquery(terms)
+        
+        if not or_query:
+            return []
+        
+        all_results = []
+        seen_keys = set()
+        
+        # PASS 1: Authoritative sources (SCOTUS + en banc)
+        cursor.execute("""
+            SELECT 
+                p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
+                d.case_name, d.appeal_number as appeal_no, 
+                to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                d.courtlistener_url, d.origin, d.is_en_banc, d.is_precedential,
+                ts_rank(p.text_search_vector, to_tsquery('english', %s)) as rank
+            FROM document_pages p
+            JOIN documents d ON p.document_id = d.id
+            WHERE d.ingested = TRUE 
+              AND d.status = 'completed'
+              AND (d.origin = 'SCOTUS' OR d.is_en_banc = TRUE)
+              AND p.text_search_vector @@ to_tsquery('english', %s)
+            ORDER BY rank DESC
+            LIMIT %s
+        """, (max_text_chars, or_query, or_query, limit))
+        
+        for row in cursor.fetchall():
+            page = dict(row)
+            key = (page.get("opinion_id"), page.get("page_number"))
+            if key not in seen_keys:
+                seen_keys.add(key)
+                explain = ranking_scorer.compute_composite_score(page.get("rank", 0.5), page, page.get("text", ""))
+                page["explain"] = explain
+                page["composite_score"] = explain.get("composite_score", 0)
+                all_results.append(page)
+        
+        # PASS 2: All precedential CAFC/PTAB (explicitly filter precedential)
+        cursor.execute("""
+            SELECT 
+                p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
+                d.case_name, d.appeal_number as appeal_no, 
+                to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                d.courtlistener_url, d.origin, d.is_en_banc, d.is_precedential,
+                ts_rank(p.text_search_vector, to_tsquery('english', %s)) as rank
+            FROM document_pages p
+            JOIN documents d ON p.document_id = d.id
+            WHERE d.ingested = TRUE 
+              AND d.status = 'completed'
+              AND d.origin != 'SCOTUS'
+              AND (d.is_en_banc IS NULL OR d.is_en_banc = FALSE)
+              AND (d.is_precedential IS NULL OR d.is_precedential = TRUE)
+              AND p.text_search_vector @@ to_tsquery('english', %s)
+            ORDER BY rank DESC
+            LIMIT %s
+        """, (max_text_chars, or_query, or_query, limit))
+        
+        for row in cursor.fetchall():
+            page = dict(row)
+            key = (page.get("opinion_id"), page.get("page_number"))
+            if key not in seen_keys:
+                seen_keys.add(key)
+                explain = ranking_scorer.compute_composite_score(page.get("rank", 0.5), page, page.get("text", ""))
+                page["explain"] = explain
+                page["composite_score"] = explain.get("composite_score", 0)
+                all_results.append(page)
+        
+        # Sort merged results by composite_score
+        all_results.sort(key=lambda x: x.get("composite_score", 0), reverse=True)
+        
+        return all_results[:limit]
+
+
 def create_conversation(title: str = "New Research") -> str:
     with get_db() as conn:
         cursor = conn.cursor()

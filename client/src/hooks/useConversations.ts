@@ -134,7 +134,10 @@ export function parseCitations(message: Message): Citation[] {
         tier: tier,
         score: c.score ?? 0,
         signals: c.signals || [],
-        bindingMethod: c.binding_method || c.bindingMethod || 'failed'
+        bindingMethod: c.binding_method || c.bindingMethod || 'failed',
+        court: c.court || 'CAFC',
+        explain: c.explain,
+        applicationReason: c.application_reason || c.applicationReason
       };
     });
   } catch {
@@ -229,7 +232,10 @@ export function parseSources(message: Message): Source[] {
         tier: s.tier || 'unverified',
         score: s.score ?? 0,
         signals: s.signals || [],
-        bindingMethod: s.binding_method || s.bindingMethod || 'failed'
+        bindingMethod: s.binding_method || s.bindingMethod || 'failed',
+        court: s.court || 'CAFC',
+        explain: s.explain,
+        applicationReason: s.application_reason || s.applicationReason
       }));
     }
     return [];

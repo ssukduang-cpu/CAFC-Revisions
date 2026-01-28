@@ -12,6 +12,7 @@ import tiktoken
 
 from backend import db_postgres as db
 from backend import web_search
+from backend import ranking_scorer
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
@@ -1245,7 +1246,11 @@ def build_sources_from_markers(
             "binding_method": binding_method
         })
 
-    return sources, position_to_sid
+    # Apply composite scoring for precedence-aware ranking
+    pages_by_id = {p.get("opinion_id"): p for p in pages if p.get("opinion_id")}
+    ranked_sources = ranking_scorer.rank_sources_by_composite(sources, pages_by_id)
+    
+    return ranked_sources, position_to_sid
 
 
 def detect_section_type_heuristic(page_text: str, quote: str) -> Tuple[str, List[str]]:
@@ -2560,7 +2565,7 @@ async def generate_chat_response(
                 page_text = p.get('text', '')[:300].strip()
                 logging.info(f"DEBUG Fallback source {idx}: case={case_name}, text_len={len(page_text)}, has_text={bool(page_text)}")
                 if page_text:
-                    sources.append({
+                    source_entry = {
                         "opinion_id": p.get('opinion_id'),
                         "case_name": case_name,
                         "appeal_no": p.get('appeal_no', ''),
@@ -2569,10 +2574,21 @@ async def generate_chat_response(
                         "quote": page_text,
                         "verified": True,
                         "pdf_url": p.get('pdf_url', ''),
-                        "courtlistener_url": p.get('courtlistener_url', '')
-                    })
+                        "courtlistener_url": p.get('courtlistener_url', ''),
+                        "court": p.get('origin', 'CAFC'),
+                        "tier": "moderate",
+                        "score": 50,
+                        "signals": ["fallback_source"],
+                        "binding_method": "context"
+                    }
+                    explain = ranking_scorer.compute_composite_score(0.5, p, page_text)
+                    source_entry["explain"] = explain
+                    source_entry["application_reason"] = ranking_scorer.generate_application_reason(explain, p)
+                    sources.append(source_entry)
                 if len(sources) >= 5:  # Limit to 5 sources
                     break
+            # Sort fallback sources by composite score
+            sources.sort(key=lambda x: x.get("explain", {}).get("composite_score", 0), reverse=True)
             logging.info(f"DEBUG Fallback generated {len(sources)} sources")
         
         # Strict grounding enforcement: require sources OR substantive content

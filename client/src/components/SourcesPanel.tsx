@@ -109,6 +109,12 @@ export function SourcesPanel() {
                     {citation.signals && citation.signals.length > 0 && (
                       <SignalsList signals={(citation.signals || []) as CitationSignal[]} className="mt-1" />
                     )}
+                    {citation.applicationReason && (
+                      <div className="mt-2 text-[10px] text-muted-foreground bg-primary/5 px-2 py-1 rounded border border-primary/10">
+                        <span className="font-semibold text-primary">Why this case: </span>
+                        {citation.applicationReason}
+                      </div>
+                    )}
                   </div>
                   <Button 
                     variant="ghost" 

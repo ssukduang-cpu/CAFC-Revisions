@@ -19,9 +19,30 @@ export type CitationSignal =
   | 'dissent_heuristic'
   | 'ellipsis_in_quote'
   | 'db_fetched'
-  | 'no_case_name';
+  | 'no_case_name'
+  | 'fallback_source';
 
 export type Court = 'CAFC' | 'SCOTUS';
+
+export interface ApplicationBreakdown {
+  holding_indicator: number;
+  analysis_depth: number;
+  framework_reference: number;
+  frameworks_detected: string[];
+  proximity_score: number;
+  application_signal: number;
+}
+
+export interface ExplainData {
+  relevance_score: number;
+  authority_boost: number;
+  authority_type: string;
+  gravity_factor: number;
+  recency_factor: number;
+  application_signal: number;
+  application_breakdown: ApplicationBreakdown;
+  composite_score: number;
+}
 
 export interface Citation {
   opinionId: string;
@@ -36,6 +57,8 @@ export interface Citation {
   signals?: CitationSignal[];
   bindingMethod?: BindingMethod;
   court?: Court;
+  explain?: ExplainData;
+  applicationReason?: string;
 }
 
 export interface Source {
@@ -54,6 +77,8 @@ export interface Source {
   score?: number;
   signals?: CitationSignal[];
   bindingMethod?: BindingMethod;
+  explain?: ExplainData;
+  applicationReason?: string;
 }
 
 export interface Claim {
