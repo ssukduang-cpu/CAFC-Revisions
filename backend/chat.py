@@ -1192,6 +1192,15 @@ def build_sources_from_markers(
             sid_counter += 1
             position_to_sid[marker.get("position", 0)] = sid
             
+            # Try to get court from opinion metadata even if quote binding failed
+            unverified_court = "CAFC"  # Default fallback
+            if claimed_opinion_id:
+                # Check if opinion is in pages (might have origin metadata)
+                opinion_pages = pages_by_opinion.get(claimed_opinion_id, [])
+                if opinion_pages and opinion_pages[0].get("origin"):
+                    unverified_court = ranking_scorer.normalize_origin(
+                        opinion_pages[0].get("origin"), case_name)
+            
             sources.append({
                 "sid": sid,
                 "opinion_id": claimed_opinion_id or "",
@@ -1203,8 +1212,8 @@ def build_sources_from_markers(
                 "viewer_url": "",
                 "pdf_url": "",
                 "courtlistener_url": "",
-                # Ranking fields (unknown for unverified)
-                "court": "CAFC",  # Default, unknown for unverified
+                # Ranking fields - use looked up court if available
+                "court": unverified_court,
                 "precedential_status": "unknown",
                 "is_en_banc": False,
                 # Citation verification fields
@@ -1261,6 +1270,40 @@ def build_sources_from_markers(
 
     # Apply composite scoring for precedence-aware ranking
     pages_by_id = {p.get("opinion_id"): p for p in pages if p.get("opinion_id")}
+    
+    # P0: Ensure injected controlling SCOTUS pages appear as supplementary sources
+    # even if AI didn't explicitly cite them
+    existing_opinion_ids = {s.get("opinion_id") for s in sources}
+    for page in pages:
+        if page.get("injected_as_controlling") and page.get("opinion_id") not in existing_opinion_ids:
+            # Add this controlling case as a supplementary source
+            page_text = page.get("text", "")[:300].strip()
+            if page_text:
+                supplementary_source = {
+                    "sid": f"ctrl-{len(sources)+1}",
+                    "opinion_id": page.get("opinion_id"),
+                    "case_name": page.get("case_name", ""),
+                    "appeal_no": page.get("appeal_no", ""),
+                    "release_date": page.get("release_date", ""),
+                    "page_number": page.get("page_number", 1),
+                    "quote": page_text,
+                    "viewer_url": f"/pdf/{page.get('opinion_id')}?page={page.get('page_number', 1)}",
+                    "pdf_url": page.get("pdf_url", ""),
+                    "courtlistener_url": page.get("courtlistener_url", ""),
+                    "court": page.get("origin", "CAFC"),
+                    "precedential_status": "precedential",
+                    "is_en_banc": False,
+                    "injected_as_controlling": True,
+                    "citation_verification": {
+                        "tier": "moderate",
+                        "score": 55,
+                        "signals": ["controlling_authority", "injected_source"],
+                        "binding_method": "supplementary"
+                    }
+                }
+                sources.append(supplementary_source)
+                existing_opinion_ids.add(page.get("opinion_id"))
+    
     ranked_sources = ranking_scorer.rank_sources_by_composite(sources, pages_by_id)
     
     return ranked_sources, position_to_sid
@@ -1877,6 +1920,39 @@ async def generate_chat_response(
                     continue
     
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
+    
+    # P0: Doctrine-triggered authoritative candidate injection
+    # Classify query to determine if controlling SCOTUS cases should be injected
+    doctrine_tag = ranking_scorer.classify_doctrine_tag(message)
+    if doctrine_tag:
+        logging.info(f"[DOCTRINE TAG] Query classified as: {doctrine_tag}")
+        controlling_case_patterns = ranking_scorer.get_controlling_framework_candidates(doctrine_tag)
+        if controlling_case_patterns:
+            logging.info(f"[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine={doctrine_tag}: {controlling_case_patterns}")
+            controlling_pages = db.fetch_controlling_scotus_pages(controlling_case_patterns, pages_per_case=2)
+            if controlling_pages:
+                logging.info(f"[CONTROLLING INJECTION] Injected {len(controlling_pages)} controlling SCOTUS pages")
+                # Debug: log the first few injected pages with their origin
+                for cp in controlling_pages[:3]:
+                    logging.info(f"[CONTROLLING INJECTION] Page: case={cp.get('case_name','?')[:40]}, origin={cp.get('origin')}, page={cp.get('page_number')}")
+                # Deduplicate and merge controlling pages with search results
+                seen_keys = set()
+                merged_controlling = []
+                # Add controlling pages first (highest priority)
+                for p in controlling_pages:
+                    key = (p.get('opinion_id'), p.get('page_number'))
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        merged_controlling.append(p)
+                # Add original search results
+                for p in pages:
+                    key = (p.get('opinion_id'), p.get('page_number'))
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        merged_controlling.append(p)
+                pages = merged_controlling
+            else:
+                logging.warning(f"[CONTROLLING INJECTION] No SCOTUS cases found for {controlling_case_patterns} - may be missing from corpus")
     
     # Merge named case results with FTS results, prioritizing ALL named cases
     # Use all_named_case_pages which contains pages from ALL mentioned cases
@@ -2576,7 +2652,7 @@ async def generate_chat_response(
                 
                 # Extract a relevant quote from the page
                 page_text = p.get('text', '')[:300].strip()
-                logging.info(f"DEBUG Fallback source {idx}: case={case_name}, text_len={len(page_text)}, has_text={bool(page_text)}")
+                logging.info(f"DEBUG Fallback source {idx}: case={case_name}, origin={p.get('origin')}, text_len={len(page_text)}, injected={p.get('injected_as_controlling', False)}")
                 if page_text:
                     source_entry = {
                         "opinion_id": p.get('opinion_id'),
@@ -2592,16 +2668,17 @@ async def generate_chat_response(
                         "tier": "moderate",
                         "score": 50,
                         "signals": ["fallback_source"],
-                        "binding_method": "context"
+                        "binding_method": "context",
+                        "injected_as_controlling": p.get('injected_as_controlling', False)
                     }
                     explain = ranking_scorer.compute_composite_score(0.5, p, page_text)
                     source_entry["explain"] = explain
                     source_entry["application_reason"] = ranking_scorer.generate_application_reason(explain, p)
                     sources.append(source_entry)
-                if len(sources) >= 5:  # Limit to 5 sources
-                    break
-            # Sort fallback sources by composite score
+                    
+            # Sort fallback sources by composite score, then limit to 5
             sources.sort(key=lambda x: x.get("explain", {}).get("composite_score", 0), reverse=True)
+            sources = sources[:5]  # Limit to 5 after sorting by score
             logging.info(f"DEBUG Fallback generated {len(sources)} sources")
         
         # Strict grounding enforcement: require sources OR substantive content

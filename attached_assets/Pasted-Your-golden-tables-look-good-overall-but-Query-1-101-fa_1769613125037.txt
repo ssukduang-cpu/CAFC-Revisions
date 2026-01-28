@@ -1,0 +1,34 @@
+Your golden tables look good overall, but Query 1 (§101) fails the core requirement: it does NOT surface controlling SCOTUS (Alice/Mayo) in top results. Also, normalize_origin() currently uses case-name heuristics to label SCOTUS, which is brittle and will not scale.
+
+P0 — Fix doctrine-triggered authoritative candidate retrieval (blocker)
+	1.	Guarantee SCOTUS framework candidates are included for doctrine queries
+	•	For doctrine-tagged queries (at least: §101, §103, §112, claim construction, PTAB reviewability, remedies), the candidate set MUST include the controlling SCOTUS framework cases even if their text is not the best lexical match.
+	•	Implement get_controlling_framework_candidates(doctrine_tag) that directly injects the relevant SCOTUS opinion_ids into the candidate pool before ranking.
+	•	For §101, inject at minimum: Alice, Mayo, Bilski, Diehr.
+	•	For each injected doc, retrieve at least one representative chunk (e.g., syllabus or key reasoning pages) so it can rank.
+
+Acceptance test
+	•	For Query 1 (“Alice/Mayo inventive concept”), top-5 MUST include SCOTUS Alice and/or Mayo unless they are missing from corpus. If missing, return an explicit diagnostic.
+
+	2.	Add doctrine_tag wiring
+	•	Ensure the query classifier reliably assigns §101 tag for Query 1.
+	•	Log doctrine_tag used for retrieval in debug output.
+
+P0 — Court labeling must rely on document metadata, not case-name guessing
+	3.	Replace case-name SCOTUS detection with metadata-first rule
+	•	Primary: court = documents.origin (SCOTUS/CAFC/PTAB)
+	•	Only if origin is null/unknown, apply case-name fallback heuristics AND add signal court_inferred_from_name.
+	•	Do NOT default all unknown origins to CAFC silently.
+	•	Add unit tests:
+	•	If origin=SCOTUS → court=SCOTUS regardless of case name
+	•	If origin is missing but case-name matches → SCOTUS + signal
+	•	If origin missing and case-name not matching → court=UNKNOWN (not CAFC)
+
+Acceptance
+	•	Golden query outputs must have no court inferred from name unless origin is missing.
+
+P1 — Regenerate golden outputs after fixes
+	4.	Re-run the 10 golden queries and provide top-5 tables in the same format as before (with explain values, why_this_case).
+	5.	Provide explicit YES/NO for:
+	•	Query 1 now includes controlling SCOTUS (Alice/Mayo) in top-5
+	•	No court_inferred_from_name signals in normal cases

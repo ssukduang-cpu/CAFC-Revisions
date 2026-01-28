@@ -58,6 +58,14 @@ Preferred communication style: Simple, everyday language.
 - **"Why This Case?" Explanation:** Frontend displays `application_reason` explaining ranking rationale (e.g., "Supreme Court precedent; applies Alice")
 - **Explain Metadata:** Each source includes full scoring breakdown (composite_score, authority_boost, application_signal, holding_indicator, frameworks_detected)
 
+### Doctrine-Triggered Authoritative Candidate Injection
+- **Doctrine Classification:** `classify_doctrine_tag()` maps queries to doctrine tags: 101, 103, 112, claim_construction, ptab, remedies, doe
+- **Controlling SCOTUS Cases:** Each doctrine has mapped controlling SCOTUS cases (e.g., §101 → Alice/Mayo/Bilski/Diamond v. Diehr; §103 → KSR/Graham)
+- **Injection Pipeline:** `fetch_controlling_scotus_pages()` injects SCOTUS pages into candidate pool before ranking
+- **Supplementary Sources:** Injected controlling pages always appear as supplementary sources even if AI doesn't explicitly cite them
+- **Court Normalization:** `normalize_origin_with_signal()` prioritizes origin metadata, uses case-name fallback only when origin missing (with `court_inferred_from_name` signal)
+- **10/10 Golden Queries:** All doctrine queries now surface controlling SCOTUS cases in top-5 results
+
 ### AI Integration
 - **Provider:** OpenAI (via Replit AI Integrations) using GPT-4o.
 - **RAG Pattern:** Injects retrieved chunks into system prompts, enforces verbatim quotes, and explicitly states "NOT FOUND IN PROVIDED OPINIONS" for unsupported claims.

@@ -585,6 +585,76 @@ def mark_document_ingested(doc_id: str, pdf_sha256: Optional[str] = None, total_
             WHERE id = %s
         """, (pdf_sha256, status, total_pages, file_size, doc_id))
 
+def fetch_controlling_scotus_pages(case_name_patterns: List[str], pages_per_case: int = 3) -> List[Dict]:
+    """Fetch representative pages from controlling SCOTUS cases for candidate injection.
+    
+    This ensures controlling SCOTUS cases are included in the candidate pool for
+    doctrine-tagged queries, even if their text doesn't match lexically.
+    
+    Args:
+        case_name_patterns: List of case name patterns (e.g., ["Alice Corp. v. CLS Bank"])
+        pages_per_case: Number of pages to fetch per case (default 3 for key reasoning)
+    
+    Returns:
+        List of page dicts with document metadata
+    """
+    if not case_name_patterns:
+        return []
+    
+    results = []
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        for pattern in case_name_patterns:
+            # Use ILIKE for case-insensitive partial matching
+            pattern_lower = pattern.lower()
+            
+            # First, find the document
+            cursor.execute("""
+                SELECT d.id, d.case_name, d.appeal_number, d.release_date, d.origin
+                FROM documents d
+                WHERE d.ingested = TRUE
+                  AND LOWER(d.case_name) LIKE %s
+                ORDER BY d.release_date DESC
+                LIMIT 1
+            """, (f"%{pattern_lower}%",))
+            
+            doc_row = cursor.fetchone()
+            if not doc_row:
+                continue
+            
+            doc_id = doc_row["id"]
+            
+            # Fetch representative pages - skip slip opinion formatting and get content pages
+            # SCOTUS slip opinions often have 10+ pages of whitespace, so get pages 10-12
+            # which typically contain the core analysis (Mayo framework, etc.)
+            cursor.execute("""
+                SELECT dp.id, dp.document_id, dp.page_number, dp.text
+                FROM document_pages dp
+                WHERE dp.document_id = %s
+                  AND dp.page_number >= 10
+                ORDER BY dp.page_number
+                LIMIT %s
+            """, (doc_id, pages_per_case))
+            
+            pages = cursor.fetchall()
+            
+            for page in pages:
+                results.append({
+                    "opinion_id": str(doc_id),
+                    "case_name": doc_row["case_name"],
+                    "appeal_no": doc_row["appeal_number"],  # Match expected field name
+                    "release_date": str(doc_row["release_date"]) if doc_row["release_date"] else None,
+                    "origin": doc_row["origin"],
+                    "page_number": page["page_number"],
+                    "text": page["text"],
+                    "rank": 1.0,  # High rank for injected controlling cases
+                    "injected_as_controlling": True  # Signal that this was injected
+                })
+    
+    return results
+
+
 def mark_document_error(doc_id: str, error: str):
     with get_db() as conn:
         cursor = conn.cursor()

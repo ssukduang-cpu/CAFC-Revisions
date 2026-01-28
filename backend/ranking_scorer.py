@@ -46,70 +46,194 @@ DOCTRINE_FRAMEWORKS = {
     "doe": ["Festo", "Warner-Jenkinson", "Graver Tank"]
 }
 
-def normalize_origin(origin: str, case_name: str = "") -> str:
-    """Normalize origin field to standard court labels.
+# Controlling SCOTUS cases by doctrine for direct injection
+CONTROLLING_SCOTUS_CASES = {
+    "101": ["Alice Corp. v. CLS Bank", "Mayo Collaborative Services v. Prometheus", 
+            "Bilski v. Kappos", "Diamond v. Diehr"],
+    "103": ["KSR International Co. v. Teleflex Inc.", "Graham v. John Deere Co."],
+    "112": ["Amgen Inc. v. Sanofi", "Nautilus, Inc. v. Biosig Instruments, Inc."],
+    "claim_construction": ["Markman v. Westview Instruments, Inc.", "Teva Pharmaceuticals USA, Inc. v. Sandoz, Inc."],
+    "ptab": ["Cuozzo Speed Technologies, LLC v. Lee", "Thryv, Inc. v. Click-to-Call Technologies, LP", 
+             "SAS Institute Inc. v. Iancu"],
+    "remedies": ["eBay Inc. v. MercExchange, L.L.C.", "Halo Electronics, Inc. v. Pulse Electronics, Inc.",
+                 "Octane Fitness, LLC v. ICON Health & Fitness, Inc."],
+    "doe": ["Festo Corporation v. Shoketsu Kinzoku Kogyo Kabushiki Co.", "Warner-Jenkinson Company, Inc. v. Hilton Davis Chemical Co."]
+}
+
+# Case name patterns for SCOTUS detection (fallback only when origin is missing)
+SCOTUS_CASE_PATTERNS = [
+    "alice corp", "mayo collaborative", "ksr international", 
+    "ebay inc", "halo electronics", "octane fitness", "teva pharm",
+    "markman v. westview", "bilski v. kappos", "cuozzo speed",
+    "thryv, inc", "sas institute", "amgen inc. v. sanofi",
+    "nautilus, inc", "festo corp", "warner-jenkinson", "graham v. john deere",
+    "diamond v. diehr"
+]
+
+
+def normalize_origin_with_signal(origin: str, case_name: str = "") -> Tuple[str, Optional[str]]:
+    """Normalize origin field to standard court labels with signal tracking.
     
-    Maps various ingestion sources to standard court labels:
-    - courtlistener_api, web_search, DCT, cafc_website -> CAFC (default)
-    - SCOTUS -> SCOTUS
-    - PTAB -> PTAB
+    Priority:
+    1. Use origin metadata if valid (SCOTUS, CAFC, PTAB)
+    2. Only use case-name fallback if origin is null/unknown
+    3. Return UNKNOWN if neither metadata nor case-name matches
     
-    Also checks case_name for SCOTUS indicators.
+    Returns:
+        (court, signal) - court is SCOTUS/CAFC/PTAB/UNKNOWN, signal is None or 'court_inferred_from_name'
     """
-    origin_upper = origin.upper() if origin else ""
+    origin_upper = origin.upper().strip() if origin else ""
     case_lower = case_name.lower() if case_name else ""
     
-    # Check case_name for SCOTUS indicators
-    scotus_indicators = ["u.s.", "s.ct.", "s. ct.", "supreme court", " v. "]
-    scotus_cases = ["alice corp", "mayo collaborative", "ksr international", 
-                    "ebay inc", "halo electronics", "octane fitness", "teva pharm",
-                    "markman v. westview", "bilski v. kappos", "cuozzo speed",
-                    "thryv, inc", "sas institute", "amgen inc. v. sanofi",
-                    "nautilus, inc", "festo corp", "warner-jenkinson"]
-    
-    for case in scotus_cases:
-        if case in case_lower:
-            return "SCOTUS"
-    
-    # Direct origin matches
+    # Priority 1: Direct origin metadata (most reliable)
     if origin_upper == "SCOTUS":
-        return "SCOTUS"
+        return ("SCOTUS", None)
     
     if origin_upper == "PTAB":
-        return "PTAB"
+        return ("PTAB", None)
     
-    # Everything else normalizes to CAFC (including courtlistener_api, web_search, DCT)
-    return "CAFC"
+    if origin_upper in ("CAFC", "CAFC_WEBSITE", "FEDERAL CIRCUIT"):
+        return ("CAFC", None)
+    
+    # Priority 2: If origin is a known ingestion source (courtlistener_api, web_search, DCT)
+    # these are CAFC by default since we primarily ingest CAFC opinions
+    if origin_upper in ("COURTLISTENER_API", "WEB_SEARCH", "DCT", "CAFC_WEBSITE"):
+        # But check if case name indicates SCOTUS (some SCOTUS cases may have been
+        # ingested through these sources with missing origin)
+        for pattern in SCOTUS_CASE_PATTERNS:
+            if pattern in case_lower:
+                return ("SCOTUS", "court_inferred_from_name")
+        return ("CAFC", None)
+    
+    # Priority 3: Origin is missing or unknown - use case-name fallback
+    if not origin_upper or origin_upper in ("UNKNOWN", ""):
+        for pattern in SCOTUS_CASE_PATTERNS:
+            if pattern in case_lower:
+                return ("SCOTUS", "court_inferred_from_name")
+        # Don't default to CAFC silently - return UNKNOWN
+        return ("UNKNOWN", None)
+    
+    # Priority 4: Unknown origin value - check case name as fallback
+    for pattern in SCOTUS_CASE_PATTERNS:
+        if pattern in case_lower:
+            return ("SCOTUS", "court_inferred_from_name")
+    
+    # Default to UNKNOWN for unrecognized origins
+    return ("UNKNOWN", None)
 
 
-def get_authority_type(page: Dict) -> str:
-    """Determine the authority type of a document."""
+def normalize_origin(origin: str, case_name: str = "") -> str:
+    """Backward-compatible wrapper that returns just the court label."""
+    court, _ = normalize_origin_with_signal(origin, case_name)
+    return court
+
+
+def classify_doctrine_tag(query: str) -> Optional[str]:
+    """Classify a query into a doctrine tag for framework injection.
+    
+    Returns one of: '101', '103', '112', 'claim_construction', 'ptab', 'remedies', 'doe', or None
+    """
+    query_lower = query.lower()
+    
+    # §101 eligibility
+    if any(t in query_lower for t in ['101', 'alice', 'mayo', 'abstract idea', 'patent eligible', 
+                                       'inventive concept', 'law of nature', 'natural phenomena']):
+        return "101"
+    
+    # §103 obviousness
+    if any(t in query_lower for t in ['103', 'obvious', 'ksr', 'graham', 'motivation to combine', 
+                                       'tsm', 'teaching suggestion']):
+        return "103"
+    
+    # §112 disclosure
+    if any(t in query_lower for t in ['112', 'enablement', 'written description', 'amgen', 
+                                       'nautilus', 'indefinite', 'ariad']):
+        return "112"
+    
+    # Claim construction
+    if any(t in query_lower for t in ['claim construction', 'markman', 'teva', 'phillips', 
+                                       'intrinsic evidence', 'specification']):
+        return "claim_construction"
+    
+    # PTAB reviewability
+    if any(t in query_lower for t in ['ptab', 'ipr', 'inter partes', 'cuozzo', 'thryv', 'sas', 
+                                       'institution', 'reviewability']):
+        return "ptab"
+    
+    # Remedies (injunctions, damages, fees)
+    if any(t in query_lower for t in ['injunction', 'ebay', 'halo', 'willful', 'enhanced damage',
+                                       'octane', 'exceptional', 'fee', 'damages', 'royalty', 
+                                       'apportionment', 'reasonable royalty']):
+        return "remedies"
+    
+    # DOE/estoppel
+    if any(t in query_lower for t in ['doctrine of equivalents', 'doe', 'estoppel', 'festo', 
+                                       'warner-jenkinson', 'prosecution history']):
+        return "doe"
+    
+    return None
+
+
+def get_controlling_framework_candidates(doctrine_tag: Optional[str]) -> List[str]:
+    """Get case name patterns for controlling SCOTUS cases to inject into candidate pool.
+    
+    Args:
+        doctrine_tag: Doctrine classification (e.g., '101', '103', 'claim_construction')
+    
+    Returns:
+        List of case name patterns to search for in the corpus
+    """
+    if not doctrine_tag:
+        return []
+    
+    return CONTROLLING_SCOTUS_CASES.get(doctrine_tag, [])
+
+
+def get_authority_type_with_signal(page: Dict) -> Tuple[str, Optional[str]]:
+    """Determine the authority type of a document with court inference signal.
+    
+    Returns:
+        (authority_type, court_signal) - signal is 'court_inferred_from_name' if case-name fallback was used
+    """
     raw_origin = page.get("origin", "")
     case_name = page.get("case_name", "")
     is_en_banc = page.get("is_en_banc", False)
     is_precedential = page.get("is_precedential", True)
     
-    # Normalize origin
-    origin = normalize_origin(raw_origin, case_name)
+    # Normalize origin with signal tracking
+    court, court_signal = normalize_origin_with_signal(raw_origin, case_name)
     
     if "u.s.c." in case_name.lower() or "§" in case_name:
-        return "statute"
+        return ("statute", court_signal)
     
-    if origin == "SCOTUS":
-        return "SCOTUS"
+    if court == "SCOTUS":
+        return ("SCOTUS", court_signal)
     
-    if origin == "PTAB":
+    if court == "PTAB":
         if is_precedential:
-            return "PTAB_precedential"
-        return "nonprecedential"
+            return ("PTAB_precedential", court_signal)
+        return ("nonprecedential", court_signal)
     
+    if court == "UNKNOWN":
+        # Don't default unknown courts to CAFC authority types
+        if is_precedential:
+            return ("UNKNOWN_precedential", court_signal)
+        return ("UNKNOWN_nonprecedential", court_signal)
+    
+    # court == "CAFC"
     if is_en_banc:
-        return "CAFC_en_banc"
+        return ("CAFC_en_banc", court_signal)
     
     if is_precedential:
-        return "CAFC_precedential"
+        return ("CAFC_precedential", court_signal)
     
-    return "nonprecedential"
+    return ("nonprecedential", court_signal)
+
+
+def get_authority_type(page: Dict) -> str:
+    """Backward-compatible wrapper that returns just the authority type."""
+    authority_type, _ = get_authority_type_with_signal(page)
+    return authority_type
 
 
 def compute_authority_boost(page: Dict) -> float:

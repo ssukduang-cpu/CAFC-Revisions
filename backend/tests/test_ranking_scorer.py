@@ -22,8 +22,12 @@ from ranking_scorer import (
     compute_composite_score,
     generate_application_reason,
     get_authority_type,
+    get_authority_type_with_signal,
     normalize_origin,
+    normalize_origin_with_signal,
     compute_framework_boost,
+    classify_doctrine_tag,
+    get_controlling_framework_candidates,
     AUTHORITY_BOOST
 )
 
@@ -321,31 +325,88 @@ class TestApplicationReason:
 
 
 class TestOriginNormalization:
-    """Test origin normalization (P0.3)."""
+    """Test origin normalization (P0.3) - metadata-first with signal tracking."""
     
-    def test_scotus_direct(self):
-        result = normalize_origin("SCOTUS", "")
-        assert result == "SCOTUS", f"Direct SCOTUS should stay SCOTUS, got {result}"
+    def test_scotus_origin_takes_priority(self):
+        """If origin=SCOTUS, court=SCOTUS regardless of case name."""
+        court, signal = normalize_origin_with_signal("SCOTUS", "Random Case Name")
+        assert court == "SCOTUS", f"SCOTUS origin should yield SCOTUS, got {court}"
+        assert signal is None, f"No signal expected for direct origin match, got {signal}"
     
-    def test_scotus_from_casename(self):
-        result = normalize_origin("courtlistener_api", "KSR International Co. v. Teleflex Inc.")
-        assert result == "SCOTUS", f"KSR case name should normalize to SCOTUS, got {result}"
+    def test_scotus_from_casename_when_origin_missing(self):
+        """If origin is missing but case-name matches -> SCOTUS + signal."""
+        court, signal = normalize_origin_with_signal("", "KSR International Co. v. Teleflex Inc.")
+        assert court == "SCOTUS", f"KSR case name should yield SCOTUS, got {court}"
+        assert signal == "court_inferred_from_name", f"Should have inference signal, got {signal}"
+    
+    def test_unknown_origin_unknown_casename_yields_unknown(self):
+        """If origin missing and case-name not matching -> court=UNKNOWN (not CAFC)."""
+        court, signal = normalize_origin_with_signal("", "Random Unknown Case v. Something")
+        assert court == "UNKNOWN", f"Unknown origin + non-matching case should yield UNKNOWN, got {court}"
+        assert signal is None, f"No signal expected for UNKNOWN, got {signal}"
+    
+    def test_courtlistener_with_scotus_casename(self):
+        """If origin is courtlistener_api but case is Alice -> SCOTUS + signal."""
+        court, signal = normalize_origin_with_signal("courtlistener_api", "Alice Corp. v. CLS Bank")
+        assert court == "SCOTUS", f"Alice case name should yield SCOTUS, got {court}"
+        assert signal == "court_inferred_from_name", f"Should have inference signal, got {signal}"
     
     def test_courtlistener_normalizes_to_cafc(self):
-        result = normalize_origin("courtlistener_api", "Some CAFC Case v. Another")
-        assert result == "CAFC", f"courtlistener_api should normalize to CAFC, got {result}"
-    
-    def test_dct_normalizes_to_cafc(self):
-        result = normalize_origin("DCT", "District Court Case")
-        assert result == "CAFC", f"DCT should normalize to CAFC, got {result}"
-    
-    def test_web_search_normalizes_to_cafc(self):
-        result = normalize_origin("web_search", "Web Search Case")
-        assert result == "CAFC", f"web_search should normalize to CAFC, got {result}"
+        """If origin is courtlistener_api and case is not SCOTUS -> CAFC (no signal)."""
+        court, signal = normalize_origin_with_signal("courtlistener_api", "Some CAFC Case v. Another")
+        assert court == "CAFC", f"courtlistener_api should normalize to CAFC, got {court}"
+        assert signal is None, f"No signal expected for CAFC normalization, got {signal}"
     
     def test_ptab_stays_ptab(self):
-        result = normalize_origin("PTAB", "Some PTAB Case")
-        assert result == "PTAB", f"PTAB should stay PTAB, got {result}"
+        court, signal = normalize_origin_with_signal("PTAB", "Some PTAB Case")
+        assert court == "PTAB", f"PTAB should stay PTAB, got {court}"
+        assert signal is None, f"No signal expected for PTAB, got {signal}"
+    
+    def test_backward_compat_normalize_origin(self):
+        """Backward-compatible wrapper returns just court label."""
+        result = normalize_origin("SCOTUS", "")
+        assert result == "SCOTUS"
+
+
+class TestDoctrineClassification:
+    """Test doctrine_tag classification for query routing."""
+    
+    def test_101_classification(self):
+        tag = classify_doctrine_tag("How does Alice step two work for inventive concept?")
+        assert tag == "101", f"Alice query should classify as 101, got {tag}"
+    
+    def test_103_classification(self):
+        tag = classify_doctrine_tag("What is obviousness under KSR?")
+        assert tag == "103", f"KSR query should classify as 103, got {tag}"
+    
+    def test_112_classification(self):
+        tag = classify_doctrine_tag("What does Amgen require for enablement?")
+        assert tag == "112", f"Amgen/enablement query should classify as 112, got {tag}"
+    
+    def test_claim_construction_classification(self):
+        tag = classify_doctrine_tag("What are the rules for claim construction under Markman?")
+        assert tag == "claim_construction", f"Markman query should classify as claim_construction, got {tag}"
+    
+    def test_remedies_classification(self):
+        tag = classify_doctrine_tag("What are the eBay factors for injunctions?")
+        assert tag == "remedies", f"eBay query should classify as remedies, got {tag}"
+
+
+class TestControllingCandidates:
+    """Test get_controlling_framework_candidates for candidate injection."""
+    
+    def test_101_candidates(self):
+        candidates = get_controlling_framework_candidates("101")
+        assert "Alice Corp. v. CLS Bank" in candidates, f"Should include Alice, got {candidates}"
+        assert "Mayo Collaborative Services v. Prometheus" in candidates, f"Should include Mayo, got {candidates}"
+    
+    def test_103_candidates(self):
+        candidates = get_controlling_framework_candidates("103")
+        assert "KSR International Co. v. Teleflex Inc." in candidates, f"Should include KSR, got {candidates}"
+    
+    def test_none_doctrine_returns_empty(self):
+        candidates = get_controlling_framework_candidates(None)
+        assert candidates == [], f"None doctrine should return empty list, got {candidates}"
 
 
 class TestFrameworkBoost:
@@ -416,6 +477,8 @@ def run_all_tests():
         TestSyntheticRegression,
         TestApplicationReason,
         TestOriginNormalization,
+        TestDoctrineClassification,
+        TestControllingCandidates,
         TestFrameworkBoost,
         TestConsistency
     ]
