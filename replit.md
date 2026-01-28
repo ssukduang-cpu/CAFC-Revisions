@@ -73,6 +73,7 @@ Preferred communication style: Simple, everyday language.
 - **CAFC Website:** Primary source for PDF downloads.
 - **CourtListener API:** Fallback for PDF downloads and provides `cluster_id` for deduplication.
 - **Tavily API:** For web search to discover new case law and aid in ingestion when local database lacks coverage.
+- **Supreme Court (SCOTUS):** 15 landmark patent cases ingested with origin="SCOTUS" for cross-court precedent research. Cases include Alice, Bilski, KSR, eBay, Mayo, Markman, and others covering patent eligibility, obviousness, claim construction, and remedies.
 
 ### Hybrid Web Search Integration
 - **Search-to-Ingest Pipeline:** Automatically searches Tavily, extracts case names, looks up cases in CourtListener, and ingests new cases to enrich local context.
