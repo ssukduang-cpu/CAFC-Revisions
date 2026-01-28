@@ -279,3 +279,34 @@ export function parseActionItems(message: Message): ActionItem[] {
     return [];
   }
 }
+
+export interface StatementSupport {
+  sentenceIdx: number;
+  text: string;
+  supported: boolean;
+  mentionedCases: string[];
+  supportingCitations: string[];
+}
+
+export function parseStatementSupport(message: Message): StatementSupport[] {
+  if (!message.citations) return [];
+  
+  try {
+    const data = typeof message.citations === 'string' 
+      ? JSON.parse(message.citations) 
+      : message.citations;
+    
+    if (data.statement_support && Array.isArray(data.statement_support)) {
+      return data.statement_support.map((item: any) => ({
+        sentenceIdx: item.sentence_idx ?? item.sentenceIdx ?? 0,
+        text: item.text || '',
+        supported: item.supported !== false,
+        mentionedCases: item.mentioned_cases || item.mentionedCases || [],
+        supportingCitations: item.supporting_citations || item.supportingCitations || []
+      }));
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}

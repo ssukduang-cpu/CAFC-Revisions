@@ -1786,11 +1786,11 @@ def apply_per_statement_provenance_gating(
     
     For any statement that attributes a holding to a specific case,
     requires at least one STRONG/MODERATE verified citation.
-    Unsupported case-attributed statements are tagged with [UNSUPPORTED].
+    Unsupported statements are tracked in statement_support metadata for frontend display.
     
     Returns:
-        modified_answer: Answer with unsupported statements tagged
-        statement_support: List of statement support records
+        modified_answer: The answer markdown (unchanged)
+        statement_support: List of statement support records with verification status
     """
     # Build lookup of verified citations by case name
     verified_cases = {}  # case_name_lower -> list of verified source sids
@@ -3138,7 +3138,7 @@ async def generate_chat_response(
         answer_markdown = build_answer_markdown(raw_answer, markers, position_to_sid)
         
         # P0: Apply per-statement provenance gating
-        # Tag unsupported case-attributed statements with [UNSUPPORTED]
+        # Track unsupported case-attributed statements in metadata for frontend warning display
         answer_markdown, statement_support = apply_per_statement_provenance_gating(
             answer_markdown, sources
         )

@@ -84,7 +84,7 @@ export function HelpModal() {
             </h4>
             <p className="text-muted-foreground text-xs">
               When enabled (default), statements that cannot be verified against source text 
-              are marked with <span className="text-red-600 font-medium">[UNSUPPORTED]</span>. 
+              are flagged with a warning notice below the response. 
               This ensures you can identify which claims require additional verification 
               before use in legal proceedings.
             </p>

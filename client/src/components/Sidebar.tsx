@@ -293,7 +293,7 @@ export function Sidebar() {
               <TooltipContent side="right" className="max-w-[250px]">
                 <p className="text-xs">
                   {attorneyMode 
-                    ? "STRICT PROVENANCE: Citations require verified quotes. Unverified statements show [UNSUPPORTED] warning."
+                    ? "STRICT PROVENANCE: Citations require verified quotes. Unverified statements are flagged with a warning notice."
                     : "RELAXED: Provenance checks are less strict. Good for exploratory research."
                   }
                 </p>

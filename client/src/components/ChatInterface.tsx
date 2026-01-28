@@ -5,7 +5,7 @@ import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Use
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { useConversation, useSendMessage, useCreateConversation, parseSources, parseAnswerMarkdown, parseActionItems } from "@/hooks/useConversations";
+import { useConversation, useSendMessage, useCreateConversation, parseSources, parseAnswerMarkdown, parseActionItems, parseStatementSupport, type StatementSupport } from "@/hooks/useConversations";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 import type { ConfidenceTier, CitationSignal } from "@/lib/api";
 import { useStatus } from "@/hooks/useOpinions";
@@ -136,6 +136,10 @@ export function ChatInterface() {
 
   const getAnswerMarkdown = (message: Message): string | null => {
     return parseAnswerMarkdown(message);
+  };
+
+  const getStatementSupport = (message: Message): StatementSupport[] => {
+    return parseStatementSupport(message);
   };
 
   // Parse "Suggested Next Steps" from markdown and extract both the main content and suggestions
@@ -562,11 +566,44 @@ export function ChatInterface() {
                       </div>
                     ) : answerMarkdown ? (() => {
                       const { mainContent, suggestions } = parseSuggestedNextSteps(answerMarkdown);
+                      const statementSupport = getStatementSupport(msg);
+                      const unsupportedStatements = statementSupport.filter(s => !s.supported && s.mentionedCases.length > 0);
                       return (
                       <div className="space-y-4 w-full">
                         <div className="text-sm leading-relaxed text-foreground">
                           {renderMarkdownText(mainContent, sources)}
                         </div>
+                        
+                        {attorneyMode && unsupportedStatements.length > 0 && (
+                          <div className="mt-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg" data-testid="unverified-statements-notice">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                                  {unsupportedStatements.length} statement{unsupportedStatements.length > 1 ? 's' : ''} could not be verified
+                                </p>
+                                <ul className="mt-1.5 space-y-1">
+                                  {unsupportedStatements.slice(0, 3).map((stmt, idx) => (
+                                    <li key={idx} className="text-[11px] text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
+                                      <span className="shrink-0">•</span>
+                                      <span className="line-clamp-2">
+                                        {stmt.mentionedCases.length > 0 && (
+                                          <span className="font-medium">{stmt.mentionedCases[0]}: </span>
+                                        )}
+                                        {stmt.text.slice(0, 80)}{stmt.text.length > 80 ? '...' : ''}
+                                      </span>
+                                    </li>
+                                  ))}
+                                  {unsupportedStatements.length > 3 && (
+                                    <li className="text-[10px] text-amber-600 dark:text-amber-400 italic">
+                                      + {unsupportedStatements.length - 3} more
+                                    </li>
+                                  )}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         
                         {suggestions.length > 0 && (
                           <div className="mt-4 pt-3 border-t border-border/30">
