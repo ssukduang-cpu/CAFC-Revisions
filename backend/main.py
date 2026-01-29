@@ -77,10 +77,12 @@ from backend.chat import generate_chat_response, generate_chat_response_stream
 from backend.web_search import search_tavily
 from backend.telemetry import router as telemetry_router
 from backend.eval_runner import router as eval_router
+from backend.external_api import router as external_api_router
 
 app = FastAPI(title="Federal Circuit AI")
 app.include_router(telemetry_router)
 app.include_router(eval_router)
+app.include_router(external_api_router)
 
 def to_camel_case(snake_str: str) -> str:
     components = snake_str.split('_')
