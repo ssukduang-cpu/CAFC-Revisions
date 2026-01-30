@@ -330,44 +330,38 @@ def add_pdf_links_to_sources(sources: List[Dict]) -> List[Dict]:
 
 
 def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dict], sources: Optional[List[Dict]] = None) -> str:
-    """Replace [Q#] and [#] references in answer with clean clickable superscript links.
+    """Replace [Q#] and [#] references in answer with clean clickable citations.
     
-    Transforms [Q1], [Q2], etc. into clean numbered superscript links [1], [2], etc.
-    The Q# values are renumbered sequentially for clean display.
-    Links include PDF URLs with case info in title attribute for hover tooltip.
+    Format: ([1] Case Name) - number is clickable link, case name shown after
+    The Q# values are renumbered sequentially starting at 1 for each response.
     """
     import re
     
     # Track Q# citations in order of appearance and renumber them
-    q_citation_map = {}  # Maps original Q# -> new sequential number
+    q_citation_map = {}  # Maps original Q# -> (new_number, case_name, pdf_url)
     citation_counter = [0]  # Use list for closure modification
     
-    def get_clean_number(quote_id: str) -> int:
-        """Get or assign a clean sequential number for a Q# citation."""
+    def get_citation_info(quote_id: str) -> tuple:
+        """Get or assign citation info for a Q# citation."""
         if quote_id not in q_citation_map:
             citation_counter[0] += 1
-            q_citation_map[quote_id] = citation_counter[0]
+            info = quote_registry.get(quote_id, {})
+            opinion_id = info.get("opinion_id", "")
+            page_number = info.get("page_number", 1)
+            case_name = info.get("case_name", "Unknown Case")
+            pdf_url = f"/pdf/{opinion_id}?page={page_number}" if opinion_id else ""
+            q_citation_map[quote_id] = (citation_counter[0], case_name, pdf_url)
         return q_citation_map[quote_id]
     
     def replace_q_citation(match):
         quote_id = match.group(1)  # e.g., "Q1", "Q120"
+        clean_num, case_name, pdf_url = get_citation_info(quote_id)
         
-        if quote_id in quote_registry:
-            info = quote_registry[quote_id]
-            opinion_id = info.get("opinion_id", "")
-            page_number = info.get("page_number", 1)
-            case_name = info.get("case_name", "Unknown")
-            
-            if opinion_id:
-                # Get clean sequential number (1, 2, 3, etc.)
-                clean_num = get_clean_number(quote_id)
-                pdf_url = f"/pdf/{opinion_id}?page={page_number}"
-                # Clean format: just [1] with hover tooltip showing case info
-                return f"[{clean_num}]({pdf_url} \"{case_name}, p. {page_number}\")"
-        
-        # If not in registry, still try to show clean number
-        clean_num = get_clean_number(quote_id)
-        return f"[{clean_num}]"
+        if pdf_url:
+            # Format: (number as link + case name in parens)
+            return f"([{clean_num}]({pdf_url}) *{case_name}*)"
+        else:
+            return f"([{clean_num}] *{case_name}*)"
     
     def replace_numeric_citation(match):
         num_str = match.group(1)  # e.g., "1", "2"
@@ -379,15 +373,17 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
                 source = sources[idx]
                 opinion_id = source.get("opinion_id", "")
                 page_number = source.get("page_number", 1)
-                case_name = source.get("case_name", "Unknown")
+                case_name = source.get("case_name", "Unknown Case")
                 
                 if opinion_id:
                     pdf_url = f"/pdf/{opinion_id}?page={page_number}"
-                    return f"[{num_str}]({pdf_url} \"{case_name}, p. {page_number}\")"
+                    return f"([{num_str}]({pdf_url}) *{case_name}*)"
+                else:
+                    return f"([{num_str}] *{case_name}*)"
         
         return full_ref
     
-    # First, replace [Q1], [Q2], [Q120], etc. with clean numbered links
+    # First, replace [Q1], [Q2], [Q120], etc. with clean case name links
     q_pattern = r'\[(Q\d+)\]'
     result = re.sub(q_pattern, replace_q_citation, answer_markdown)
     
