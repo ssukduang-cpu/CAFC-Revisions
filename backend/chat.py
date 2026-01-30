@@ -329,14 +329,15 @@ def add_pdf_links_to_sources(sources: List[Dict]) -> List[Dict]:
     return enriched
 
 
-def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dict]) -> str:
-    """Replace [Q#] references in answer with clickable links to PDFs.
+def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dict], sources: Optional[List[Dict]] = None) -> str:
+    """Replace [Q#] and [#] references in answer with clickable links to PDFs.
     
-    Transforms [Q1], [Q2], etc. into markdown links with PDF URLs.
+    Transforms [Q1], [Q2], etc. into markdown links using quote_registry.
+    Also transforms [1], [2], etc. into markdown links using sources array.
     """
     import re
     
-    def replace_citation(match):
+    def replace_q_citation(match):
         quote_id = match.group(1)  # e.g., "Q1", "Q2"
         full_ref = match.group(0)  # e.g., "[Q1]"
         
@@ -347,15 +348,39 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
             case_name = info.get("case_name", "Unknown")
             
             if opinion_id:
-                # Create clickable markdown link
                 pdf_url = f"/pdf/{opinion_id}?page={page_number}"
                 return f"[{quote_id}]({pdf_url} \"{case_name}, Page {page_number}\")"
         
         return full_ref
     
-    # Match [Q1], [Q2], etc.
-    pattern = r'\[(Q\d+)\]'
-    return re.sub(pattern, replace_citation, answer_markdown)
+    def replace_numeric_citation(match):
+        num_str = match.group(1)  # e.g., "1", "2"
+        full_ref = match.group(0)  # e.g., "[1]"
+        
+        if sources:
+            idx = int(num_str) - 1  # Sources are 1-indexed in citations
+            if 0 <= idx < len(sources):
+                source = sources[idx]
+                opinion_id = source.get("opinion_id", "")
+                page_number = source.get("page_number", 1)
+                case_name = source.get("case_name", "Unknown")
+                
+                if opinion_id:
+                    pdf_url = f"/pdf/{opinion_id}?page={page_number}"
+                    return f"[{num_str}]({pdf_url} \"{case_name}, Page {page_number}\")"
+        
+        return full_ref
+    
+    # First, replace [Q1], [Q2], etc.
+    q_pattern = r'\[(Q\d+)\]'
+    result = re.sub(q_pattern, replace_q_citation, answer_markdown)
+    
+    # Then, replace [1], [2], etc. (numeric only, not Q#)
+    # Avoid matching already-linked citations by checking for no ( after ]
+    num_pattern = r'\[(\d+)\](?!\()'
+    result = re.sub(num_pattern, replace_numeric_citation, result)
+    
+    return result
 
 
 def standardize_response(response: Dict[str, Any], web_search_result: Optional[Dict] = None) -> Dict[str, Any]:
@@ -3194,8 +3219,8 @@ async def generate_chat_response(
             answer_markdown, sources
         )
         
-        # Make [Q#] citations clickable with PDF links
-        answer_markdown = make_citations_clickable(answer_markdown, quote_registry)
+        # Make [Q#] and [#] citations clickable with PDF links
+        answer_markdown = make_citations_clickable(answer_markdown, quote_registry, sources)
         
         # Calculate citation metrics for telemetry (P1)
         total_citations = len(sources)
