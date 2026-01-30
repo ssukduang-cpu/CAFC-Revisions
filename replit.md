@@ -33,12 +33,19 @@ Preferred communication style: Simple, everyday language.
 - **UI Integration:** ConfidenceBadge component with color-coded tiers; SignalsList for detailed signal display; inline citation buttons colored by tier.
 
 ### Quote-First Generation & Verification (Step 5)
-- **Quote-First Prompt:** Strict system prompt requiring AI to use only pre-extracted QUOTABLE_PASSAGES; warns that all quotes will be verified.
-- **Quotable Passage Extraction:** `extract_quotable_passages()` identifies legal holding indicators (~50 passages per context) labeled [Q1], [Q2], etc.
+- **Quote-First Prompt:** Streamlined system prompt (~75% reduced) requiring AI to use only pre-extracted QUOTABLE_PASSAGES; warns that all quotes will be verified. Includes mandatory failure modes, no-inference rule, pre-analysis checklist, and disambiguation with citations.
+- **Quotable Passage Extraction:** `extract_quotable_passages()` identifies legal holding indicators (~50 passages per context) labeled [Q1], [Q2], etc. Includes GPT-4o-mini fallback when heuristics yield <3 passages, with holding-indicator validation and strict substring verification.
 - **Normalized Verification:** `normalize_for_verification()` handles OCR artifacts, hyphenation, Unicode variants, curly quotes; requires exact contiguous substring match after normalization.
 - **Per-Statement Provenance Gating:** `apply_per_statement_provenance_gating()` detects case-attributed statements and tracks unsupported ones in statement_support metadata; frontend displays an amber warning notice box when Attorney Mode is enabled.
 - **Citation Telemetry:** Logs total_citations, verified_citations, unverified_rate_pct per query; target: >80% verified with strict matching.
 - **Litigation-Grade Integrity:** No fuzzy word-overlap matching; only exact normalized substring matches are accepted to prevent false positives.
+
+### Anti-Hallucination Optimizations (Jan 2026)
+- **Temperature:** Reduced from 0.2 to 0.1 for more deterministic outputs
+- **Dynamic max_tokens:** Scales with query complexity (base 1500 + 500 per unique opinion_id, capped at 4000)
+- **Score-Based Pruning:** Pages sorted by relevance score before context building; highest-scoring pages prioritized when hitting token limits
+- **LLM-Assisted Quote Extraction:** GPT-4o-mini fallback when heuristic extraction yields <3 passages, with guardrails: max_len=300, min 50 chars, holding-indicator validation, strict substring verification
+- **API Timeouts:** Increased to 90s model timeout, 120s async wrapper for reliability
 
 ### Data Layer
 - **Database:** PostgreSQL with Drizzle ORM.
