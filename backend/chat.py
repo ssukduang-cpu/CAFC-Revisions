@@ -1107,7 +1107,59 @@ def extract_exact_quote_from_page(page_text: str, min_len: int = 80, max_len: in
     return text[:max_len]
 
 
-def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: int = 300) -> List[str]:
+def _llm_extract_passages_fallback(page_text: str, max_passages: int = 5, max_len: int = 400) -> List[str]:
+    """Use GPT-4o-mini to extract legal holding passages when heuristics fail.
+    
+    This is a fallback for when heuristic extraction yields insufficient passages.
+    Uses a smaller model for cost efficiency.
+    """
+    client = get_openai_client()
+    if not client:
+        return []
+    
+    try:
+        # Truncate page text to avoid token limits
+        truncated = page_text[:4000] if len(page_text) > 4000 else page_text
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"""Extract up to {max_passages} verbatim quotable passages from this legal opinion page.
+Focus on:
+- Holdings ("We hold that...", "We conclude...")
+- Legal standards and tests
+- Key determinations and rulings
+
+Return ONLY the exact text passages, one per line. Each must be a verbatim substring of the input.
+Maximum {max_len} characters per passage. Do not paraphrase or modify."""
+                },
+                {"role": "user", "content": truncated}
+            ],
+            temperature=0.0,
+            max_tokens=1000
+        )
+        
+        result = response.choices[0].message.content or ""
+        passages = []
+        
+        for line in result.strip().split('\n'):
+            line = line.strip().strip('-').strip('•').strip()
+            if len(line) >= 40 and len(line) <= max_len:
+                # Verify it's actually in the source text
+                if normalize_for_verification(line) in normalize_for_verification(page_text):
+                    passages.append(line)
+        
+        logging.info(f"LLM fallback extracted {len(passages)} passages")
+        return passages[:max_passages]
+        
+    except Exception as e:
+        logging.warning(f"LLM passage extraction failed: {e}")
+        return []
+
+
+def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: int = 400, use_llm_fallback: bool = True) -> List[str]:
     """Extract quotable passages from a page for quote-first generation.
     
     Identifies sentences containing legal holding indicators and extracts them
@@ -1117,6 +1169,9 @@ def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: in
     - Strong holding verbs get +3 points (we hold, we conclude, therefore, affirm, reverse)
     - Standard legal indicators get +1 point
     - Section headers/syllabus formatting gets +2 points
+    
+    If heuristic extraction yields fewer than 3 passages and use_llm_fallback=True,
+    falls back to GPT-4o-mini for extraction.
     
     Returns a list of quotable passages (exact substrings of page_text).
     """
@@ -1202,22 +1257,41 @@ def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: in
                     if len(passages) >= 2:
                         break
     
+    # LLM fallback: if heuristics yielded fewer than 3 passages, use GPT-4o-mini
+    if use_llm_fallback and len(passages) < 3:
+        llm_passages = _llm_extract_passages_fallback(page_text, max_passages, max_len)
+        if llm_passages:
+            # Merge: keep heuristic passages, add unique LLM passages
+            seen = set(normalize_for_verification(p) for p in passages)
+            for p in llm_passages:
+                if normalize_for_verification(p) not in seen:
+                    passages.append(p)
+                    seen.add(normalize_for_verification(p))
+    
     return passages[:max_passages]
 
 
 def build_context_with_quotes(pages: List[Dict], max_tokens: int = 80000) -> Tuple[str, Dict[str, Dict]]:
     """Build context with pre-extracted quotable passages.
     
+    Pages are sorted by relevance score before processing to ensure highest-value
+    content is prioritized when context limit is hit.
+    
     Returns:
         context_str: The formatted context for the LLM
         quote_registry: Dict mapping quote_id -> {passage, page_info} for validation
     """
+    # Score-based pruning: sort pages by relevance score (descending)
+    # This ensures highest-scoring pages are included first when hitting token limits
+    sorted_pages = sorted(pages, key=lambda p: p.get('rank', p.get('score', 0)), reverse=True)
+    
     context_parts = []
     quote_registry = {}  # Maps Q1, Q2, etc. to passage details
     current_tokens = 0
     quote_counter = 1
+    pages_pruned = 0
     
-    for page in pages:
+    for page in sorted_pages:
         # Extract quotable passages from this page (increased from 3→5 for better coverage)
         quotable = extract_quotable_passages(page.get('text', ''), max_passages=5, max_len=300)
         
@@ -1253,13 +1327,16 @@ Page: {page['page_number']}
         tokens = count_tokens(excerpt)
         
         if current_tokens + tokens > max_tokens:
-            logging.warning(f"Context truncated: Hit {max_tokens} limit at {len(context_parts)} pages ({current_tokens} tokens)")
-            break
+            pages_pruned += 1
+            continue  # Skip this page but continue to allow smaller pages to fit
             
         context_parts.append(excerpt)
         current_tokens += tokens
+    
+    if pages_pruned > 0:
+        logging.warning(f"Context pruning: {pages_pruned} lower-scoring pages excluded due to {max_tokens} token limit")
         
-    logging.info(f"Built context with {len(context_parts)} pages, {current_tokens} tokens, {len(quote_registry)} quotable passages")
+    logging.info(f"Built context with {len(context_parts)} pages, {current_tokens} tokens, {len(quote_registry)} quotable passages (pruned {pages_pruned})")
     return "\n".join(context_parts), quote_registry
 
 def find_best_quote_in_page(search_terms: List[str], page_text: str, max_len: int = 300) -> Optional[str]:
@@ -2940,22 +3017,32 @@ async def generate_chat_response(
     reasoning_plan = _build_agentic_reasoning_plan(query_lower, pages)
     logging.info(f"DEBUG: Agentic Reasoning Plan: {reasoning_plan}")
     
+    # Dynamic max_tokens: scale based on query complexity
+    # Base 1500 + 500 per opinion_id, capped at 4000
+    base_tokens = 1500
+    opinion_bonus = len(opinion_ids or []) * 500
+    max_tokens = min(4000, base_tokens + opinion_bonus)
+    logging.info(f"Dynamic max_tokens: {max_tokens} (base={base_tokens}, bonus={opinion_bonus})")
+    
+    # Configurable model via environment variable
+    model_name = os.environ.get("CHAT_MODEL", "gpt-4o")
+    
     try:
         response = await asyncio.wait_for(
             loop.run_in_executor(
                 _executor,
                 lambda: client.chat.completions.create(
-                    model="gpt-4o",
+                    model=model_name,
                     messages=[
                         {"role": "system", "content": enhanced_prompt},
                         {"role": "user", "content": message}
                     ],
-                    temperature=0.2,
-                    max_tokens=2500,
-                    timeout=60.0
+                    temperature=0.1,  # Lower for more deterministic, less hallucination
+                    max_tokens=max_tokens,
+                    timeout=90.0  # Increased API timeout
                 )
             ),
-            timeout=90.0
+            timeout=120.0  # Increased asyncio timeout
         )
         
         raw_answer = response.choices[0].message.content or "No response generated."
@@ -2998,17 +3085,17 @@ async def generate_chat_response(
                             asyncio.get_event_loop().run_in_executor(
                                 _executor,
                                 lambda: client.chat.completions.create(
-                                    model="gpt-4o",
+                                    model=model_name,
                                     messages=[
                                         {"role": "system", "content": SYSTEM_PROMPT},
                                         {"role": "user", "content": new_user_prompt}
                                     ],
-                                    temperature=0.2,
-                                    max_tokens=2500,
-                                    timeout=60.0
+                                    temperature=0.1,
+                                    max_tokens=max_tokens,
+                                    timeout=90.0
                                 )
                             ),
-                            timeout=90.0
+                            timeout=120.0
                         )
                         
                         retry_answer = retry_response.choices[0].message.content or "No response generated."
