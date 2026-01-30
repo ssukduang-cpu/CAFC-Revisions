@@ -310,11 +310,60 @@ def build_conversation_summary(conversation_id: str, max_turns: int = 3) -> str:
         return ""
 
 
+def add_pdf_links_to_sources(sources: List[Dict]) -> List[Dict]:
+    """Add clickable PDF links to each source.
+    
+    Enriches sources with pdf_url field for frontend rendering.
+    Format: /pdf/{opinion_id}?page={page_number}
+    """
+    enriched = []
+    for source in sources:
+        opinion_id = source.get("opinion_id") or source.get("opinionId")
+        page_number = source.get("page_number") or source.get("pageNumber", 1)
+        
+        enriched_source = dict(source)
+        if opinion_id:
+            enriched_source["pdf_url"] = f"/pdf/{opinion_id}?page={page_number}"
+        enriched.append(enriched_source)
+    
+    return enriched
+
+
+def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dict]) -> str:
+    """Replace [Q#] references in answer with clickable links to PDFs.
+    
+    Transforms [Q1], [Q2], etc. into markdown links with PDF URLs.
+    """
+    import re
+    
+    def replace_citation(match):
+        quote_id = match.group(1)  # e.g., "Q1", "Q2"
+        full_ref = match.group(0)  # e.g., "[Q1]"
+        
+        if quote_id in quote_registry:
+            info = quote_registry[quote_id]
+            opinion_id = info.get("opinion_id", "")
+            page_number = info.get("page_number", 1)
+            case_name = info.get("case_name", "Unknown")
+            
+            if opinion_id:
+                # Create clickable markdown link
+                pdf_url = f"/pdf/{opinion_id}?page={page_number}"
+                return f"[{quote_id}]({pdf_url} \"{case_name}, Page {page_number}\")"
+        
+        return full_ref
+    
+    # Match [Q1], [Q2], etc.
+    pattern = r'\[(Q\d+)\]'
+    return re.sub(pattern, replace_citation, answer_markdown)
+
+
 def standardize_response(response: Dict[str, Any], web_search_result: Optional[Dict] = None) -> Dict[str, Any]:
     """
     Standardize chat response by promoting debug fields to top-level.
     Ensures consistent schema: return_branch, markers_count, sources_count at top level.
     Also promotes web_search info and controlling_authorities if provided.
+    Enriches sources with PDF links for clickable citations.
     """
     debug = response.get("debug", {})
     
@@ -327,6 +376,10 @@ def standardize_response(response: Dict[str, Any], web_search_result: Optional[D
     # These are SEPARATE from sources - recommended framework cases for the doctrine
     if "controlling_authorities" not in response:
         response["controlling_authorities"] = []
+    
+    # Enrich sources with PDF links for clickable citations
+    if "sources" in response and isinstance(response["sources"], list):
+        response["sources"] = add_pdf_links_to_sources(response["sources"])
     
     # Promote web search info to top-level for UI consumption
     if web_search_result:
@@ -3141,6 +3194,9 @@ async def generate_chat_response(
             answer_markdown, sources
         )
         
+        # Make [Q#] citations clickable with PDF links
+        answer_markdown = make_citations_clickable(answer_markdown, quote_registry)
+        
         # Calculate citation metrics for telemetry (P1)
         total_citations = len(sources)
         verified_citations = sum(1 for s in sources 
@@ -3175,9 +3231,21 @@ async def generate_chat_response(
         # Build controlling authorities (separate from cited sources for provenance)
         controlling_authorities = build_controlling_authorities(pages, doctrine_tag)
         
+        # Build quote_registry summary for frontend (maps Q# to PDF links)
+        quote_links = {
+            qid: {
+                "pdf_url": f"/pdf/{info['opinion_id']}?page={info['page_number']}",
+                "case_name": info["case_name"],
+                "page_number": info["page_number"],
+                "passage_preview": info["passage"][:100] if info.get("passage") else ""
+            }
+            for qid, info in quote_registry.items()
+        }
+        
         return standardize_response({
             "answer_markdown": answer_markdown,
             "sources": sources,
+            "quote_links": quote_links,
             "controlling_authorities": controlling_authorities,
             "statement_support": statement_support,
             "debug": {
