@@ -982,7 +982,7 @@ Include ONLY sentences with clear legal holdings or standards."""
         return []
 
 
-def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: int = 300, use_llm_fallback: bool = True) -> List[str]:
+def extract_quotable_passages(page_text: str, max_passages: int = 5, max_len: int = 300, use_llm_fallback: bool = False) -> List[str]:
     """Extract quotable passages from a page for quote-first generation.
     
     Identifies sentences containing legal holding indicators and extracts them
@@ -1112,11 +1112,17 @@ def build_context_with_quotes(pages: List[Dict], max_tokens: int = 80000) -> Tup
     quote_registry = {}  # Maps Q1, Q2, etc. to passage details
     current_tokens = 0
     quote_counter = 1
+    
+    # Only use LLM fallback for top 5 highest-scoring pages to avoid API spam
+    LLM_FALLBACK_LIMIT = 5
     pages_pruned = 0
     
-    for page in sorted_pages:
+    for page_idx, page in enumerate(sorted_pages):
+        # Only use LLM fallback for top N highest-scoring pages to avoid API spam
+        use_llm = page_idx < LLM_FALLBACK_LIMIT
+        
         # Extract quotable passages from this page (increased from 3→5 for better coverage)
-        quotable = extract_quotable_passages(page.get('text', ''), max_passages=5, max_len=300)
+        quotable = extract_quotable_passages(page.get('text', ''), max_passages=5, max_len=300, use_llm_fallback=use_llm)
         
         # Build the excerpt with quotable passages section
         quote_section = ""
