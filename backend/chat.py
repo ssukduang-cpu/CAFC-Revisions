@@ -330,16 +330,27 @@ def add_pdf_links_to_sources(sources: List[Dict]) -> List[Dict]:
 
 
 def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dict], sources: Optional[List[Dict]] = None) -> str:
-    """Replace [Q#] and [#] references in answer with clickable links to PDFs.
+    """Replace [Q#] and [#] references in answer with clean clickable superscript links.
     
-    Transforms [Q1], [Q2], etc. into markdown links using quote_registry.
-    Also transforms [1], [2], etc. into markdown links using sources array.
+    Transforms [Q1], [Q2], etc. into clean numbered superscript links [1], [2], etc.
+    The Q# values are renumbered sequentially for clean display.
+    Links include PDF URLs with case info in title attribute for hover tooltip.
     """
     import re
     
+    # Track Q# citations in order of appearance and renumber them
+    q_citation_map = {}  # Maps original Q# -> new sequential number
+    citation_counter = [0]  # Use list for closure modification
+    
+    def get_clean_number(quote_id: str) -> int:
+        """Get or assign a clean sequential number for a Q# citation."""
+        if quote_id not in q_citation_map:
+            citation_counter[0] += 1
+            q_citation_map[quote_id] = citation_counter[0]
+        return q_citation_map[quote_id]
+    
     def replace_q_citation(match):
-        quote_id = match.group(1)  # e.g., "Q1", "Q2"
-        full_ref = match.group(0)  # e.g., "[Q1]"
+        quote_id = match.group(1)  # e.g., "Q1", "Q120"
         
         if quote_id in quote_registry:
             info = quote_registry[quote_id]
@@ -348,10 +359,15 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
             case_name = info.get("case_name", "Unknown")
             
             if opinion_id:
+                # Get clean sequential number (1, 2, 3, etc.)
+                clean_num = get_clean_number(quote_id)
                 pdf_url = f"/pdf/{opinion_id}?page={page_number}"
-                return f"[{quote_id}]({pdf_url} \"{case_name}, Page {page_number}\")"
+                # Clean format: just [1] with hover tooltip showing case info
+                return f"[{clean_num}]({pdf_url} \"{case_name}, p. {page_number}\")"
         
-        return full_ref
+        # If not in registry, still try to show clean number
+        clean_num = get_clean_number(quote_id)
+        return f"[{clean_num}]"
     
     def replace_numeric_citation(match):
         num_str = match.group(1)  # e.g., "1", "2"
@@ -367,15 +383,15 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
                 
                 if opinion_id:
                     pdf_url = f"/pdf/{opinion_id}?page={page_number}"
-                    return f"[{num_str}]({pdf_url} \"{case_name}, Page {page_number}\")"
+                    return f"[{num_str}]({pdf_url} \"{case_name}, p. {page_number}\")"
         
         return full_ref
     
-    # First, replace [Q1], [Q2], etc.
+    # First, replace [Q1], [Q2], [Q120], etc. with clean numbered links
     q_pattern = r'\[(Q\d+)\]'
     result = re.sub(q_pattern, replace_q_citation, answer_markdown)
     
-    # Then, replace [1], [2], etc. (numeric only, not Q#)
+    # Then, replace [1], [2], etc. that aren't already linked
     # Avoid matching already-linked citations by checking for no ( after ]
     num_pattern = r'\[(\d+)\](?!\()'
     result = re.sub(num_pattern, replace_numeric_citation, result)
@@ -914,33 +930,56 @@ def verify_quote_partial(quote: str, page_text: str, threshold: float = 0.7) -> 
 def verify_quote_with_case_binding(
     quote: str,
     claimed_opinion_id: str,
-    pages: List[Dict]
+    pages: List[Dict],
+    allow_case_level_fallback: bool = True
 ) -> Tuple[Optional[Dict], str, List[str]]:
-    """Verify quote exists in the CLAIMED opinion (strict binding).
+    """Verify quote exists in the CLAIMED opinion.
+    
+    Two-tier verification:
+    1. Strict: Quote found verbatim on specific page (page-level citation)
+    2. Case-level fallback: Quote found anywhere in the opinion (reduces false negatives)
     
     Returns: (matching_page, binding_method, signals)
-    - binding_method: "strict" if opinion_id matched, "failed" otherwise
+    - binding_method: "strict" for exact page, "case_level" for any page in opinion, "failed" otherwise
     - signals: list of signal strings for confidence calculation
     """
     signals = []
     
-    for page in pages:
-        if page.get('page_number', 0) < 1:
-            continue
-        if page.get('opinion_id') == claimed_opinion_id:
-            if verify_quote_strict(quote, page.get('text', '')):
+    # Gather all pages from the claimed opinion
+    opinion_pages = [p for p in pages if p.get('opinion_id') == claimed_opinion_id and p.get('page_number', 0) >= 1]
+    
+    # First pass: strict page-level match
+    for page in opinion_pages:
+        if verify_quote_strict(quote, page.get('text', '')):
+            signals.append("case_bound")
+            signals.append("exact_match")
+            return page, "strict", signals
+    
+    # Second pass: case-level fallback - quote exists somewhere in the opinion
+    # This reduces false negatives when AI cites the right case but imprecise page
+    if allow_case_level_fallback and opinion_pages:
+        for page in opinion_pages:
+            # Try normalized verification for OCR artifacts
+            is_match, match_type = verify_quote_with_normalization_variants(quote, page.get('text', ''))
+            if is_match:
                 signals.append("case_bound")
-                signals.append("exact_match")
-                return page, "strict", signals
+                signals.append("case_level_match")
+                signals.append(f"normalized_{match_type}")
+                return page, "case_level", signals
     
     return None, "failed", ["binding_failed"]
 
 def verify_quote_with_fuzzy_fallback(
     quote: str,
     claimed_case_name: str,
-    pages: List[Dict]
+    pages: List[Dict],
+    allow_case_level_fallback: bool = True
 ) -> Tuple[Optional[Dict], str, List[str]]:
     """Fuzzy case-name binding when opinion_id is missing.
+    
+    Two-tier verification:
+    1. Strict: Quote found verbatim on page with matching case name
+    2. Case-level fallback: Quote found with normalized matching in matching case
     
     Returns: (matching_page, binding_method, signals)
     - binding_method: "fuzzy" if case name matched, "failed" otherwise
@@ -952,17 +991,31 @@ def verify_quote_with_fuzzy_fallback(
     if not norm_claimed:
         return None, "failed", ["no_case_name"]
     
+    # Gather all pages with matching case name
+    matching_pages = []
     for page in pages:
         if page.get('page_number', 0) < 1:
             continue
-        
         norm_page_case = normalize_case_name_for_binding(page.get('case_name', ''))
-        
         if norm_claimed == norm_page_case or norm_claimed in norm_page_case or norm_page_case in norm_claimed:
-            if verify_quote_strict(quote, page.get('text', '')):
+            matching_pages.append(page)
+    
+    # First pass: strict match
+    for page in matching_pages:
+        if verify_quote_strict(quote, page.get('text', '')):
+            signals.append("fuzzy_case_binding")
+            signals.append("exact_match")
+            return page, "fuzzy", signals
+    
+    # Second pass: case-level fallback with normalized verification
+    if allow_case_level_fallback and matching_pages:
+        for page in matching_pages:
+            is_match, match_type = verify_quote_with_normalization_variants(quote, page.get('text', ''))
+            if is_match:
                 signals.append("fuzzy_case_binding")
-                signals.append("exact_match")
-                return page, "fuzzy", signals
+                signals.append("case_level_match")
+                signals.append(f"normalized_{match_type}")
+                return page, "fuzzy_case_level", signals
     
     return None, "failed", ["binding_failed"]
 
@@ -1753,22 +1806,28 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict) -
     Tiers: strong (>=70), moderate (50-69), weak (30-49), unverified (<30)
     
     Scoring:
-    - Case binding: strict=40, fuzzy=25
-    - Quote match: exact=30, partial=15
+    - Case binding: strict=40, case_level=35, fuzzy=25, fuzzy_case_level=20
+    - Quote match: exact=30, case_level=25, partial=15
     - Recency bonus: 2020+=10 (signal, not gate - older holdings can still be STRONG)
     - Section type: holding=+15, dicta/concurrence/dissent=-5 to -15
     """
     score = 0
     
-    # Binding score
+    # Binding score - case_level is verified but slightly lower confidence
     if binding_method == "strict":
         score += 40
+    elif binding_method == "case_level":
+        score += 35  # Quote verified in correct case, just different page
     elif binding_method == "fuzzy":
         score += 25  # Cap at MODERATE for fuzzy binding
+    elif binding_method == "fuzzy_case_level":
+        score += 20  # Fuzzy case + case-level match
     
     # Quote match score
     if "exact_match" in signals:
         score += 30
+    elif "case_level_match" in signals:
+        score += 25  # Verified at case level (reduces false negatives)
     elif "partial_match" in signals:
         score += 15
     
