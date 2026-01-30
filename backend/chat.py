@@ -329,10 +329,20 @@ def add_pdf_links_to_sources(sources: List[Dict]) -> List[Dict]:
     return enriched
 
 
+def clean_case_name(case_name: str) -> str:
+    """Clean case name by removing document type suffixes like [OPINION], [ORDER], etc."""
+    import re
+    if not case_name:
+        return "Unknown Case"
+    # Remove common document type suffixes
+    cleaned = re.sub(r'\s*\[(OPINION|ORDER|ERRATA|JUDGMENT|DECISION)\]\s*$', '', case_name, flags=re.IGNORECASE)
+    return cleaned.strip() or "Unknown Case"
+
+
 def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dict], sources: Optional[List[Dict]] = None) -> str:
     """Replace [Q#] and [#] references in answer with clean clickable citations.
     
-    Format: ([1] Case Name) - number is clickable link, case name shown after
+    Format: ([1] *Case Name*) - number is clickable link, case name in italics
     The Q# values are renumbered sequentially starting at 1 for each response.
     """
     import re
@@ -348,7 +358,7 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
             info = quote_registry.get(quote_id, {})
             opinion_id = info.get("opinion_id", "")
             page_number = info.get("page_number", 1)
-            case_name = info.get("case_name", "Unknown Case")
+            case_name = clean_case_name(info.get("case_name", "Unknown Case"))
             pdf_url = f"/pdf/{opinion_id}?page={page_number}" if opinion_id else ""
             q_citation_map[quote_id] = (citation_counter[0], case_name, pdf_url)
         return q_citation_map[quote_id]
@@ -358,7 +368,6 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
         clean_num, case_name, pdf_url = get_citation_info(quote_id)
         
         if pdf_url:
-            # Format: (number as link + case name in parens)
             return f"([{clean_num}]({pdf_url}) *{case_name}*)"
         else:
             return f"([{clean_num}] *{case_name}*)"
@@ -373,7 +382,7 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
                 source = sources[idx]
                 opinion_id = source.get("opinion_id", "")
                 page_number = source.get("page_number", 1)
-                case_name = source.get("case_name", "Unknown Case")
+                case_name = clean_case_name(source.get("case_name", "Unknown Case"))
                 
                 if opinion_id:
                     pdf_url = f"/pdf/{opinion_id}?page={page_number}"
