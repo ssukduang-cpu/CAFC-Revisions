@@ -366,11 +366,8 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
     def replace_q_citation(match):
         quote_id = match.group(1)  # e.g., "Q1", "Q120"
         clean_num, case_name, pdf_url = get_citation_info(quote_id)
-        
-        if pdf_url:
-            return f"([{clean_num}]({pdf_url}) *{case_name}*)"
-        else:
-            return f"([{clean_num}] *{case_name}*)"
+        # Format: ([1] *Case Name*) - frontend handles PDF links via sources array
+        return f"([{clean_num}] *{case_name}*)"
     
     def replace_numeric_citation(match):
         num_str = match.group(1)  # e.g., "1", "2"
@@ -380,15 +377,9 @@ def make_citations_clickable(answer_markdown: str, quote_registry: Dict[str, Dic
             idx = int(num_str) - 1  # Sources are 1-indexed in citations
             if 0 <= idx < len(sources):
                 source = sources[idx]
-                opinion_id = source.get("opinion_id", "")
-                page_number = source.get("page_number", 1)
                 case_name = clean_case_name(source.get("case_name", "Unknown Case"))
-                
-                if opinion_id:
-                    pdf_url = f"/pdf/{opinion_id}?page={page_number}"
-                    return f"([{num_str}]({pdf_url}) *{case_name}*)"
-                else:
-                    return f"([{num_str}] *{case_name}*)"
+                # Format: ([1] *Case Name*) - frontend handles PDF links via sources array
+                return f"([{num_str}] *{case_name}*)"
         
         return full_ref
     
