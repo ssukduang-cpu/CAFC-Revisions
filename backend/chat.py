@@ -1574,22 +1574,24 @@ def build_sources_from_markers(
                             signals.append("exact_match")
                             break
 
-        # STRATEGY 3: Normalized substring match fallback (OCR/formatting recovery only)
+        # STRATEGY 3: Case-level fallback with normalized matching
         # Only triggered when strict binding with correct opinion_id failed
-        # Requires normalized substring match - NOT fuzzy word overlap
+        # Uses multiple normalization variants to handle OCR artifacts
         if not page and claimed_opinion_id:
             opinion_pages = pages_by_opinion.get(claimed_opinion_id, [])
-            norm_quote = normalize_for_verification(quote_to_verify)
             
-            # Only accept if normalized quote is exact contiguous substring
             for p in opinion_pages:
-                norm_page = normalize_for_verification(p.get('text', ''))
-                if norm_quote in norm_page:
+                # Use robust normalization variants for OCR/formatting recovery
+                is_match, match_type = verify_quote_with_normalization_variants(
+                    quote_to_verify, p.get('text', ''))
+                if is_match:
                     page = p
-                    binding_method = "strict"  # Still strict - exact normalized match
+                    binding_method = "case_level"  # Case-level - found in correct opinion
                     signals.append("case_bound")
-                    signals.append("normalized_match")
-                    logging.info(f"Normalized verification recovered: quote='{quote_to_verify[:40]}...'")
+                    signals.append("case_level_match")
+                    signals.append(f"normalized_{match_type}")
+                    logging.info(f"Quote correction: found exact normalized match")
+                    break
         
         # NO STRATEGY 4 - We do NOT silently substitute from another case
         # If binding failed, mark as UNVERIFIED and include in results with warning
@@ -1813,11 +1815,11 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict) -
     """
     score = 0
     
-    # Binding score - case_level is verified but slightly lower confidence
+    # Binding score - case_level is verified but capped at MODERATE tier
     if binding_method == "strict":
         score += 40
     elif binding_method == "case_level":
-        score += 35  # Quote verified in correct case, just different page
+        score += 30  # Quote verified in correct case, different page - cap at MODERATE
     elif binding_method == "fuzzy":
         score += 25  # Cap at MODERATE for fuzzy binding
     elif binding_method == "fuzzy_case_level":
@@ -1827,7 +1829,7 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict) -
     if "exact_match" in signals:
         score += 30
     elif "case_level_match" in signals:
-        score += 25  # Verified at case level (reduces false negatives)
+        score += 20  # Verified at case level - reduced to ensure MODERATE cap
     elif "partial_match" in signals:
         score += 15
     
@@ -3222,6 +3224,7 @@ async def generate_chat_response(
                 logging.info(f"DEBUG Fallback source {idx}: case={case_name}, origin={p.get('origin')}, text_len={len(page_text)}, injected={p.get('injected_as_controlling', False)}")
                 if page_text:
                     source_entry = {
+                        "sid": str(idx + 1),
                         "opinion_id": p.get('opinion_id'),
                         "case_name": case_name,
                         "appeal_no": p.get('appeal_no', ''),
@@ -3229,13 +3232,15 @@ async def generate_chat_response(
                         "page_number": p.get('page_number', 1),
                         "quote": page_text,
                         "verified": True,
-                        "pdf_url": p.get('pdf_url', ''),
+                        "pdf_url": f"/pdf/{p.get('opinion_id')}?page={p.get('page_number', 1)}",
                         "courtlistener_url": p.get('courtlistener_url', ''),
                         "court": p.get('origin', 'CAFC'),
-                        "tier": "moderate",
-                        "score": 50,
-                        "signals": ["fallback_source"],
-                        "binding_method": "context",
+                        "citation_verification": {
+                            "tier": "moderate",
+                            "score": 50,
+                            "signals": ["fallback_source", "context_page"],
+                            "binding_method": "context"
+                        },
                         "injected_as_controlling": p.get('injected_as_controlling', False)
                     }
                     explain = ranking_scorer.compute_composite_score(0.5, p, page_text)
