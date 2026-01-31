@@ -1,0 +1,385 @@
+{
+  "timestamp": "2026-01-31T23:15:11.671877",
+  "corpus_version_id": "c5edb72bf3af",
+  "total_queries": 10,
+  "passed": 10,
+  "failed": 0,
+  "pass_rate": "100.0%",
+  "all_passed": true,
+  "all_voyager_logged": false,
+  "results": [
+    {
+      "query_id": "alice_101",
+      "doctrine": "101",
+      "query": "What is the Alice two-step test for patent eligibility under 35 USC 101?",
+      "success": true,
+      "answer_hash": "02123c1d1dcbf951",
+      "answer_length": 4280,
+      "sources_count": 5,
+      "page_ids": [
+        "071a6ccb-ba0b-4560-9a02-06fb786aaa58",
+        "a4cb1c1c-20a0-4682-98ef-fb9a2d529c01",
+        "7b33d979-40cf-4f9a-859a-6a31a4ca3402",
+        "aea05932-8053-402d-bb52-93c3e9705b50",
+        "ad8f72d4-7deb-482e-8a7a-a3f474c5af5d"
+      ],
+      "citation_tiers": [
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate"
+      ],
+      "citation_tier_counts": {
+        "strong": 0,
+        "moderate": 5,
+        "weak": 0,
+        "unverified": 0
+      },
+      "patterns_found": [
+        "abstract idea",
+        "inventive concept",
+        "Alice",
+        "101"
+      ],
+      "patterns_missing": [],
+      "run_id": "a3e4fbee-4026-4256-af2d-7294a317de93",
+      "has_voyager_logging": true,
+      "pages_count": 23,
+      "markers_count": 0,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "mayo_101",
+      "doctrine": "101",
+      "query": "What is the Mayo test for patent eligibility?",
+      "success": true,
+      "answer_hash": "d10a4a3d05db28b6",
+      "answer_length": 4861,
+      "sources_count": 5,
+      "page_ids": [
+        "071a6ccb-ba0b-4560-9a02-06fb786aaa58",
+        "a4cb1c1c-20a0-4682-98ef-fb9a2d529c01",
+        "7b33d979-40cf-4f9a-859a-6a31a4ca3402",
+        "8abde448-e4f7-4687-a434-86e744aa2949",
+        "ad8f72d4-7deb-482e-8a7a-a3f474c5af5d"
+      ],
+      "citation_tiers": [
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate"
+      ],
+      "citation_tier_counts": {
+        "strong": 0,
+        "moderate": 5,
+        "weak": 0,
+        "unverified": 0
+      },
+      "patterns_found": [
+        "law of nature",
+        "Mayo",
+        "101"
+      ],
+      "patterns_missing": [],
+      "run_id": "0dc86e42-e5c6-421a-a2a4-697c3faa0c23",
+      "has_voyager_logging": true,
+      "pages_count": 23,
+      "markers_count": 0,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "ksr_obviousness",
+      "doctrine": "103",
+      "query": "What is the KSR standard for obviousness under 35 USC 103?",
+      "success": true,
+      "answer_hash": "1f49511807991780",
+      "answer_length": 4939,
+      "sources_count": 5,
+      "page_ids": [
+        "4c82cca6-d846-40f9-9a5f-35042df9ab96",
+        "a4c215a7-a6f3-4d0d-869c-e33ab635c298",
+        "9242407e-fa2e-4c5a-a9c4-b6c0e7cf2ee8",
+        "d1abcb15-c80e-49a4-b88d-59dbd4424cb0",
+        "0bd171c5-d149-443f-b191-67c93c16776a"
+      ],
+      "citation_tiers": [
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate"
+      ],
+      "citation_tier_counts": {
+        "strong": 0,
+        "moderate": 5,
+        "weak": 0,
+        "unverified": 0
+      },
+      "patterns_found": [
+        "obvious",
+        "KSR",
+        "103"
+      ],
+      "patterns_missing": [],
+      "run_id": "d22bdb89-a5b8-48e2-9b37-50aca67bd5a3",
+      "has_voyager_logging": true,
+      "pages_count": 19,
+      "markers_count": 0,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "graham_103",
+      "doctrine": "103",
+      "query": "What are the Graham factors for obviousness?",
+      "success": true,
+      "answer_hash": "08745c1d9df17e75",
+      "answer_length": 1642,
+      "sources_count": 2,
+      "page_ids": [
+        "a4c215a7-a6f3-4d0d-869c-e33ab635c298",
+        "a4c215a7-a6f3-4d0d-869c-e33ab635c298"
+      ],
+      "citation_tiers": [
+        "unverified",
+        "strong"
+      ],
+      "citation_tier_counts": {
+        "strong": 1,
+        "moderate": 0,
+        "weak": 0,
+        "unverified": 1
+      },
+      "patterns_found": [
+        "Graham",
+        "prior art",
+        "obviousness"
+      ],
+      "patterns_missing": [],
+      "run_id": "b471a2fc-63e8-4260-9bc0-f8ef699dd0ed",
+      "has_voyager_logging": true,
+      "pages_count": 19,
+      "markers_count": 2,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "claim_construction",
+      "doctrine": "claim_construction",
+      "query": "What is the standard for claim construction under Phillips v. AWH?",
+      "success": true,
+      "answer_hash": "7a6702dbd52f33e7",
+      "answer_length": 3432,
+      "sources_count": 5,
+      "page_ids": [
+        "0b18a8ed-8586-4287-b3b1-05785eba3efe",
+        "5d2ab893-336b-489d-9019-fb3c39ba97c0",
+        "af37779d-0bf5-45eb-8aa3-ae1afbb9efcc",
+        "d3b80ac2-f5ff-4172-85f4-c2a83647020b",
+        "52909bb2-d4e5-435b-9e21-85b024c76f47"
+      ],
+      "citation_tiers": [
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate"
+      ],
+      "citation_tier_counts": {
+        "strong": 0,
+        "moderate": 5,
+        "weak": 0,
+        "unverified": 0
+      },
+      "patterns_found": [
+        "claim",
+        "construction",
+        "Phillips"
+      ],
+      "patterns_missing": [],
+      "run_id": "6ca0e90d-f138-4bda-bbe8-f9fe0b851efd",
+      "has_voyager_logging": true,
+      "pages_count": 15,
+      "markers_count": 0,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "markman_hearing",
+      "doctrine": "claim_construction",
+      "query": "What is a Markman hearing?",
+      "success": true,
+      "answer_hash": "7af74e50022b63f4",
+      "answer_length": 4573,
+      "sources_count": 5,
+      "page_ids": [
+        "5d2ab893-336b-489d-9019-fb3c39ba97c0",
+        "927a13d1-79de-4f51-9dc0-7dd3dbe7aefd",
+        "d3b80ac2-f5ff-4172-85f4-c2a83647020b",
+        "266e02fd-bb96-4435-b21c-4f69eb595075",
+        "3cbfe22f-9925-4301-be92-a9c6ff6effa5"
+      ],
+      "citation_tiers": [
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate"
+      ],
+      "citation_tier_counts": {
+        "strong": 0,
+        "moderate": 5,
+        "weak": 0,
+        "unverified": 0
+      },
+      "patterns_found": [
+        "claim",
+        "construction"
+      ],
+      "patterns_missing": [],
+      "run_id": "6624aba8-5de6-4d9a-bb9b-832f10c02c9e",
+      "has_voyager_logging": true,
+      "pages_count": 19,
+      "markers_count": 0,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "written_description_112",
+      "doctrine": "112",
+      "query": "What is the written description requirement under 35 USC 112?",
+      "success": true,
+      "answer_hash": "5eca84c819c92fd9",
+      "answer_length": 8275,
+      "sources_count": 5,
+      "page_ids": [
+        "f147f1bc-0b3a-4489-9625-bed610f04c38",
+        "42044709-560c-4be8-b0e9-3f01f677e7d1",
+        "93aac038-c347-464d-82b5-f782dc357520",
+        "d367819e-3e9e-4b5f-a6ed-06d68292c4c1",
+        "1b1a6272-ec05-4eba-9dd0-84f05f9c14f7"
+      ],
+      "citation_tiers": [
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate",
+        "moderate"
+      ],
+      "citation_tier_counts": {
+        "strong": 0,
+        "moderate": 5,
+        "weak": 0,
+        "unverified": 0
+      },
+      "patterns_found": [
+        "112",
+        "written description"
+      ],
+      "patterns_missing": [],
+      "run_id": "f32f54ff-527a-4f92-97f5-4f99465481d7",
+      "has_voyager_logging": true,
+      "pages_count": 19,
+      "markers_count": 0,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "willfulness",
+      "doctrine": "remedies",
+      "query": "What is the standard for willful infringement?",
+      "success": true,
+      "answer_hash": "0583ad8fb34c7f1d",
+      "answer_length": 3374,
+      "sources_count": 4,
+      "page_ids": [
+        "Opinion ID: a8279d35-ff21-4f02-a1d9-d2b71816a891",
+        "Opinion ID: a8279d35-ff21-4f02-a1d9-d2b71816a891",
+        "Opinion ID: a8279d35-ff21-4f02-a1d9-d2b71816a891",
+        "Opinion ID: c5341aa1-681e-4621-9488-bdb2648ab4e3"
+      ],
+      "citation_tiers": [
+        "unverified",
+        "unverified",
+        "unverified",
+        "unverified"
+      ],
+      "citation_tier_counts": {
+        "strong": 0,
+        "moderate": 0,
+        "weak": 0,
+        "unverified": 4
+      },
+      "patterns_found": [
+        "willful",
+        "infringement"
+      ],
+      "patterns_missing": [],
+      "run_id": "deba3ec0-24d7-4ace-bdf7-7af9bf0a0f9d",
+      "has_voyager_logging": true,
+      "pages_count": 19,
+      "markers_count": 4,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "ebay_injunction",
+      "doctrine": "remedies",
+      "query": "What is the eBay standard for permanent injunctions in patent cases?",
+      "success": true,
+      "answer_hash": "2e32d6d1c30d42e4",
+      "answer_length": 1867,
+      "sources_count": 4,
+      "page_ids": [
+        "4c97f748-03bc-42bd-8e10-eacf3412d678",
+        "4c97f748-03bc-42bd-8e10-eacf3412d678",
+        "d6a4aa60-f42a-47b1-9931-408a8e924ca8",
+        "c0b88dc5-8352-4275-81d7-15b9bacec6c1"
+      ],
+      "citation_tiers": [
+        "unverified",
+        "strong",
+        "strong",
+        "strong"
+      ],
+      "citation_tier_counts": {
+        "strong": 3,
+        "moderate": 0,
+        "weak": 0,
+        "unverified": 1
+      },
+      "patterns_found": [
+        "eBay",
+        "injunction"
+      ],
+      "patterns_missing": [],
+      "run_id": "36ceb87a-9b8b-4f01-b7a3-54c5d34ad034",
+      "has_voyager_logging": true,
+      "pages_count": 19,
+      "markers_count": 4,
+      "return_branch": "ok"
+    },
+    {
+      "query_id": "not_found_case",
+      "doctrine": "none",
+      "query": "What is the holding in FictionalCaseXYZ999 v. NonexistentCorp?",
+      "success": true,
+      "answer_hash": "dff111cca4df21da",
+      "answer_length": 318,
+      "sources_count": 0,
+      "page_ids": [],
+      "citation_tiers": [],
+      "citation_tier_counts": {
+        "strong": 0,
+        "moderate": 0,
+        "weak": 0,
+        "unverified": 0
+      },
+      "patterns_found": [
+        "NOT FOUND"
+      ],
+      "patterns_missing": [],
+      "run_id": null,
+      "has_voyager_logging": false,
+      "pages_count": 0,
+      "markers_count": 0,
+      "return_branch": "web_search_fallback_still_not_found"
+    }
+  ]
+}

@@ -8,6 +8,8 @@ Components:
 - Corpus Versioning: Deterministic snapshot IDs for reproducibility
 - Audit Replay Logging: Full query provenance capture
 - Policy Manifest: Machine-readable governance metadata
+- Circuit Breaker: Protects against cascading DB failures
+- Retention Policy: Manages query_runs data lifecycle
 """
 
 import os
@@ -17,7 +19,7 @@ import logging
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 from functools import lru_cache
@@ -29,6 +31,76 @@ logger = logging.getLogger(__name__)
 VOYAGER_EMBEDDINGS_ENABLED = os.environ.get("VOYAGER_EMBEDDINGS_ENABLED", "false").lower() == "true"
 VOYAGER_EXPORT_ENABLED = os.environ.get("VOYAGER_EXPORT_ENABLED", "false").lower() == "true"
 SYSTEM_PROMPT_VERSION = "v2.0-quote-first"
+
+RETENTION_REDACT_DAYS = 90
+RETENTION_DELETE_DAYS = 365
+
+
+class CircuitBreaker:
+    """
+    In-memory circuit breaker for query_runs writes.
+    States: CLOSED (normal), OPEN (skip writes), HALF_OPEN (testing)
+    """
+    
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+    
+    def __init__(self, failure_threshold: int = 5, cooldown_seconds: int = 300):
+        self.failure_threshold = failure_threshold
+        self.cooldown_seconds = cooldown_seconds
+        self.state = self.CLOSED
+        self.failure_count = 0
+        self.last_failure_time = 0.0
+        self.lock = threading.Lock()
+    
+    def can_execute(self) -> bool:
+        """Check if circuit allows execution."""
+        with self.lock:
+            if self.state == self.CLOSED:
+                return True
+            elif self.state == self.OPEN:
+                if time.time() - self.last_failure_time >= self.cooldown_seconds:
+                    self.state = self.HALF_OPEN
+                    logger.debug("Circuit breaker: OPEN -> HALF_OPEN")
+                    return True
+                return False
+            else:
+                return True
+    
+    def record_success(self) -> None:
+        """Record successful execution."""
+        with self.lock:
+            self.failure_count = 0
+            if self.state == self.HALF_OPEN:
+                self.state = self.CLOSED
+                logger.info("Circuit breaker: HALF_OPEN -> CLOSED")
+    
+    def record_failure(self) -> None:
+        """Record failed execution."""
+        with self.lock:
+            self.failure_count += 1
+            self.last_failure_time = time.time()
+            
+            if self.state == self.HALF_OPEN:
+                self.state = self.OPEN
+                logger.warning("Circuit breaker: HALF_OPEN -> OPEN (test failed)")
+            elif self.failure_count >= self.failure_threshold:
+                self.state = self.OPEN
+                logger.warning(f"Circuit breaker: CLOSED -> OPEN (threshold {self.failure_threshold} reached)")
+    
+    def get_state(self) -> Dict[str, Any]:
+        """Get current circuit breaker state."""
+        with self.lock:
+            return {
+                "state": self.state,
+                "failure_count": self.failure_count,
+                "last_failure_time": self.last_failure_time,
+                "cooldown_remaining": max(0, self.cooldown_seconds - (time.time() - self.last_failure_time)) if self.state == self.OPEN else 0
+            }
+
+
+_circuit_breaker = CircuitBreaker(failure_threshold=5, cooldown_seconds=300)
 
 
 @dataclass
@@ -198,9 +270,14 @@ def create_query_run(
     """
     Create a new query run and return its ID.
     Called at the start of query processing.
+    Uses circuit breaker to protect against DB failures.
     """
     run_id = str(uuid.uuid4())
     corpus_version = compute_corpus_version_id()
+    
+    if not _circuit_breaker.can_execute():
+        logger.debug(f"Circuit breaker OPEN - skipping query_run insert for {run_id}")
+        return run_id
     
     try:
         with db.get_db() as conn:
@@ -213,9 +290,11 @@ def create_query_run(
                 VALUES (%s, %s, %s, %s, %s, NOW())
             """, (run_id, conversation_id, user_query, doctrine_tag, corpus_version))
             conn.commit()
+            _circuit_breaker.record_success()
             logger.debug(f"Created query run: {run_id}")
     except Exception as e:
-        logger.error(f"Error creating query run: {e}")
+        _circuit_breaker.record_failure()
+        logger.debug(f"Error creating query run (circuit breaker recorded): {e}")
     
     return run_id
 
@@ -485,6 +564,11 @@ def get_policy_manifest() -> Dict[str, Any]:
                 "recency_2020_plus": 10
             }
         },
+        "retention": {
+            "redact_after_days": RETENTION_REDACT_DAYS,
+            "delete_after_days": RETENTION_DELETE_DAYS
+        },
+        "circuit_breaker": get_circuit_breaker_state(),
         "corpus": asdict(get_corpus_state()),
         "features": {
             "voyager_embeddings_enabled": VOYAGER_EMBEDDINGS_ENABLED,
@@ -568,3 +652,171 @@ def ensure_query_runs_table():
             logger.info("query_runs table ensured")
     except Exception as e:
         logger.error(f"Error ensuring query_runs table: {e}")
+
+
+def get_circuit_breaker_state() -> Dict[str, Any]:
+    """Get current circuit breaker state for monitoring."""
+    return _circuit_breaker.get_state()
+
+
+REPLAY_PACKET_MAX_SIZE = 1_000_000
+
+
+def get_replay_packet(run_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Generate a replay packet for a query run.
+    Contains only IDs, manifests, and metadata - NO raw text or secrets.
+    Enforces size limit to prevent oversized responses.
+    """
+    run = get_query_run(run_id)
+    if not run:
+        return None
+    
+    packet = {
+        "run_id": run.get("id"),
+        "created_at": run.get("created_at").isoformat() if run.get("created_at") else None,
+        "conversation_id": run.get("conversation_id"),
+        "user_query": run.get("user_query"),
+        "doctrine_tag": run.get("doctrine_tag"),
+        "corpus_version_id": run.get("corpus_version_id"),
+        "retrieval_manifest": run.get("retrieval_manifest"),
+        "context_manifest": run.get("context_manifest"),
+        "model_config": run.get("model_config"),
+        "system_prompt_version": run.get("system_prompt_version"),
+        "final_answer": run.get("final_answer"),
+        "citations_manifest": run.get("citation_verifications"),
+        "latency_ms": run.get("latency_ms"),
+        "failure_reason": run.get("failure_reason")
+    }
+    
+    packet_json = json.dumps(packet, default=str)
+    packet_size = len(packet_json.encode('utf-8'))
+    
+    if packet_size > REPLAY_PACKET_MAX_SIZE:
+        logger.warning(f"Replay packet for {run_id} exceeds size limit ({packet_size} bytes)")
+        packet["final_answer"] = "[TRUNCATED - exceeds size limit]"
+        if packet.get("retrieval_manifest"):
+            page_count = len(packet["retrieval_manifest"].get("page_ids", []))
+            packet["retrieval_manifest"] = {"truncated": True, "original_page_count": page_count}
+        if packet.get("context_manifest"):
+            page_count = len(packet["context_manifest"].get("page_ids", []))
+            packet["context_manifest"] = {"truncated": True, "original_page_count": page_count}
+        packet["_size_limited"] = True
+    
+    return packet
+
+
+def cleanup_query_runs(dry_run: bool = True) -> Dict[str, Any]:
+    """
+    Apply retention policy to query_runs:
+    - Redact final_answer after RETENTION_REDACT_DAYS (90 days)
+    - Delete rows after RETENTION_DELETE_DAYS (365 days)
+    
+    Args:
+        dry_run: If True, only report counts without making changes
+    
+    Returns:
+        Summary of actions taken or would be taken
+    """
+    now = datetime.utcnow()
+    redact_cutoff = now - timedelta(days=RETENTION_REDACT_DAYS)
+    delete_cutoff = now - timedelta(days=RETENTION_DELETE_DAYS)
+    
+    result = {
+        "dry_run": dry_run,
+        "redact_cutoff": redact_cutoff.isoformat(),
+        "delete_cutoff": delete_cutoff.isoformat(),
+        "to_redact": 0,
+        "to_delete": 0,
+        "redacted": 0,
+        "deleted": 0,
+        "errors": []
+    }
+    
+    try:
+        with db.get_db() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT COUNT(*) as cnt FROM query_runs 
+                WHERE created_at < %s AND created_at >= %s
+                AND final_answer IS NOT NULL AND final_answer != '[REDACTED]'
+            """, (redact_cutoff, delete_cutoff))
+            row = cursor.fetchone()
+            result["to_redact"] = row.get("cnt", 0) if row else 0
+            
+            cursor.execute("""
+                SELECT COUNT(*) as cnt FROM query_runs 
+                WHERE created_at < %s
+            """, (delete_cutoff,))
+            row = cursor.fetchone()
+            result["to_delete"] = row.get("cnt", 0) if row else 0
+            
+            if not dry_run:
+                cursor.execute("""
+                    UPDATE query_runs 
+                    SET final_answer = '[REDACTED]'
+                    WHERE created_at < %s AND created_at >= %s
+                    AND final_answer IS NOT NULL AND final_answer != '[REDACTED]'
+                """, (redact_cutoff, delete_cutoff))
+                result["redacted"] = cursor.rowcount
+                
+                cursor.execute("""
+                    DELETE FROM query_runs 
+                    WHERE created_at < %s
+                """, (delete_cutoff,))
+                result["deleted"] = cursor.rowcount
+                
+                conn.commit()
+                logger.info(f"Cleanup completed: redacted={result['redacted']}, deleted={result['deleted']}")
+            else:
+                logger.info(f"Cleanup dry-run: would redact={result['to_redact']}, would delete={result['to_delete']}")
+                
+    except Exception as e:
+        result["errors"].append(str(e))
+        logger.error(f"Cleanup error: {e}")
+    
+    return result
+
+
+def get_retention_stats() -> Dict[str, Any]:
+    """Get statistics about query_runs retention status."""
+    now = datetime.utcnow()
+    redact_cutoff = now - timedelta(days=RETENTION_REDACT_DAYS)
+    delete_cutoff = now - timedelta(days=RETENTION_DELETE_DAYS)
+    
+    stats = {
+        "total_runs": 0,
+        "active_runs": 0,
+        "redactable_runs": 0,
+        "deletable_runs": 0,
+        "already_redacted": 0
+    }
+    
+    try:
+        with db.get_db() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT COUNT(*) as cnt FROM query_runs")
+            stats["total_runs"] = cursor.fetchone().get("cnt", 0)
+            
+            cursor.execute("SELECT COUNT(*) as cnt FROM query_runs WHERE created_at >= %s", (redact_cutoff,))
+            stats["active_runs"] = cursor.fetchone().get("cnt", 0)
+            
+            cursor.execute("""
+                SELECT COUNT(*) as cnt FROM query_runs 
+                WHERE created_at < %s AND created_at >= %s
+                AND final_answer IS NOT NULL AND final_answer != '[REDACTED]'
+            """, (redact_cutoff, delete_cutoff))
+            stats["redactable_runs"] = cursor.fetchone().get("cnt", 0)
+            
+            cursor.execute("SELECT COUNT(*) as cnt FROM query_runs WHERE created_at < %s", (delete_cutoff,))
+            stats["deletable_runs"] = cursor.fetchone().get("cnt", 0)
+            
+            cursor.execute("SELECT COUNT(*) as cnt FROM query_runs WHERE final_answer = '[REDACTED]'")
+            stats["already_redacted"] = cursor.fetchone().get("cnt", 0)
+            
+    except Exception as e:
+        logger.error(f"Error getting retention stats: {e}")
+    
+    return stats

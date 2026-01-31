@@ -1,0 +1,406 @@
+INFO:__main__:Starting golden test suite with 10 queries, corpus_version=71ba488b76cd
+INFO:root:[DISAMBIGUATION] conversation_id=golden_alice_101_1769901699, pending_state=False, message='What is the Alice two-step test for patent eligibility under 35 USC 101?'
+INFO:root:[FTS] Search: 72 chars -> OR query: 'alice | two | step | test | patent | eligibility | usc'
+INFO:root:[DOCTRINE TAG] Query classified as: 101
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=101: ['Alice Corp. v. CLS Bank', 'Mayo Collaborative Services v. Prometheus', 'Bilski v. Kappos', 'Diamond v. Diehr']
+INFO:root:[CONTROLLING INJECTION] Injected 8 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=Alice Corp. v. CLS Bank International, origin=SCOTUS, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=Alice Corp. v. CLS Bank International, origin=SCOTUS, page=11
+INFO:root:[CONTROLLING INJECTION] Page: case=Mayo Collaborative Services v. Prometheu, origin=SCOTUS, page=10
+INFO:root:[Adjacent Pages] Expanded 23 pages to 129 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 1 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 1 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 1 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+WARNING:root:Context pruning: 13 lower-scoring pages excluded due to 80000 token limit
+INFO:root:Built context with 116 pages, 79796 tokens, 292 quotable passages (pruned 13)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': '§ 101 Patent Eligibility', 'doctrine': '§ 101 Patent Eligibility', 'landmark_case': 'Alice Corp. v. CLS Bank (2014)', 'hot_topics': ['Continuing refinements to abstract idea categories', 'Software patent eligibility analysis under Alice Step 2'], 'search_terms_suggested': ['abstract idea', 'laws of nature', 'natural phenomena', 'Alice step one', 'Alice step two', 'inventive concept', 'significantly more', 'preemption'], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): The Alice two-step test for patent eligibility under 35 U.S.C. § 101 is a framework established by the Supreme Court in *Alice Corp. v. CLS Bank International*, 573 U.S. 208 (2014), to determine whether a patent claim is directed to patent-eligible subject matter. The test consists of the following two steps:
+
+1. **Step One**: Determine whether the claims at issue are directed to a patent-ineligible concept, such as a law of nature, natural phenomenon, or abstract idea. If the claims are not dir
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+INFO:root:No citation markers found in AI response, generating sources from 23 context pages
+INFO:root:DEBUG Fallback source 0: case=Alice Corp. v. CLS Bank International, origin=SCOTUS, text_len=237, injected=True
+INFO:root:DEBUG Fallback source 2: case=Mayo Collaborative Services v. Prometheus Laboratories, Inc., origin=SCOTUS, text_len=272, injected=True
+INFO:root:DEBUG Fallback source 4: case=Bilski v. Kappos, origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 6: case=Diamond v. Diehr, origin=SCOTUS, text_len=299, injected=True
+INFO:root:DEBUG Fallback source 8: case=Ai Visualize, Inc. v. Nuance Communications, Inc., origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 9: case=THE CLEVELAND CLINIC v. TRUE HEALTH DIAGNOSTICS LLC [OPINION], origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback generated 5 sources
+INFO:root:CITATION_TELEMETRY: total=5, verified=5, unverified=0 (0.0%), unsupported_statements=6/18
+INFO:__main__:  [PASS] alice_101: sources=5, hash=4e92ad7c33e020db
+INFO:root:[DISAMBIGUATION] conversation_id=golden_mayo_101_1769901714, pending_state=False, message='What is the Mayo test for patent eligibility?'
+INFO:root:[FTS] Search: 45 chars -> OR query: 'mayo | test | patent | eligibility'
+INFO:root:[DOCTRINE TAG] Query classified as: 101
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=101: ['Alice Corp. v. CLS Bank', 'Mayo Collaborative Services v. Prometheus', 'Bilski v. Kappos', 'Diamond v. Diehr']
+INFO:root:[CONTROLLING INJECTION] Injected 8 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=Alice Corp. v. CLS Bank International, origin=SCOTUS, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=Alice Corp. v. CLS Bank International, origin=SCOTUS, page=11
+INFO:root:[CONTROLLING INJECTION] Page: case=Mayo Collaborative Services v. Prometheu, origin=SCOTUS, page=10
+INFO:root:[Adjacent Pages] Expanded 23 pages to 129 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+WARNING:root:Context pruning: 10 lower-scoring pages excluded due to 80000 token limit
+INFO:root:Built context with 119 pages, 79805 tokens, 265 quotable passages (pruned 10)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': '§ 101 Patent Eligibility', 'doctrine': '§ 101 Patent Eligibility', 'landmark_case': 'Alice Corp. v. CLS Bank (2014)', 'hot_topics': ['Continuing refinements to abstract idea categories', 'Software patent eligibility analysis under Alice Step 2'], 'search_terms_suggested': ['abstract idea', 'laws of nature', 'natural phenomena', 'Alice step one', 'Alice step two', 'inventive concept', 'significantly more', 'preemption'], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): The Mayo test for patent eligibility, established by the Supreme Court in *Mayo Collaborative Services v. Prometheus Laboratories, Inc.*, 566 U.S. 66 (2012), is a two-step framework used to determine whether a patent claim is directed to patent-eligible subject matter under 35 U.S.C. § 101. The test is as follows:
+
+### Step 1: Determine whether the claims are directed to a patent-ineligible concept.
+This step asks whether the claims at issue are directed to one of the judicially recognized excep
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+INFO:root:No citation markers found in AI response, generating sources from 23 context pages
+INFO:root:DEBUG Fallback source 0: case=Alice Corp. v. CLS Bank International, origin=SCOTUS, text_len=237, injected=True
+INFO:root:DEBUG Fallback source 2: case=Mayo Collaborative Services v. Prometheus Laboratories, Inc., origin=SCOTUS, text_len=272, injected=True
+INFO:root:DEBUG Fallback source 4: case=Bilski v. Kappos, origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 6: case=Diamond v. Diehr, origin=SCOTUS, text_len=299, injected=True
+INFO:root:DEBUG Fallback source 9: case=American Axle & Manufacturing v. Neapco Holdings LLC, origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback generated 5 sources
+INFO:root:CITATION_TELEMETRY: total=5, verified=5, unverified=0 (0.0%), unsupported_statements=2/26
+INFO:__main__:  [PASS] mayo_101: sources=5, hash=8bceb6d6ce4ee515
+INFO:root:[DISAMBIGUATION] conversation_id=golden_ksr_obviousness_1769901736, pending_state=False, message='What is the KSR standard for obviousness under 35 USC 103?'
+INFO:root:[FTS] Search: 58 chars -> OR query: 'ksr | standard | obviousness | usc'
+INFO:root:[DOCTRINE TAG] Query classified as: 103
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=103: ['KSR International Co. v. Teleflex Inc.', 'Graham v. John Deere Co.']
+INFO:root:[CONTROLLING INJECTION] Injected 4 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=KSR International Co. v. Teleflex Inc., origin=SCOTUS, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=KSR International Co. v. Teleflex Inc., origin=SCOTUS, page=11
+INFO:root:[CONTROLLING INJECTION] Page: case=Graham v. John Deere Co., origin=SCOTUS, page=10
+INFO:root:[Adjacent Pages] Expanded 19 pages to 116 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:root:Built context with 116 pages, 77622 tokens, 293 quotable passages (pruned 0)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': '§ 103 Obviousness', 'doctrine': '§ 103 Obviousness', 'landmark_case': 'KSR v. Teleflex (2007)', 'hot_topics': ["Honeywell v. 3G Licensing (2025): 'Desirable vs. Best' distinction - modification need not be optimal", "USAA v. PNC Bank (2025): 'Design choice' standard - known alternatives are predictable variations"], 'search_terms_suggested': ['motivation to combine', 'teaching-suggestion-motivation', 'TSM', 'obvious to try', 'predictable results', 'design choice', 'desirable modification', 'POSITA', 'KSR'], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): The KSR standard for obviousness under 35 U.S.C. § 103 is articulated in the Supreme Court's decision in *KSR International Co. v. Teleflex Inc.*, 550 U.S. 398 (2007). The Court emphasized a flexible, expansive approach to determining obviousness, rejecting rigid or formulaic tests. Specifically, the Court held:
+
+1. **Expansive and Flexible Approach**: The obviousness inquiry must consider whether the claimed invention as a whole would have been obvious to a person of ordinary skill in the art a
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+INFO:root:No citation markers found in AI response, generating sources from 19 context pages
+INFO:root:DEBUG Fallback source 0: case=KSR International Co. v. Teleflex Inc., origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 2: case=Graham v. John Deere Co., origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 4: case=CORDIS CORP. V. MEDTRONIC, origin=DCT, text_len=298, injected=False
+INFO:root:DEBUG Fallback source 5: case=ABBOTT LABORATORIES V. SANDOZ, origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 6: case=ERICO INTL V. VUTEC CORP., origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 7: case=TAKEDA CHEMICAL INDUSTRIES V. ALPHAPHARM PTY., LTD., origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 9: case=RENTROP V. THE SPECTRANETICS CORP., origin=DCT, text_len=298, injected=False
+INFO:root:DEBUG Fallback generated 5 sources
+INFO:root:CITATION_TELEMETRY: total=5, verified=5, unverified=0 (0.0%), unsupported_statements=11/19
+INFO:__main__:  [PASS] ksr_obviousness: sources=5, hash=14bfb1c16bf423ea
+INFO:root:[DISAMBIGUATION] conversation_id=golden_graham_103_1769901749, pending_state=False, message='What are the Graham factors for obviousness?'
+INFO:root:[FTS] Search: 44 chars -> OR query: 'graham | factors | obviousness'
+INFO:root:[DOCTRINE TAG] Query classified as: 103
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=103: ['KSR International Co. v. Teleflex Inc.', 'Graham v. John Deere Co.']
+INFO:root:[CONTROLLING INJECTION] Injected 4 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=KSR International Co. v. Teleflex Inc., origin=SCOTUS, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=KSR International Co. v. Teleflex Inc., origin=SCOTUS, page=11
+INFO:root:[CONTROLLING INJECTION] Page: case=Graham v. John Deere Co., origin=SCOTUS, page=10
+INFO:root:[Adjacent Pages] Expanded 19 pages to 111 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 429 Too Many Requests"
+INFO:openai._base_client:Retrying request to /chat/completions in 29.557422 seconds
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 2 verified passages (from 9 candidates)
+INFO:root:Built context with 111 pages, 75632 tokens, 254 quotable passages (pruned 0)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': '§ 103 Obviousness', 'doctrine': '§ 103 Obviousness', 'landmark_case': 'KSR v. Teleflex (2007)', 'hot_topics': ["Honeywell v. 3G Licensing (2025): 'Desirable vs. Best' distinction - modification need not be optimal", "USAA v. PNC Bank (2025): 'Design choice' standard - known alternatives are predictable variations"], 'search_terms_suggested': ['motivation to combine', 'teaching-suggestion-motivation', 'TSM', 'obvious to try', 'predictable results', 'design choice', 'desirable modification', 'POSITA', 'KSR'], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): The Graham factors for determining obviousness under 35 U.S.C. § 103 are:
+
+1. **The scope and content of the prior art**: This involves identifying and analyzing the relevant prior art to determine what was known at the time of the invention.
+   
+   > "The scope and content of the prior art are to be determined." [Q105], [Q140], [Q176], [Q181]
+
+2. **The differences between the prior art and the claims at issue**: This factor examines how the claimed invention differs from the prior art.
+   
+   >
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+INFO:root:No citation markers found in AI response, generating sources from 19 context pages
+INFO:root:DEBUG Fallback source 0: case=KSR International Co. v. Teleflex Inc., origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 2: case=Graham v. John Deere Co., origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 4: case=VICOR CORPORATION v. SYNQOR, INC. [OPINION], origin=PTO, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 5: case=WBIP, LLC v. KOHLER CO. [OPINION], origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 6: case=MYSPACE, INC. V. GRAPHON CORP., origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 7: case=ARCTIC CAT INC. v. BOMBARDIER RECREATIONAL [OPINION], origin=DCT, text_len=296, injected=False
+INFO:root:DEBUG Fallback source 8: case=TAKEDA CHEMICAL INDUSTRIES V. ALPHAPHARM PTY., LTD., origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 9: case=KINETIC CONCEPTS, INC. V. SMITH & NEPHEW, INC., origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback generated 5 sources
+INFO:root:CITATION_TELEMETRY: total=5, verified=5, unverified=0 (0.0%), unsupported_statements=1/10
+INFO:__main__:  [PASS] graham_103: sources=5, hash=f6efbfce84df7cc9
+INFO:root:[DISAMBIGUATION] conversation_id=golden_claim_construction_1769901799, pending_state=False, message='What is the standard for claim construction under Phillips v. AWH?'
+INFO:root:DEBUG: Parsed Party Name: [Phillips v. AWH] from query
+INFO:root:Detected specific case name in query: Phillips v. AWH
+INFO:root:Found 1 matching documents for: Phillips v. AWH
+INFO:root:Found 1 pages from named case using: 'What is the standard for claim construction under ...'
+INFO:root:Accumulated 1 total pages from 1 named cases
+INFO:root:[FTS] Search: 66 chars -> OR query: 'standard | claim | construction | phillips | awh'
+INFO:root:[DOCTRINE TAG] Query classified as: claim_construction
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=claim_construction: ['Markman v. Westview Instruments, Inc.', 'Teva Pharmaceuticals USA, Inc. v. Sandoz, Inc.']
+INFO:root:[CONTROLLING INJECTION] Injected 4 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=Markman v. Westview Instruments, Inc., origin=SCOTUS, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=Markman v. Westview Instruments, Inc., origin=SCOTUS, page=11
+INFO:root:[CONTROLLING INJECTION] Page: case=Teva Pharmaceuticals USA, Inc. v. Sandoz, origin=courtlistener_api, page=10
+INFO:root:Context Merge Success - 1 named case pages + FTS = 15 total
+INFO:root:[Adjacent Pages] Expanded 15 pages to 91 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:root:Built context with 91 pages, 62986 tokens, 199 quotable passages (pruned 0)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': 'Claim Construction', 'doctrine': 'Claim Construction', 'landmark_case': 'Phillips v. AWH Corp. (2005)', 'hot_topics': ['Intrinsic vs. extrinsic evidence hierarchy', 'Plain and ordinary meaning analysis'], 'search_terms_suggested': ['claim construction', 'intrinsic evidence', 'extrinsic evidence', 'specification', 'prosecution history', 'plain meaning', 'Markman hearing', 'Phillips'], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): The standard for claim construction under *Phillips v. AWH Corp.* is as follows:
+
+1. Claims are construed from the perspective of a **person of ordinary skill in the art (POSITA)** at the time of the invention. The goal is to determine how such a person would understand the claim terms in the context of the entire patent.
+
+2. **Intrinsic evidence** is the primary source for claim construction. This includes:
+   - The **claim language** itself, which is given its ordinary and customary meaning un
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+INFO:root:No citation markers found in AI response, generating sources from 15 context pages
+INFO:root:DEBUG Fallback source 0: case=Phillips v. Awh Corporation, origin=web_search, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 1: case=Markman v. Westview Instruments, Inc., origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 3: case=Teva Pharmaceuticals USA, Inc. v. Sandoz, Inc., origin=courtlistener_api, text_len=296, injected=True
+INFO:root:DEBUG Fallback source 5: case=Polaris Innovations Limited v. Brent, origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 6: case=Inland Diamond Products Co. v. Cherry Optical Inc., origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 7: case=Axonics, Inc. v. Medtronic, Inc., origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 8: case=Quanergy Systems, Inc. v. Velodyne Lidar USA, Inc., origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 9: case=SKYHAWKE TECHNOLOGIES, LLC v. DECA INT CORP. [MOTION PANEL ORDER], origin=PTO, text_len=300, injected=False
+INFO:root:DEBUG Fallback generated 5 sources
+INFO:root:CITATION_TELEMETRY: total=5, verified=5, unverified=0 (0.0%), unsupported_statements=3/17
+INFO:__main__:  [PASS] claim_construction: sources=5, hash=90747ed3d5259222
+INFO:root:[DISAMBIGUATION] conversation_id=golden_markman_hearing_1769901816, pending_state=False, message='What is a Markman hearing?'
+INFO:root:[FTS] Search: 26 chars -> OR query: 'markman | hearing'
+INFO:root:[DOCTRINE TAG] Query classified as: claim_construction
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=claim_construction: ['Markman v. Westview Instruments, Inc.', 'Teva Pharmaceuticals USA, Inc. v. Sandoz, Inc.']
+INFO:root:[CONTROLLING INJECTION] Injected 4 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=Markman v. Westview Instruments, Inc., origin=SCOTUS, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=Markman v. Westview Instruments, Inc., origin=SCOTUS, page=11
+INFO:root:[CONTROLLING INJECTION] Page: case=Teva Pharmaceuticals USA, Inc. v. Sandoz, origin=courtlistener_api, page=10
+INFO:root:[Adjacent Pages] Expanded 19 pages to 121 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 429 Too Many Requests"
+INFO:openai._base_client:Retrying request to /chat/completions in 18.961879 seconds
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:root:Built context with 121 pages, 77092 tokens, 215 quotable passages (pruned 0)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': 'Claim Construction', 'doctrine': 'Claim Construction', 'landmark_case': 'Phillips v. AWH Corp. (2005)', 'hot_topics': ['Intrinsic vs. extrinsic evidence hierarchy', 'Plain and ordinary meaning analysis'], 'search_terms_suggested': ['claim construction', 'intrinsic evidence', 'extrinsic evidence', 'specification', 'prosecution history', 'plain meaning', 'Markman hearing', 'Phillips'], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): A **Markman hearing** is a pretrial proceeding in U.S. patent litigation where a judge determines the meaning and scope of disputed patent claim terms. This process is critical because the interpretation of patent claims often determines the outcome of a patent infringement case. The hearing is named after the landmark Supreme Court case **Markman v. Westview Instruments, Inc., 517 U.S. 370 (1996)**, which held that the interpretation of patent claims is a matter of law to be decided by the judg
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+INFO:root:No citation markers found in AI response, generating sources from 19 context pages
+INFO:root:DEBUG Fallback source 0: case=Markman v. Westview Instruments, Inc., origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 2: case=Teva Pharmaceuticals USA, Inc. v. Sandoz, Inc., origin=courtlistener_api, text_len=296, injected=True
+INFO:root:DEBUG Fallback source 4: case=MASSACHUSETTS INSTITUTE OF TECHNOLOGY V. ABACUS SOFTWARE, origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 5: case=OMEGA PATENTS, LLC V. CALAMP CORP. [OPINION - PRECEDENTIAL], origin=DCT, text_len=299, injected=False
+INFO:root:DEBUG Fallback source 6: case=BETTCHER INDUSTRIES, INC. V. BUNZL USA, INC., origin=DCT, text_len=299, injected=False
+INFO:root:DEBUG Fallback source 7: case=Hznp Medicines LLC v. Actavis Laboratories Ut, Inc., origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 8: case=Onesubsea Ip Uk Limited v. Fmc Technologies, Inc., origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 9: case=Power Integrations, Inc. v. Fairchild Semiconductor Int'l, Inc., origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback generated 5 sources
+INFO:root:CITATION_TELEMETRY: total=5, verified=5, unverified=0 (0.0%), unsupported_statements=1/7
+INFO:__main__:  [PASS] markman_hearing: sources=5, hash=fc60bb0c617fa28d
+INFO:root:[DISAMBIGUATION] conversation_id=golden_written_description_112_1769901854, pending_state=False, message='What is the written description requirement under 35 USC 112?'
+INFO:root:[FTS] Search: 61 chars -> OR query: 'written | description | requirement | usc'
+INFO:root:[DOCTRINE TAG] Query classified as: 112
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=112: ['Amgen Inc. v. Sanofi', 'Nautilus, Inc. v. Biosig Instruments, Inc.']
+INFO:root:[CONTROLLING INJECTION] Injected 4 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=Amgen Inc. v. Sanofi, origin=courtlistener_api, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=Amgen Inc. v. Sanofi, origin=courtlistener_api, page=11
+INFO:root:[CONTROLLING INJECTION] Page: case=Nautilus, Inc. v. Biosig Instruments, In, origin=SCOTUS, page=10
+INFO:root:[Adjacent Pages] Expanded 19 pages to 101 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:root:Built context with 101 pages, 65744 tokens, 199 quotable passages (pruned 0)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': '§ 112 Definiteness', 'doctrine': '§ 112 Definiteness', 'landmark_case': 'Nautilus v. Biosig (2014)', 'hot_topics': ['Reasonable certainty standard application'], 'search_terms_suggested': ['definiteness', 'reasonable certainty', 'indefinite', 'functional language', 'means-plus-function'], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): The written description requirement under 35 U.S.C. § 112 mandates that a patent specification must contain a written description of the invention sufficient to demonstrate that the inventor was in possession of the claimed invention at the time of filing. This requirement is distinct from the enablement requirement, which requires the specification to teach those skilled in the art how to make and use the invention without undue experimentation.
+
+## Detailed Analysis
+
+1. **Statutory Basis**:  
+
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+INFO:root:No citation markers found in AI response, generating sources from 19 context pages
+INFO:root:DEBUG Fallback source 0: case=Amgen Inc. v. Sanofi, origin=courtlistener_api, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 2: case=Nautilus, Inc. v. Biosig Instruments, Inc., origin=SCOTUS, text_len=258, injected=True
+INFO:root:DEBUG Fallback source 4: case=ARIAD PHARMACEUTICALS, INC. V. ELI LILLY AND CO., origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 6: case=REVOLUTION EYEWEAR, INC. V. ASPEX EYEWEAR, INC., origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 8: case=AUTOMOTIVE TECHNOLOGIES INTERNATIONAL V. BMW OF NORTH AMERICA, origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 9: case=INVITROGEN CORP. (FORMERLY KNOWN AS LIFE TECHNOLOGIES, INC.) V. CLONTECH LABORATORIES, INC., origin=DCT, text_len=299, injected=False
+INFO:root:DEBUG Fallback generated 5 sources
+INFO:root:CITATION_TELEMETRY: total=5, verified=5, unverified=0 (0.0%), unsupported_statements=3/17
+INFO:__main__:  [PASS] written_description_112: sources=5, hash=ad667e4541eb2585
+INFO:root:[DISAMBIGUATION] conversation_id=golden_willfulness_1769901871, pending_state=False, message='What is the standard for willful infringement?'
+INFO:root:[FTS] Search: 46 chars -> OR query: 'standard | willful | infringement'
+INFO:root:[DOCTRINE TAG] Query classified as: remedies
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=remedies: ['eBay Inc. v. MercExchange, L.L.C.', 'Halo Electronics, Inc. v. Pulse Electronics, Inc.', 'Octane Fitness, LLC v. ICON Health & Fitness, Inc.']
+INFO:root:[CONTROLLING INJECTION] Injected 4 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=eBay Inc. v. MercExchange, L.L.C., origin=SCOTUS, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=HALO ELECTRONICS, INC. v. PULSE ELECTRON, origin=DCT, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=Octane Fitness, LLC v. ICON Health & Fit, origin=SCOTUS, page=10
+INFO:root:[Adjacent Pages] Expanded 19 pages to 86 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 429 Too Many Requests"
+INFO:openai._base_client:Retrying request to /chat/completions in 27.025160 seconds
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:root:Built context with 86 pages, 55179 tokens, 163 quotable passages (pruned 0)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': 'unknown', 'doctrine': None, 'landmark_case': None, 'hot_topics': [], 'search_terms_suggested': [], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): The standard for willful infringement requires a showing of deliberate or intentional infringement, as clarified by the Supreme Court in *Halo Electronics, Inc. v. Pulse Electronics, Inc.*, 136 S. Ct. 1923 (2016). Under *Halo*, the concept of "willfulness" does not require a finding of objective recklessness, as was previously required under the *Seagate* standard. Instead, the focus is on the subjective intent of the infringer at the time of the challenged conduct. Specifically, the infringer's
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+INFO:root:No citation markers found in AI response, generating sources from 19 context pages
+INFO:root:DEBUG Fallback source 0: case=eBay Inc. v. MercExchange, L.L.C., origin=SCOTUS, text_len=300, injected=True
+INFO:root:DEBUG Fallback source 1: case=HALO ELECTRONICS, INC. v. PULSE ELECTRONICS, INC. [OPINION], origin=DCT, text_len=296, injected=True
+INFO:root:DEBUG Fallback source 2: case=Octane Fitness, LLC v. ICON Health & Fitness, Inc., origin=SCOTUS, text_len=249, injected=True
+INFO:root:DEBUG Fallback source 4: case=Jan K. Voda, M.D. v. Cordis Corporation, origin=web_search, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 5: case=VODA V. CORDIS CORP., origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 6: case=BARD PERIPHERAL VASCULAR v. W.L. GORE & ASSOCIATES [OPINION], origin=DCT, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 7: case=Sri International, Inc. v. Cisco Systems Inc., origin=courtlistener_api, text_len=300, injected=False
+INFO:root:DEBUG Fallback source 8: case=Roche Diagnostics Corporation v. Meso Scale Diagnostics, LLC, origin=courtlistener_api, text_len=299, injected=False
+INFO:root:DEBUG Fallback generated 5 sources
+INFO:root:CITATION_TELEMETRY: total=5, verified=5, unverified=0 (0.0%), unsupported_statements=6/27
+INFO:__main__:  [PASS] willfulness: sources=5, hash=e8d764e14fb74876
+INFO:root:[DISAMBIGUATION] conversation_id=golden_ebay_injunction_1769901919, pending_state=False, message='What is the eBay standard for permanent injunctions in patent cases?'
+INFO:root:[FTS] Search: 68 chars -> OR query: 'ebay | standard | permanent | injunctions | patent | cases'
+INFO:root:[DOCTRINE TAG] Query classified as: remedies
+INFO:root:[CONTROLLING INJECTION] Fetching SCOTUS candidates for doctrine=remedies: ['eBay Inc. v. MercExchange, L.L.C.', 'Halo Electronics, Inc. v. Pulse Electronics, Inc.', 'Octane Fitness, LLC v. ICON Health & Fitness, Inc.']
+INFO:root:[CONTROLLING INJECTION] Injected 4 controlling SCOTUS pages
+INFO:root:[CONTROLLING INJECTION] Page: case=eBay Inc. v. MercExchange, L.L.C., origin=SCOTUS, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=HALO ELECTRONICS, INC. v. PULSE ELECTRON, origin=DCT, page=10
+INFO:root:[CONTROLLING INJECTION] Page: case=Octane Fitness, LLC v. ICON Health & Fit, origin=SCOTUS, page=10
+INFO:root:[Adjacent Pages] Expanded 19 pages to 94 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:root:Built context with 94 pages, 59435 tokens, 182 quotable passages (pruned 0)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': 'unknown', 'doctrine': None, 'landmark_case': None, 'hot_topics': [], 'search_terms_suggested': [], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): The eBay standard for permanent injunctions in patent cases requires courts to apply the traditional four-factor test for injunctive relief, as articulated by the Supreme Court in *eBay Inc. v. MercExchange, L.L.C.*, 547 U.S. 388 (2006). The test mandates that a plaintiff seeking a permanent injunction must demonstrate:
+
+1. **Irreparable Injury**: The plaintiff has suffered an irreparable injury.
+2. **Inadequacy of Legal Remedies**: Remedies available at law, such as monetary damages, are inadeq
+INFO:root:DEBUG: Reflection Pass: Found | Context Quality: good
+WARNING:root:Citation binding failed: case='*eBay Inc. v. MercExchange, L.L.C.*', opinion_id='4c97f748-03bc-42bd-8e10-eacf3412d678', quote='Accordingly, we vacate the judgment of the Court o...'
+WARNING:root:Citation binding failed: case='*eBay Inc. v. MercExchange, L.L.C.*', opinion_id='4c97f748-03bc-42bd-8e10-eacf3412d678', quote='To the con­trary, the Patent Act expressly provide...'
+INFO:root:CITATION_TELEMETRY: total=2, verified=0, unverified=2 (100.0%), unsupported_statements=6/13
+INFO:__main__:  [PASS] ebay_injunction: sources=2, hash=474b432022f7f7d6
+INFO:root:[DISAMBIGUATION] conversation_id=golden_not_found_case_1769901938, pending_state=False, message='What is the holding in FictionalCaseXYZ999 v. NonexistentCorp?'
+INFO:root:[FTS] Search: 62 chars -> OR query: 'holding | fictionalcasexyz | nonexistentcorp'
+INFO:root:Specific case 'FictionalCaseXYZ999 v. NonexistentCorp' not found in local results, triggering web search
+INFO:root:Starting web search for: What is the holding in FictionalCaseXYZ999 v. NonexistentCorp?...
+INFO:backend.web_search:Low local confidence (0.00), triggering web search...
+INFO:httpx:HTTP Request: POST https://api.tavily.com/search "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=LLC+v.+Hulu&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=Enplas+Display+Device+Corp+v.+Seoul+Semiconductor+Co&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=Zeroclick%2C+LLC+v.+Apple+Inc&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=VETERANS+CONTRACTING+GROUP+v.+US&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=INDIVIOR+INC.+v.+DR.+REDDY&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:root:Case already ingested: Sound View Innovations, LLC v. Hulu, LLC
+INFO:root:Case already ingested: Enplas Display Device Corpora v. Seoul Semiconductor Company
+INFO:root:Case already ingested: Zeroclick, LLC v. Apple Inc.
+INFO:root:[FTS] Search: 62 chars -> OR query: 'holding | fictionalcasexyz | nonexistentcorp'
+INFO:root:Web search complete: 3 cases ingested, 15 pages retrieved
+INFO:root:Web search ingested new case(s), now have 15 pages
+INFO:root:[Adjacent Pages] Expanded 15 pages to 48 pages (±3 window)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 1 verified passages (from 1 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 9 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 1 candidates)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:LLM fallback extracted 0 verified passages (from 5 candidates)
+INFO:root:Built context with 48 pages, 29051 tokens, 101 quotable passages (pruned 0)
+INFO:root:DEBUG: Agentic Reasoning Plan: {'query_classification': 'unknown', 'doctrine': None, 'landmark_case': None, 'hot_topics': [], 'search_terms_suggested': [], 'context_quality': 'good', 'reflection_pass': 'Found - substantive content from multiple cases'}
+INFO:root:Dynamic max_tokens: 1500 (base=1500, bonus=0)
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:root:DEBUG: AI Raw Response (first 500 chars): NOT FOUND IN PROVIDED OPINIONS
+INFO:root:DEBUG: Reflection Pass: Not Found - Self-Correcting | Context Quality: good
+INFO:root:AI returned NOT FOUND (primary), attempting web search fallback for: What is the holding in FictionalCaseXYZ999 v. NonexistentCorp?
+INFO:root:Starting web search for: What is the holding in FictionalCaseXYZ999 v. NonexistentCorp?...
+INFO:backend.web_search:Low local confidence (0.00), triggering web search...
+INFO:httpx:HTTP Request: POST https://api.tavily.com/search "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=LLC+v.+Hulu&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=Enplas+Display+Device+Corp+v.+Seoul+Semiconductor+Co&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=Zeroclick%2C+LLC+v.+Apple+Inc&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=VETERANS+CONTRACTING+GROUP+v.+US&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET https://www.courtlistener.com/api/rest/v4/search/?q=INDIVIOR+INC.+v.+DR.+REDDY&court=cafc&type=o&stat_Precedential=on&order_by=score+desc "HTTP/1.1 200 OK"
+INFO:root:Case already ingested: Sound View Innovations, LLC v. Hulu, LLC
+INFO:root:Case already ingested: Enplas Display Device Corpora v. Seoul Semiconductor Company
+INFO:root:Case already ingested: Zeroclick, LLC v. Apple Inc.
+INFO:root:[FTS] Search: 62 chars -> OR query: 'holding | fictionalcasexyz | nonexistentcorp'
+INFO:root:Web search complete: 3 cases ingested, 15 pages retrieved
+INFO:root:Web search fallback found 15 new pages, retrying query
+INFO:root:Built context with 15 pages, 7841 tokens
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 429 Too Many Requests"
+INFO:openai._base_client:Retrying request to /chat/completions in 0.764762 seconds
+INFO:httpx:HTTP Request: POST http://localhost:1106/modelfarm/openai/chat/completions "HTTP/1.1 200 OK"
+INFO:__main__:  [PASS] not_found_case: sources=0, hash=dff111cca4df21da
+
+============================================================
+VOYAGER GOLDEN TEST HARNESS
+Mode: VERIFY
+Baseline file: golden_baseline.json
+============================================================
+
+Baseline loaded from golden_baseline.json
+Baseline timestamp: 2026-01-31T23:15:11.671877
+Baseline corpus version: c5edb72bf3af
+
+Running current suite...
+
+Comparing against baseline...
+
+============================================================
+VERIFICATION RESULT: PASS
+============================================================
+Regressions: 0
+Diffs: 18

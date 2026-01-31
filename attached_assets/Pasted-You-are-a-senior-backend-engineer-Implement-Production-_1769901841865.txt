@@ -1,0 +1,94 @@
+You are a senior backend engineer. Implement “Production Hardening” for the existing Voyager observability layer in the CAFC Opinion Assistant. The Voyager layer (corpus versioning, query_runs, endpoints, golden tests) already exists and must remain non-invasive.
+
+NON-NEGOTIABLE CONSTRAINTS
+1) Do NOT modify or replace any core logic in:
+   - doctrine classification
+   - Postgres FTS retrieval
+   - precedence-aware ranking scorer
+   - controlling SCOTUS injection
+   - quotable passage extraction
+   - context build/pruning
+   - LLM prompt strategy (quote-first)
+   - citation verification
+   - web search fallback ingestion
+2) Do NOT change user-facing answer payloads or behavior.
+3) Feature flags must remain OFF by default:
+   - VOYAGER_EMBEDDINGS_ENABLED=false
+   - VOYAGER_EXPORT_ENABLED=false
+4) All observability/audit logging must remain best-effort:
+   - never block the request path
+   - never throw user-visible errors
+   - wrap in try/except with debug-only logs
+
+GOALS (IMPLEMENT ALL)
+A) Retention Policy for query_runs (MANDATORY)
+- Add retention controls for query_runs:
+  1) Keep full final_answer for 90 days
+  2) After 90 days, redact final_answer (set to NULL or “[REDACTED]”) but keep manifests/metrics
+  3) After 365 days, delete rows OR keep only minimal aggregates (choose delete unless existing policy prefers retain)
+- Implement a cleanup job that can be run manually and via scheduler:
+  - python -m backend.maintenance.cleanup_query_runs
+- Ensure cleanup is safe, idempotent, and logs summary counts.
+
+B) Circuit Breaker for audit logging (MANDATORY)
+- Implement a small circuit breaker around query_runs writes:
+  - If N consecutive DB write failures occur (e.g., 5), open the circuit for a cool-down window (e.g., 5 minutes)
+  - During open circuit: skip query_runs writes immediately (no DB attempt), log debug message
+  - After cool-down: allow a single “half-open” attempt; if success, close; if fail, reopen
+- Store circuit state in-memory (process-local) to avoid DB dependency.
+- This must not affect answering behavior.
+
+C) Replay Packet Export (Admin-only) (MANDATORY)
+- Add a protected endpoint:
+  - GET /api/voyager/replay-packet/{run_id}
+- Auth: X-API-Key must match EXTERNAL_API_KEY (same as other protected voyager endpoints)
+- Response: JSON “replay packet” containing ONLY:
+  - run_id, created_at, conversation_id
+  - user_query, doctrine_tag
+  - corpus_version_id
+  - retrieval_manifest (IDs+scores, ordered)
+  - context_manifest (IDs+ordering+token counts)
+  - model_config (resolved values)
+  - system_prompt_version
+  - final_answer (if not redacted by retention)
+  - citations_manifest (verification tiers and bindings)
+  - latency_ms, failure_reason
+- MUST NOT include raw PDF text, page text, headers, env vars, or secrets.
+- Add reasonable response size checks (e.g., reject if manifests exceed a threshold; but do not block normal runs).
+
+D) Documentation (MANDATORY)
+- Add docs/VOYAGER_PRODUCTION.md (or README section) describing:
+  - What is logged in query_runs (and what is NOT)
+  - Retention schedule and cleanup command
+  - Circuit breaker behavior
+  - How to fetch replay packet (admin-only) and what it contains
+  - How to run golden tests for regression verification
+- Keep it concise and engineering-oriented.
+
+E) Tests / Verification (MANDATORY)
+- Extend golden tests OR add lightweight tests to confirm:
+  - query_runs writes are skipped when circuit breaker is open (simulate failures)
+  - retention job redacts final_answer after 90 days and deletes after 365 days (use a test DB or transactional test)
+  - replay-packet endpoint enforces auth and does not return secrets
+- Provide exact commands to run tests and to run cleanup job in dry-run mode.
+
+IMPLEMENTATION NOTES
+- Prefer adding new files over editing existing ones.
+- Keep all DB migrations backward compatible.
+- Cleanup job should support:
+  --dry-run (prints counts only)
+  --apply (performs updates/deletes)
+- Retention logic should be time-based using created_at (do not infer from run_id).
+- Make sure protected endpoints fail-closed if EXTERNAL_API_KEY is unset (503).
+
+DELIVERABLES
+1) Implementation plan
+2) File-by-file diffs
+3) SQL migrations (if needed)
+4) Commands to run:
+   - golden tests verify
+   - cleanup dry-run/apply
+   - curl commands to validate auth for replay-packet endpoint
+5) Explicit list of untouched core components (repeat the list under constraints)
+
+Do not refactor. Do not optimize the legal engine. Only implement retention, circuit breaker, replay packet export, docs, and verification.

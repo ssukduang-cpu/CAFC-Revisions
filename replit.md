@@ -81,8 +81,12 @@ Preferred communication style: Simple, everyday language.
 ### Voyager AI Observability Layer
 - **Purpose:** Non-invasive observability, governance, and audit replay layer.
 - **Corpus Versioning:** SHA256-based deterministic version IDs.
-- **Audit Replay Logging:** Captures complete query provenance for every run.
+- **Audit Replay Logging:** Captures complete query provenance for every run via `query_runs` table.
 - **Policy Manifest:** `/api/policy` endpoint returns machine-readable governance metadata.
+- **Circuit Breaker:** Protects against cascading DB failures (5 failures threshold, 5-min cooldown), states: CLOSED → OPEN → HALF_OPEN.
+- **Retention Policy:** Redacts `final_answer` after 90 days, deletes rows after 365 days. Cleanup via `backend/maintenance/cleanup_query_runs.py`.
+- **Replay Packet:** `/api/voyager/replay-packet/{run_id}` returns full audit record with size limits (1MB max).
+- **Production Tests:** Unit tests in `backend/tests/test_voyager_hardening.py` cover circuit breaker, retention, and replay packet.
 
 ## External Dependencies
 

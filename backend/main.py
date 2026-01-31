@@ -806,6 +806,48 @@ async def get_query_run_by_id(run_id: str, request: Request):
     return run
 
 
+@app.get("/api/voyager/replay-packet/{run_id}")
+async def get_replay_packet(run_id: str, request: Request):
+    """
+    Get a complete replay packet for a query run.
+    Contains only IDs, manifests, and metadata - NO raw text or secrets.
+    Requires API key authentication.
+    """
+    api_key = request.headers.get("X-API-Key")
+    expected_key = os.environ.get("EXTERNAL_API_KEY")
+    
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="Replay packet endpoint not configured")
+    if not api_key or api_key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized - API key required")
+    
+    packet = voyager.get_replay_packet(run_id)
+    if not packet:
+        raise HTTPException(status_code=404, detail="Query run not found")
+    
+    return packet
+
+
+@app.get("/api/voyager/circuit-breaker")
+async def get_circuit_breaker_status():
+    """Get current circuit breaker state for monitoring."""
+    return voyager.get_circuit_breaker_state()
+
+
+@app.get("/api/voyager/retention-stats")
+async def get_retention_stats(request: Request):
+    """Get query_runs retention statistics. Requires API key."""
+    api_key = request.headers.get("X-API-Key")
+    expected_key = os.environ.get("EXTERNAL_API_KEY")
+    
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="Retention stats endpoint not configured")
+    if not api_key or api_key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized - API key required")
+    
+    return voyager.get_retention_stats()
+
+
 @app.get("/api/admin/diagnostics")
 async def admin_diagnostics():
     """Detailed diagnostics for troubleshooting production issues."""
