@@ -275,15 +275,18 @@ def compare_with_baseline(current: Dict[str, Any], baseline: Dict[str, Any]) -> 
                 "new_count": curr_result.get("sources_count")
             })
         
-        curr_page_ids = set(curr_result.get("page_ids", []))
-        base_page_ids = set(base_result.get("page_ids", []))
+        curr_page_ids = curr_result.get("page_ids", [])
+        base_page_ids = base_result.get("page_ids", [])
         if curr_page_ids != base_page_ids:
+            curr_set = set(curr_page_ids)
+            base_set = set(base_page_ids)
             diffs.append({
                 "query_id": query_id,
                 "diff_type": "page_ids_changed",
-                "severity": "info",
-                "added": list(curr_page_ids - base_page_ids)[:5],
-                "removed": list(base_page_ids - curr_page_ids)[:5]
+                "severity": "warning",
+                "order_changed": curr_page_ids != base_page_ids,
+                "added": list(curr_set - base_set)[:5],
+                "removed": list(base_set - curr_set)[:5]
             })
     
     no_regressions = len(regressions) == 0

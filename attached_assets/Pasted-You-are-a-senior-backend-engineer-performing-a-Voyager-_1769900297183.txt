@@ -1,0 +1,78 @@
+You are a senior backend engineer performing a “Voyager Observability Layer Hardening & Verification” pass on the CAFC Opinion Assistant. The Voyager layer is implemented (corpus versioning, query_runs ledger, policy + voyager endpoints, feature flags OFF, golden tests). Your job is to PROVE it is non-invasive and replay-complete, and to harden failure modes and security without changing answer behavior.
+
+NON-NEGOTIABLE CONSTRAINTS
+1) Do NOT modify any core logic in:
+   - doctrine classification
+   - Postgres FTS retrieval
+   - precedence-aware ranking scorer
+   - controlling SCOTUS injection
+   - quotable passage extraction
+   - context build/pruning
+   - LLM prompt strategy (quote-first)
+   - citation verification
+   - web search fallback
+2) Do NOT change user-facing response payloads (except adding optional metadata fields that do not alter existing keys).
+3) Feature flags must remain OFF by default:
+   - VOYAGER_EMBEDDINGS_ENABLED=false
+   - VOYAGER_EXPORT_ENABLED=false
+4) All audit logging must be best-effort:
+   - never block the request path
+   - never throw user-visible errors
+   - wrap all audit writes in try/except with debug-only logging
+
+GOALS (MUST ACHIEVE)
+A) Golden tests must prove NO REGRESSION with flags OFF:
+   - exact ordered retrieved page IDs (not set-based)
+   - exact final answer text or stable answer hash (deterministic)
+   - exact citation tier distribution and counts
+   - identical NOT FOUND behavior
+B) query_runs must be replay-complete and minimal:
+   - replay-complete: includes user_query, doctrine_tag, corpus_version_id, retrieval_manifest (ordered IDs+scores), context_manifest (ordered IDs+token counts), model_config (resolved model/temperature/max_tokens), system_prompt_version or prompt hash, final_answer, citations_manifest (per-citation: page_id, opinion_id, tier, match/binding type), latency_ms, failure_reason
+   - minimal: MUST NOT store raw PDF text, full context passages, env vars, API keys, headers, or secrets
+C) Non-blocking under failure:
+   - if DB is down or insert/update fails, the user query must still return normally
+   - audit logging failure must not increase response latency materially
+D) Security correctness:
+   - /api/voyager/query-runs and /api/voyager/query-runs/{run_id} must require X-API-Key matching EXTERNAL_API_KEY
+   - missing/wrong key => 401
+   - ensure pagination defaults and max limits (e.g., default 50, max 200)
+   - responses must not leak secrets or stack traces
+E) Observability hygiene:
+   - ensure query_runs upserts are idempotent by run_id
+   - ensure any async tasks are bounded (no unbounded queue growth)
+
+WHAT YOU MUST DO (DELIVERABLES)
+1) Inspect the current implementation and report:
+   - where golden_tests compares outputs, and whether it checks ORDERED page IDs
+   - what exactly is stored in retrieval_manifest/context_manifest (confirm no raw text)
+   - whether logging is truly off the critical path
+   - whether voyager endpoints enforce API key correctly
+2) Implement ONLY the minimal fixes required to meet Goals A–E.
+3) Provide:
+   - file-by-file diffs
+   - SQL migration changes (if any)
+   - exact commands to run:
+     * python -m backend.golden_tests --mode baseline
+     * python -m backend.golden_tests --mode verify
+   - a small “failure-mode test” script or instructions to simulate DB down and confirm normal responses
+4) Explicitly list what core components were not changed (repeat the list above).
+
+IMPORTANT DETAILS / COMMON PITFALLS TO CHECK AND FIX
+- Golden tests must compare ordered IDs, not sets.
+- model_config must capture the ACTUAL model used at runtime (after env override), plus temperature and max_tokens.
+- system_prompt_version must be a stable identifier (e.g., hash) tied to the actual system prompt.
+- query_runs must not store raw passages; only IDs, ordering, and token counts.
+- Ensure voyager endpoints cap limit and enforce auth before any DB query.
+- Ensure query_runs insert/update timeouts are short or async; never hold up user response.
+- If any uncertainty about replay completeness exists, add fields to query_runs as nullable (backwards compatible).
+
+OUTPUT FORMAT
+Return:
+1) Findings (bulleted)
+2) Fixes made (bulleted)
+3) Diffs (by file)
+4) Migrations (SQL)
+5) How to run verification (commands)
+6) Non-interference attestation (list of untouched components)
+
+Do not refactor. Do not “improve” existing legal logic. Only harden observability, replay, tests, and endpoint security.

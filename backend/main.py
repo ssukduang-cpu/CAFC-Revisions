@@ -772,25 +772,32 @@ async def get_corpus_version():
 
 
 @app.get("/api/voyager/query-runs")
-async def get_query_runs(limit: int = 100, request: Request = None):
+async def get_query_runs(request: Request, limit: int = 50, offset: int = 0):
     """Get recent query runs for audit/replay. Requires API key."""
-    api_key = request.headers.get("X-API-Key") if request else None
+    api_key = request.headers.get("X-API-Key")
     expected_key = os.environ.get("EXTERNAL_API_KEY")
     
-    if expected_key and api_key != expected_key:
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="Query runs endpoint not configured")
+    if not api_key or api_key != expected_key:
         raise HTTPException(status_code=401, detail="Unauthorized - API key required")
     
-    runs = voyager.get_recent_query_runs(limit)
-    return {"query_runs": runs, "count": len(runs)}
+    safe_limit = min(max(1, limit), 200)
+    safe_offset = max(0, offset)
+    
+    runs = voyager.get_recent_query_runs(safe_limit, safe_offset)
+    return {"query_runs": runs, "count": len(runs), "limit": safe_limit, "offset": safe_offset}
 
 
 @app.get("/api/voyager/query-runs/{run_id}")
-async def get_query_run_by_id(run_id: str, request: Request = None):
+async def get_query_run_by_id(run_id: str, request: Request):
     """Get a specific query run by ID. Requires API key."""
-    api_key = request.headers.get("X-API-Key") if request else None
+    api_key = request.headers.get("X-API-Key")
     expected_key = os.environ.get("EXTERNAL_API_KEY")
     
-    if expected_key and api_key != expected_key:
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="Query runs endpoint not configured")
+    if not api_key or api_key != expected_key:
         raise HTTPException(status_code=401, detail="Unauthorized - API key required")
     
     run = voyager.get_query_run(run_id)

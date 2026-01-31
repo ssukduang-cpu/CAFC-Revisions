@@ -224,11 +224,19 @@ def record_retrieval_manifest(
     run_id: str,
     pages: List[Dict[str, Any]]
 ) -> None:
-    """Record retrieval results (IDs and scores only, no text)."""
+    """Record retrieval results (IDs and scores only, no text). Preserves order."""
     try:
+        seen_opinion_ids = []
+        seen_set = set()
+        for p in pages[:50]:
+            oid = str(p.get("document_id") or p.get("opinion_id", ""))
+            if oid and oid not in seen_set:
+                seen_opinion_ids.append(oid)
+                seen_set.add(oid)
+        
         manifest = {
             "page_ids": [str(p.get("id", "")) for p in pages[:50]],
-            "opinion_ids": list(set(str(p.get("document_id") or p.get("opinion_id", "")) for p in pages[:50])),
+            "opinion_ids": seen_opinion_ids,
             "scores": [float(p.get("score", 0)) for p in pages[:50]],
             "count": len(pages)
         }
@@ -502,8 +510,8 @@ def get_query_run(run_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def get_recent_query_runs(limit: int = 100) -> List[Dict[str, Any]]:
-    """Get recent query runs for dashboard/debugging."""
+def get_recent_query_runs(limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    """Get recent query runs for dashboard/debugging with pagination."""
     try:
         with db.get_db() as conn:
             cursor = conn.cursor()
@@ -512,8 +520,8 @@ def get_recent_query_runs(limit: int = 100) -> List[Dict[str, Any]]:
                        corpus_version_id, latency_ms, failure_reason
                 FROM query_runs 
                 ORDER BY created_at DESC 
-                LIMIT %s
-            """, (limit,))
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
             rows = cursor.fetchall()
             return [dict(r) for r in rows]
     except Exception as e:
