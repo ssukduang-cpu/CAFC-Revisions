@@ -78,11 +78,22 @@ from backend.web_search import search_tavily
 from backend.telemetry import router as telemetry_router
 from backend.eval_runner import router as eval_router
 from backend.external_api import router as external_api_router
+from backend import voyager
 
 app = FastAPI(title="Federal Circuit AI")
 app.include_router(telemetry_router)
 app.include_router(eval_router)
 app.include_router(external_api_router)
+
+
+@app.on_event("startup")
+async def startup_voyager():
+    """Initialize Voyager audit tables on startup."""
+    try:
+        voyager.ensure_query_runs_table()
+        logger.info("Voyager query_runs table initialized")
+    except Exception as e:
+        logger.error(f"Error initializing Voyager: {e}")
 
 def to_camel_case(snake_str: str) -> str:
     components = snake_str.split('_')
@@ -735,6 +746,46 @@ async def admin_error_summary():
         "error_categories": [{"category": r["error_category"], "count": r["count"]} for r in rows],
         "total_failed": sum(r["count"] for r in rows)
     }
+
+@app.get("/api/policy")
+async def get_policy_manifest():
+    """
+    Get machine-readable policy manifest for governance.
+    
+    Returns system configuration including:
+    - Quote-first verification requirements
+    - Confidence tier definitions  
+    - Determinism settings (temperature, model)
+    - Web fallback domain allowlist
+    - Current corpus version
+    """
+    return voyager.get_policy_manifest()
+
+
+@app.get("/api/voyager/corpus-version")
+async def get_corpus_version():
+    """Get current corpus version ID for provenance tracking."""
+    return {
+        "corpus_version_id": voyager.compute_corpus_version_id(),
+        "corpus_state": voyager.get_corpus_state().__dict__
+    }
+
+
+@app.get("/api/voyager/query-runs")
+async def get_query_runs(limit: int = 100):
+    """Get recent query runs for audit/replay."""
+    runs = voyager.get_recent_query_runs(limit)
+    return {"query_runs": runs, "count": len(runs)}
+
+
+@app.get("/api/voyager/query-runs/{run_id}")
+async def get_query_run_by_id(run_id: str):
+    """Get a specific query run by ID."""
+    run = voyager.get_query_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Query run not found")
+    return run
+
 
 @app.get("/api/admin/diagnostics")
 async def admin_diagnostics():

@@ -13,6 +13,7 @@ import tiktoken
 from backend import db_postgres as db
 from backend import web_search
 from backend import ranking_scorer
+from backend import voyager
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
@@ -2205,6 +2206,22 @@ async def generate_chat_response(
     party_only: bool = False
 ) -> Dict[str, Any]:
     
+    import time as _time
+    _start_time = _time.time()
+    _run_id = None
+    _doctrine_tag = None
+    _pages_for_audit = []
+    _context_pages_for_audit = []
+    _context_tokens = 0
+    _model_name = "gpt-4o"
+    _temperature = 0.1
+    _max_tokens = 1500
+    
+    try:
+        _run_id = voyager.create_query_run(conversation_id, message)
+    except Exception as _ve:
+        logging.debug(f"Voyager run creation skipped: {_ve}")
+    
     if opinion_ids and len(opinion_ids) == 0:
         opinion_ids = None
     
@@ -2472,6 +2489,7 @@ async def generate_chat_response(
     # P0: Doctrine-triggered authoritative candidate injection
     # Classify query to determine if controlling SCOTUS cases should be injected
     doctrine_tag = ranking_scorer.classify_doctrine_tag(message)
+    _doctrine_tag = doctrine_tag
     if doctrine_tag:
         logging.info(f"[DOCTRINE TAG] Query classified as: {doctrine_tag}")
         controlling_case_patterns = ranking_scorer.get_controlling_framework_candidates(doctrine_tag)
@@ -3327,6 +3345,38 @@ async def generate_chat_response(
             for qid, info in quote_registry.items()
         }
         
+        _latency_ms = int((_time.time() - _start_time) * 1000)
+        
+        _verification_results = []
+        for idx, s in enumerate(sources):
+            _verification_results.append({
+                "citation_index": idx,
+                "page_id": s.get("page_id"),
+                "opinion_id": s.get("opinion_id"),
+                "confidence_tier": s.get("citation_verification", {}).get("tier", s.get("tier", "unverified")),
+                "match_type": s.get("citation_verification", {}).get("binding_method", "unknown"),
+                "binding_tags": s.get("citation_verification", {}).get("signals", []),
+                "verified": s.get("verified", False)
+            })
+        
+        if _run_id:
+            try:
+                voyager.complete_query_run_async(
+                    run_id=_run_id,
+                    pages=pages,
+                    context_pages=pages[:15],
+                    total_tokens=_context_tokens,
+                    model_name=model_name,
+                    temperature=0.1,
+                    max_tokens=max_tokens,
+                    answer=answer_markdown,
+                    verifications=_verification_results,
+                    latency_ms=_latency_ms,
+                    failure_reason=None
+                )
+            except Exception as _ve:
+                logging.debug(f"Voyager logging skipped: {_ve}")
+        
         return standardize_response({
             "answer_markdown": answer_markdown,
             "sources": sources,
@@ -3360,7 +3410,8 @@ async def generate_chat_response(
                 "raw_response": raw_answer,
                 "return_branch": "ok",
                 "doctrine_tag": doctrine_tag,
-                "controlling_authorities_count": len(controlling_authorities)
+                "controlling_authorities_count": len(controlling_authorities),
+                "run_id": _run_id
             }
         })
         

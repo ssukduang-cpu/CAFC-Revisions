@@ -1,0 +1,114 @@
+You are a senior backend engineer implementing Voyager AI integration into an existing litigation-grade CAFC Opinion Assistant. The system already has high-quality retrieval, authority-weighted ranking, quote-first prompting, and strict citation verification. Your #1 objective is to integrate Voyager in a way that is NON-INVASIVE and does NOT change answer quality.
+
+NON-NEGOTIABLE CONSTRAINTS (DO NOT VIOLATE)
+1) Do not modify or replace any of the following core logic:
+   - Doctrine classification
+   - Full-text search (Postgres FTS)
+   - Precedence-aware ranking scoring (authority/gravity/recency multipliers)
+   - Controlling SCOTUS case injection
+   - Quotable passage extraction
+   - Context building / pruning logic
+   - LLM generation prompt strategy (quote-first)
+   - Citation verification (verify_quote_strict / verify_quote_with_case_binding)
+   - Web search fallback ingestion behavior
+2) Voyager must be integrated as an “OBSERVABILITY + GOVERNANCE + REPLAY” layer only.
+3) Any change that could alter answers must be behind a feature flag default OFF.
+4) Preserve current API responses exactly unless explicitly adding optional metadata fields.
+
+HIGH-LEVEL DESIGN
+Implement Voyager integration as a set of additive modules:
+A) Corpus Versioning (Snapshot IDs)
+B) Audit Replay Logging (request/response provenance)
+C) Optional Embeddings as Recall Augmenter (OFF by default; never primary retrieval)
+D) Policy Manifest (machine-readable governance metadata)
+
+DELIVERABLES
+You must produce:
+1) A clear implementation plan.
+2) Minimal code changes with explicit file paths.
+3) Database migrations (if needed) that are backwards compatible.
+4) Unit tests (or lightweight tests) proving:
+   - No change in retrieval/ranking outputs when flags OFF
+   - No change in final response text when flags OFF
+   - Replay log captures all required fields
+
+IMPLEMENTATION REQUIREMENTS
+
+A) CORPUS VERSIONING (MANDATORY)
+- Create a function compute_corpus_version_id() that deterministically produces a stable ID for the current corpus state.
+- Recommended method:
+  - Query sync_history latest completed sync timestamp + count of documents + max(document_pages.updated_at or ingested_at)
+  - Hash these values (sha256) into a short ID.
+- Store corpus_version_id with every conversation turn and telemetry record.
+- Add to DB: a nullable column corpus_version_id in conversations/messages or a new table query_runs.
+
+B) AUDIT REPLAY LOGGING (MANDATORY)
+- Add a table query_runs (preferred) or equivalent that captures, per user query:
+  - run_id (UUID)
+  - created_at
+  - conversation_id
+  - user_query (raw)
+  - doctrine_tag (if available)
+  - corpus_version_id
+  - retrieval outputs (IDs only): page_ids/chunk_ids/opinion_ids + scores
+  - context_build manifest (IDs + ordering + token counts)
+  - model config: model name, temperature, max_tokens
+  - system prompt version identifier (not necessarily full text)
+  - final answer text
+  - citation verification results: for each citation, page_id, opinion_id, confidence tier, match type, binding tags
+  - latency_ms + failure_reason
+- Do NOT store full PDF text in query_runs; store IDs and hashes only.
+- Ensure writes are non-blocking and do not add >50ms p95 overhead.
+- Logging must not fail the request; failures should be caught and recorded.
+
+C) OPTIONAL EMBEDDINGS (OFF BY DEFAULT; SECONDARY ONLY)
+- Add a feature flag VOYAGER_EMBEDDINGS_ENABLED=false by default.
+- Add embeddings only as a fallback augmenter when:
+  - FTS returns < N pages OR ts_rank below threshold OR doctrine confidence low
+- Never replace precedence-aware ranking; if embeddings retrieve candidates, pass them through existing ranking_scorer.
+- Store embeddings in a new table (e.g., page_embeddings) keyed by page_id or chunk_id with:
+  - embedding vector
+  - embedding_model
+  - created_at
+- Prefer pgvector if available; otherwise store as JSON and do brute-force only for small subsets (but keep disabled by default).
+
+D) POLICY MANIFEST (MANDATORY)
+- Add a machine-readable JSON “policy manifest” served at /api/policy or similar, containing:
+  - quote_first: true
+  - verification_required: true
+  - verification_tiers: STRONG/MODERATE/WEAK/UNVERIFIED
+  - case_level_fallback_caps: MODERATE
+  - web_fallback_domains_allowlist
+  - determinism: temperature=0.1, model pinned by env, corpus_version_id bound
+- Must be static or computed from config, but not change behavior.
+
+INTEGRATION WITH VOYAGER
+- Implement a VoyagerAdapter module that maps query_runs into Voyager’s expected event/audit schema.
+- This adapter must be purely additive: it consumes internal logs and exports (or prepares) Voyager-compatible payloads.
+- Do NOT add Voyager calls in the critical path unless behind VOYAGER_EXPORT_ENABLED=false.
+- If export is enabled, it must be asynchronous (best-effort) and never block user response.
+
+SAFETY CHECKS
+- Add a “golden test” harness:
+  - Run a fixed set of queries with flags OFF before changes (baseline snapshots).
+  - After changes, rerun and assert identical:
+    - retrieved page_ids ordering
+    - final response text
+    - citation verification tiers
+- Provide a script to run these tests locally.
+
+PROJECT CONTEXT (FILES YOU WILL TOUCH MINIMALLY)
+- backend/chat.py: add logging hooks only (no logic changes)
+- backend/telemetry.py: extend to include corpus_version_id and run_id
+- backend/db_postgres.py: add minimal queries for corpus version + insert query_runs
+- new: backend/voyager_adapter.py
+- new: migrations/*.sql
+
+OUTPUT FORMAT
+1) Implementation plan (bulleted)
+2) Diff-style file-by-file changes (concise)
+3) SQL migration(s)
+4) Test plan + commands
+5) Explicit list of what was NOT changed
+
+IMPORTANT: If you are unsure about a Voyager schema detail, do not guess. Implement the internal query_runs/audit layer in a clean format and isolate any schema-specific mapping in voyager_adapter.py so it can be updated later without touching the core pipeline.
