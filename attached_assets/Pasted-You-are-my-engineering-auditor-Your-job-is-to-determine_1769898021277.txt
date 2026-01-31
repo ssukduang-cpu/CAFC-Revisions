@@ -1,0 +1,58 @@
+You are my engineering auditor. Your job is to determine exactly what data sources this Replit Federal Circuit Chat App relies on, how it retrieves them, and whether those sources are high-quality and reproducible enough to be used with Voyager AI.
+
+Work through the codebase and produce an AUDIT REPORT with evidence.
+
+Hard requirements:
+1) Identify EVERY data source used at runtime (direct or indirect), including:
+   - External APIs (OpenAI, Anthropic, Google, CourtListener, USPTO/PTAB, etc.)
+   - RAG sources (vector DBs, embeddings stores)
+   - Local files (JSON/CSV/PDF/TXT), seed data, fixtures
+   - Web scraping / HTML parsing
+   - Browser automation / headless fetches
+   - User uploads and how they’re stored
+   - Any “hidden” sources from libraries, SDK defaults, or env-based config
+
+2) For each data source, capture:
+   A. Name and type (API / dataset / file / scrape / user upload)
+   B. Where configured (file paths + line numbers)
+   C. How accessed (SDK calls, HTTP endpoints, scraping logic)
+   D. Authentication + secrets usage (which env vars, where loaded)
+   E. Caching behavior (in-memory, disk, DB) and TTL
+   F. Update cadence / recency (does the app fetch “latest” or static snapshots?)
+   G. Failure modes (what happens on timeout, 429, 5xx, missing file)
+   H. Reproducibility (can the same query yield different results later?)
+   I. Legal/compliance risk flags (scraping TOS, copyright, PII)
+
+3) Trace the full answer pipeline:
+   - From user prompt → retrieval step(s) → prompt construction → model call(s) → post-processing → final response
+   - Include diagrams in text form (ASCII is fine)
+   - Identify where “hallucination risk” is introduced (no citations, no provenance, uncontrolled web)
+
+4) Provide a “Voyager Readiness Score” (0–100) with justification using these criteria:
+   - Provenance (can we show where each fact came from?)
+   - Coverage (does it include enough PTAB-relevant sources?)
+   - Recency controls (do we know how recent the corpus is?)
+   - Determinism & auditability (versioning, logging, reproducible retrieval)
+   - Citation support (links/doc ids/snippets)
+   - Data hygiene (deduping, normalization, doc chunking quality)
+
+5) Output format must be:
+   - Executive Summary (1 page equivalent)
+   - Data Source Inventory Table
+   - Evidence Appendix (file paths + snippets of relevant code)
+   - Risks & Mitigations (actionable)
+   - Voyager Readiness Score + Next Steps
+
+How to perform the audit:
+- Start by locating configuration: .env, env var references, config files, secrets manager usage
+- Then identify retrieval modules/routes: anything named “retrieval”, “rag”, “vector”, “embeddings”, “loader”, “scrape”, “fetch”, “ptab”, “uspto”, “pdf”
+- Search for HTTP clients: fetch/axios/requests/httpx, BeautifulSoup/cheerio, playwright/puppeteer
+- Search for LLM calls: openai/anthropic/langchain/llamaindex/vercel ai sdk, etc.
+- Search for storage: pinecone/weaviate/chroma/faiss/qdrant/supabase/postgres/sqlite, filesystem writes
+- Search for PDF/text extraction: pdfplumber/pymupdf/tika/unstructured
+
+Rules:
+- Do not guess. If you can’t find something, write “NOT FOUND” and list what you searched.
+- Quote the exact code fragments you rely on in your report.
+- If you find multiple possible runtime paths, map them all.
+- Finish with a prioritized list of fixes to increase Voyager readiness.
