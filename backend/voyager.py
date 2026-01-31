@@ -568,7 +568,10 @@ def get_policy_manifest() -> Dict[str, Any]:
             "redact_after_days": RETENTION_REDACT_DAYS,
             "delete_after_days": RETENTION_DELETE_DAYS
         },
-        "circuit_breaker": get_circuit_breaker_state(),
+        "audit_logging": {
+            "enabled": True,
+            "state": get_circuit_breaker_state()["state"]
+        },
         "corpus": asdict(get_corpus_state()),
         "features": {
             "voyager_embeddings_enabled": VOYAGER_EMBEDDINGS_ENABLED,

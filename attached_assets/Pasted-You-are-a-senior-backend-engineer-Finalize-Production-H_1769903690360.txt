@@ -1,0 +1,50 @@
+You are a senior backend engineer. Finalize “Production Hardening – Phase A Closeout” for the Voyager observability layer in the CAFC Opinion Assistant. The system is already working and golden tests pass; this task is to (1) reduce unnecessary public leakage of internal status and (2) add a one-command operational verification script. Keep changes minimal, additive, and safe.
+
+NON-NEGOTIABLE CONSTRAINTS
+1) Do NOT modify any core legal engine logic:
+   - doctrine classification
+   - Postgres FTS retrieval
+   - ranking scorer
+   - controlling SCOTUS injection
+   - quotable passage extraction
+   - context build/pruning
+   - LLM prompt strategy
+   - citation verification
+   - web search fallback ingestion
+2) Do NOT change user-facing answer payloads or behavior.
+3) Feature flags remain OFF by default.
+4) Any observability/audit features must remain best-effort and never block user responses.
+
+GOALS
+A) Minimize public exposure of circuit breaker internals (RECOMMENDED HARDENING)
+- /api/policy is public and currently includes circuit_breaker with failure_count, last_failure_time, cooldown_remaining.
+- Modify /api/policy so it exposes only a minimal, non-sensitive field for circuit breaker, e.g.:
+  - "audit_logging_enabled": true/false
+  - and optionally "state": "open|closed" ONLY (no counters, timestamps, cooldown)
+- Keep full circuit breaker details available only via a protected endpoint requiring X-API-Key matching EXTERNAL_API_KEY:
+  - GET /api/voyager/circuit-breaker (protected if it exists; if it is currently public, protect it)
+- If EXTERNAL_API_KEY is unset, protected endpoints must fail-closed with HTTP 503.
+
+B) Add a single operational verification command (NOT STRICTLY REQUIRED, BUT HIGHLY USEFUL)
+- Create a script: scripts/voyager_verify.sh (or python -m backend.maintenance.voyager_verify)
+- It should run, in order:
+  1) curl -i /api/policy
+  2) curl -i /api/voyager/corpus-version
+  3) curl -i /api/voyager/query-runs (expect 401 without key)
+  4) if EXTERNAL_API_KEY set: curl -i with key to /api/voyager/circuit-breaker and /api/voyager/retention-stats
+  5) python -m backend.golden_tests --mode verify
+  6) python -m backend.maintenance.cleanup_query_runs --dry-run --stats
+- The script must print clear PASS/FAIL lines and exit non-zero on failure.
+- It must not require jq. Use grep/sed only.
+
+C) Update docs/VOYAGER_PRODUCTION.md accordingly
+- Document the new public vs protected surface:
+  - /api/policy: minimal circuit breaker exposure
+  - /api/voyager/circuit-breaker: protected details
+- Add instructions for running the new verification script.
+
+DELIVERABLES
+1) Brief plan
+2) File-by-file diffs
+3) How to run: ./scripts/voyager_verify.sh
+4) Confirm unchanged core components list

@@ -829,8 +829,16 @@ async def get_replay_packet(run_id: str, request: Request):
 
 
 @app.get("/api/voyager/circuit-breaker")
-async def get_circuit_breaker_status():
-    """Get current circuit breaker state for monitoring."""
+async def get_circuit_breaker_status(request: Request):
+    """Get current circuit breaker state for monitoring. Requires API key."""
+    api_key = request.headers.get("X-API-Key")
+    expected_key = os.environ.get("EXTERNAL_API_KEY")
+    
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="Circuit breaker endpoint not configured")
+    if not api_key or api_key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized - API key required")
+    
     return voyager.get_circuit_breaker_state()
 
 

@@ -81,14 +81,22 @@ Circuit breaker state is process-local and does not persist across restarts.
 ### Public Endpoints
 
 ```bash
-# Policy manifest
+# Policy manifest (minimal circuit breaker exposure)
 curl https://patentlawchat.com/api/policy
 
 # Corpus version
 curl https://patentlawchat.com/api/voyager/corpus-version
 ```
 
+**Policy Manifest Security:**
+- `/api/policy` exposes only `audit_logging.enabled` (true/false) and `audit_logging.state` (open/closed)
+- No counters, timestamps, or cooldown details are exposed publicly
+- Full circuit breaker details require API key authentication
+
 ### Protected Endpoints (Require API Key)
+
+All protected endpoints require the `X-API-Key` header matching `EXTERNAL_API_KEY`.
+If `EXTERNAL_API_KEY` is not set, endpoints return HTTP 503 (fail-closed).
 
 ```bash
 # List recent query runs
@@ -102,6 +110,14 @@ curl -H "X-API-Key: YOUR_KEY" \
 # Get replay packet (full audit record)
 curl -H "X-API-Key: YOUR_KEY" \
   "https://patentlawchat.com/api/voyager/replay-packet/{run_id}"
+
+# Get full circuit breaker details (protected)
+curl -H "X-API-Key: YOUR_KEY" \
+  "https://patentlawchat.com/api/voyager/circuit-breaker"
+
+# Get retention statistics
+curl -H "X-API-Key: YOUR_KEY" \
+  "https://patentlawchat.com/api/voyager/retention-stats"
 ```
 
 ### Replay Packet Contents
@@ -126,6 +142,25 @@ The `/api/voyager/replay-packet/{run_id}` endpoint returns a complete audit reco
   "failure_reason": "string|null"
 }
 ```
+
+## Operational Verification
+
+Run the one-command verification script to check all Voyager endpoints and tests:
+
+```bash
+./scripts/voyager_verify.sh
+```
+
+The script performs:
+1. Checks `/api/policy` returns 200 and doesn't leak circuit breaker internals
+2. Checks `/api/voyager/corpus-version` is accessible
+3. Verifies `/api/voyager/query-runs` requires authentication (401/503)
+4. Verifies `/api/voyager/circuit-breaker` requires authentication (401/503)
+5. If `EXTERNAL_API_KEY` is set, tests protected endpoints with authentication
+6. Runs golden tests in verify mode
+7. Runs cleanup script --stats
+
+Output shows clear PASS/FAIL lines and exits non-zero on any failure.
 
 ## Unit Tests (Production Hardening)
 
@@ -165,12 +200,22 @@ Both flags default to `false` and should remain OFF unless explicitly needed:
 
 ## Monitoring
 
-### Check Circuit Breaker State
+### Check Audit Logging State (Public)
 
-The circuit breaker state is included in the policy manifest:
+The audit logging state is included in the public policy manifest:
 
 ```bash
-curl https://patentlawchat.com/api/policy | jq '.circuit_breaker'
+curl -s https://patentlawchat.com/api/policy | grep -o '"audit_logging"[^}]*}'
+```
+
+Returns: `"audit_logging":{"enabled":true,"state":"closed"}`
+
+### Check Full Circuit Breaker Details (Protected)
+
+Full circuit breaker internals require API key authentication:
+
+```bash
+curl -H "X-API-Key: YOUR_KEY" https://patentlawchat.com/api/voyager/circuit-breaker
 ```
 
 ### Retention Statistics
