@@ -127,7 +127,7 @@ def compute_corpus_version_id() -> str:
                     (SELECT COUNT(*) FROM documents) as doc_count,
                     (SELECT COUNT(*) FROM document_pages) as page_count,
                     (SELECT MAX(completed_at)::text FROM sync_history WHERE status = 'completed') as latest_sync,
-                    (SELECT MAX(created_at)::text FROM document_pages) as latest_page
+                    (SELECT MAX(updated_at)::text FROM documents) as latest_doc
             """)
             row = cursor.fetchone()
             
@@ -135,9 +135,9 @@ def compute_corpus_version_id() -> str:
                 doc_count = row.get('doc_count', 0) or 0
                 page_count = row.get('page_count', 0) or 0
                 latest_sync = row.get('latest_sync') or 'none'
-                latest_page = row.get('latest_page') or 'none'
+                latest_doc = row.get('latest_doc') or 'none'
                 
-                version_string = f"docs:{doc_count}|pages:{page_count}|sync:{latest_sync}|page_updated:{latest_page}"
+                version_string = f"docs:{doc_count}|pages:{page_count}|sync:{latest_sync}|doc_updated:{latest_doc}"
                 version_hash = hashlib.sha256(version_string.encode()).hexdigest()[:12]
                 
                 with _corpus_version_lock:
@@ -166,7 +166,7 @@ def get_corpus_state() -> CorpusState:
                     (SELECT COUNT(*) FROM documents) as doc_count,
                     (SELECT COUNT(*) FROM document_pages) as page_count,
                     (SELECT MAX(completed_at)::text FROM sync_history WHERE status = 'completed') as latest_sync,
-                    (SELECT MAX(created_at)::text FROM document_pages) as latest_page
+                    (SELECT MAX(updated_at)::text FROM documents) as latest_doc
             """)
             row = cursor.fetchone()
             
@@ -175,7 +175,7 @@ def get_corpus_state() -> CorpusState:
                     document_count=row.get('doc_count', 0) or 0,
                     page_count=row.get('page_count', 0) or 0,
                     latest_sync_at=row.get('latest_sync'),
-                    latest_page_updated_at=row.get('latest_page'),
+                    latest_page_updated_at=row.get('latest_doc'),
                     version_id=compute_corpus_version_id()
                 )
     except Exception as e:
