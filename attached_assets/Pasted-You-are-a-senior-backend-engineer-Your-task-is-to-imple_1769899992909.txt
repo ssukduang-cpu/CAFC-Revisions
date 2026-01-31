@@ -1,0 +1,149 @@
+You are a senior backend engineer. Your task is to implement (or harden, if already present) a Voyager AI “observability + replay” layer for the CAFC Opinion Assistant in Replit, with ZERO regression risk. This system is litigation-grade; do not change outputs.
+
+PRIMARY GOAL
+Achieve production-grade Voyager readiness by adding:
+1) Deterministic corpus versioning
+2) A minimal but complete per-query audit ledger (query_runs)
+3) A public policy manifest endpoint
+4) Protected Voyager endpoints to fetch corpus version + query-runs
+5) A golden regression test harness that proves NO CHANGE in behavior when feature flags are OFF
+6) Optional embeddings/export capabilities that are OFF by default and cannot affect answers unless explicitly enabled
+
+NON-NEGOTIABLE CONSTRAINTS (DO NOT VIOLATE)
+A) Do NOT modify or replace any existing core logic in:
+   - doctrine classification
+   - Postgres FTS retrieval
+   - precedence-aware ranking scorer
+   - controlling SCOTUS injection
+   - quotable passage extraction
+   - context build/pruning
+   - LLM prompt strategy (quote-first)
+   - citation verification (strict + case binding)
+   - web search fallback ingestion
+B) Any code you add must be additive, isolated, and guarded by feature flags.
+C) Default feature flags must be OFF:
+   - VOYAGER_EMBEDDINGS_ENABLED=false
+   - VOYAGER_EXPORT_ENABLED=false
+D) Logging must be best-effort:
+   - must not block the response path
+   - must not throw user-visible errors
+   - must be wrapped in try/except with debug-only logging
+E) Preserve existing API response payloads exactly; if you add fields, make them optional and do not alter existing keys/format.
+
+DELIVERABLES
+1) Implementation plan
+2) Minimal, explicit file-by-file code diffs
+3) SQL migration(s) that are backward compatible
+4) Tests + commands proving no regression with flags OFF
+5) Security controls for protected endpoints (API key header)
+
+ARCHITECTURE (ADD ONLY)
+Implement four modules:
+
+(1) CORPUS VERSIONING (MANDATORY)
+- Add backend/voyager/corpus_version.py with:
+  - compute_corpus_version_id(db) -> short deterministic id (e.g., first 12 chars of sha256)
+- Use deterministic inputs derived from DB (not wall clock):
+  - documents count
+  - document_pages count
+  - max(updated_at or ingested_at) for documents/pages
+  - latest successful sync timestamp from sync_history (if available)
+- Hash the concatenated normalized string with sha256; return first 12–16 chars.
+- Never block on version computation; cache for a short TTL in-memory (e.g., 60s) but ensure deterministic within that window.
+- Expose a lightweight function get_corpus_version_id() used by logging.
+
+(2) QUERY RUNS LEDGER (MANDATORY)
+- Create a new table query_runs capturing a COMPLETE replay record per query.
+- Store references/IDs and hashes, not raw PDF text.
+- Minimum columns:
+  - run_id UUID PRIMARY KEY
+  - created_at timestamp default now()
+  - conversation_id (nullable)
+  - user_query text
+  - doctrine_tag text nullable
+  - corpus_version_id text
+  - retrieval_manifest jsonb (ordered ids + scores; include page_ids/opinion_ids; no full text)
+  - context_manifest jsonb (ordered ids + token counts; no full text)
+  - model_config jsonb (model, temperature, max_tokens)
+  - prompt_fingerprint text (hash of system prompt or prompt version string)
+  - final_answer text
+  - citations_manifest jsonb (per citation: page_id, opinion_id, tier, match type, binding tags)
+  - latency_ms int nullable
+  - failure_reason text nullable
+- Implementation requirements:
+  - Generate run_id once at request start and reuse throughout.
+  - Insert/Update must be idempotent:
+    - INSERT with run_id, then UPDATE fields as they become known
+    - Use UPSERT (ON CONFLICT DO UPDATE) to avoid duplicates on retries.
+  - Writes must never fail the request; wrap in try/except.
+
+(3) POLICY MANIFEST ENDPOINT (MANDATORY)
+- Add /api/policy returning JSON with governance metadata and current flags:
+  - quote_first: true
+  - verification_required: true
+  - verification_tiers: ["STRONG","MODERATE","WEAK","UNVERIFIED"]
+  - case_level_fallback_cap: "MODERATE"
+  - web_fallback_domains_allowlist: (the configured include_domains)
+  - determinism: {temperature: 0.1, corpus_version_bound: true}
+  - feature_flags: {VOYAGER_EMBEDDINGS_ENABLED: false, VOYAGER_EXPORT_ENABLED: false}
+- This endpoint must not alter behavior and must not expose secrets.
+
+(4) VOYAGER ENDPOINTS + SECURITY (MANDATORY)
+Add endpoints:
+- GET /api/voyager/corpus-version (public) -> {corpus_version_id: "..."}
+- GET /api/voyager/query-runs (protected) -> paginated query_runs results
+Security:
+- Require API key on protected endpoints using header X-API-Key and compare with EXTERNAL_API_KEY (or a dedicated VOYAGER_API_KEY).
+- Never return query_runs without authentication.
+- Include basic pagination parameters (limit, offset) and default safe limits.
+
+OPTIONAL MODULES (OFF BY DEFAULT)
+(5) EMBEDDINGS (OPTIONAL; OFF by default)
+- Only implement stubs unless pgvector is already available.
+- Must NEVER be primary retrieval.
+- If enabled, use as recall augmenter only when FTS results < N or rank threshold.
+- Candidates must pass through existing ranking scorer unchanged.
+
+(6) EXPORT (OPTIONAL; OFF by default)
+- Implement voyager_adapter.py that maps query_runs into a Voyager-friendly event payload.
+- If export is enabled, do it asynchronously and best-effort; never block user response.
+- Failures must be logged at debug level only.
+
+INTEGRATION HOOKS (MINIMAL)
+- Add a single hook in backend/chat.py at request start to create run_id and start timing.
+- Add hooks at:
+  - post-retrieval (store retrieval_manifest)
+  - post-context-build (store context_manifest)
+  - post-generation (store final_answer)
+  - post-verification (store citations_manifest)
+  - end (store latency_ms/failure_reason)
+- Absolutely do not modify any ranking/retrieval/prompt logic—only observe outputs and store metadata.
+
+GOLDEN REGRESSION HARNESS (MANDATORY)
+Create backend/golden_tests.py that:
+- Runs a fixed set of high-signal queries across doctrines (101/102/103/112/claim construction, plus a NOT FOUND case).
+- With flags OFF, assert:
+  1) exact ordered retrieved page_ids/opinion_ids (where accessible)
+  2) exact final answer text
+  3) exact citation tiers and counts
+- Save baseline snapshots to a file (e.g., golden_baseline.json).
+- Provide command to run:
+  - python -m backend.golden_tests --mode baseline
+  - python -m backend.golden_tests --mode verify
+- Make the harness deterministic and stable.
+
+PERFORMANCE REQUIREMENTS
+- Logging overhead must be minimal.
+- DB writes for query_runs should be batched or deferred where possible.
+- If async tasks are used, ensure they do not create unbounded queues.
+
+OUTPUT REQUIREMENTS
+Respond with:
+1) A step-by-step implementation plan
+2) The SQL migration(s)
+3) File-by-file diffs (or precise edits)
+4) How to run tests
+5) A list of explicitly untouched core components (to prove non-interference)
+
+IF YOU ARE UNSURE
+Do not guess Voyager’s external schema. Keep external mapping isolated in voyager_adapter.py. The internal query_runs ledger is the authoritative source; adapters can change later without touching core logic.
