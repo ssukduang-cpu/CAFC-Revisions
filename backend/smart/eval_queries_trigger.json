@@ -1,0 +1,90 @@
+{
+  "description": "Trigger-focused evaluation queries designed to activate Phase 1 augmentation",
+  "version": "1.0",
+  "queries": [
+    {
+      "id": "multi_issue_101_112_a",
+      "query": "What are the requirements for patent eligibility under Alice 101 and written description under 112(a)?",
+      "expected_doctrines": ["101", "112"],
+      "category": "multi_issue",
+      "expected_trigger": true
+    },
+    {
+      "id": "multi_issue_101_112_b",
+      "query": "When is a software claim both abstract under 101 and lacking enablement under 112?",
+      "expected_doctrines": ["101", "112"],
+      "category": "multi_issue",
+      "expected_trigger": true
+    },
+    {
+      "id": "multi_issue_103_112",
+      "query": "How does obviousness analysis differ from written description requirements for genus claims?",
+      "expected_doctrines": ["103", "112"],
+      "category": "multi_issue",
+      "expected_trigger": true
+    },
+    {
+      "id": "thin_retrieval_rare_doctrine",
+      "query": "What is the Therasense materiality standard for inequitable conduct?",
+      "expected_doctrines": ["inequitable_conduct"],
+      "category": "thin_retrieval",
+      "expected_trigger": true
+    },
+    {
+      "id": "thin_retrieval_rare_terms",
+      "query": "How does the doctrine of equivalents apply to prosecution history estoppel after Festo?",
+      "expected_doctrines": ["DOE", "estoppel"],
+      "category": "thin_retrieval",
+      "expected_trigger": true
+    },
+    {
+      "id": "thin_retrieval_specific_case",
+      "query": "What is the Williamson v. Citrix test for means-plus-function claim construction?",
+      "expected_doctrines": ["112", "claim_construction"],
+      "category": "thin_retrieval",
+      "expected_trigger": true
+    },
+    {
+      "id": "named_case_doctrine_conflict",
+      "query": "Does KSR or Graham provide the correct framework for motivation to combine references?",
+      "expected_doctrines": ["103"],
+      "category": "named_case_conflict",
+      "expected_trigger": true
+    },
+    {
+      "id": "named_case_doctrine_conflict_2",
+      "query": "When Alice conflicts with Bilski on abstract idea determination, which controls?",
+      "expected_doctrines": ["101"],
+      "category": "named_case_conflict",
+      "expected_trigger": true
+    },
+    {
+      "id": "enablement_heavy_1",
+      "query": "What amount of experimentation is undue under the Wands factors for biological claims?",
+      "expected_doctrines": ["112"],
+      "category": "enablement",
+      "expected_trigger": true
+    },
+    {
+      "id": "enablement_heavy_2",
+      "query": "How do courts apply the full scope of enablement requirement to genus claims covering thousands of species?",
+      "expected_doctrines": ["112"],
+      "category": "enablement",
+      "expected_trigger": true
+    },
+    {
+      "id": "obviousness_combine_1",
+      "query": "After KSR, what evidence rebuts a prima facie case of obviousness for combining prior art references?",
+      "expected_doctrines": ["103"],
+      "category": "obviousness_combine",
+      "expected_trigger": true
+    },
+    {
+      "id": "obviousness_combine_2",
+      "query": "When can an examiner combine three or more prior art references to reject claims as obvious under 103?",
+      "expected_doctrines": ["103"],
+      "category": "obviousness_combine",
+      "expected_trigger": true
+    }
+  ]
+}

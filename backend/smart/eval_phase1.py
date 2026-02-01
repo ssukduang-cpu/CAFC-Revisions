@@ -38,15 +38,19 @@ from backend.smart.parse_replay_packet import (
 )
 
 
-def load_eval_queries() -> List[Dict]:
+def load_eval_queries(query_file: str = None) -> List[Dict]:
     """Load evaluation queries from JSON file."""
-    queries_path = Path(__file__).parent / "eval_queries.json"
+    if query_file:
+        queries_path = Path(query_file)
+    else:
+        queries_path = Path(__file__).parent / "eval_queries.json"
+    
     if queries_path.exists():
         with open(queries_path) as f:
             data = json.load(f)
             return data.get("queries", [])
     else:
-        logger.warning(f"eval_queries.json not found at {queries_path}, using fallback")
+        logger.warning(f"Query file not found at {queries_path}, using fallback")
         return FALLBACK_QUERIES
 
 
@@ -388,6 +392,7 @@ async def main():
     parser.add_argument("--compare", action="store_true", help="Run both and compare")
     parser.add_argument("--output", default=None, help="Output file path (auto-generated if not specified)")
     parser.add_argument("--queries", type=int, default=None, help="Limit number of queries")
+    parser.add_argument("--query_file", default=None, help="Path to queries JSON file (default: eval_queries.json)")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     
     args = parser.parse_args()
@@ -395,7 +400,7 @@ async def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
     
-    all_queries = load_eval_queries()
+    all_queries = load_eval_queries(args.query_file)
     queries = all_queries[:args.queries] if args.queries else all_queries
     
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")

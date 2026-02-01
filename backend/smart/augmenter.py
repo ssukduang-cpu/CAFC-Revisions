@@ -79,6 +79,7 @@ def augment_retrieval(
     }
     
     if not (smart_config.SMART_EMBED_RECALL_ENABLED or smart_config.SMART_QUERY_DECOMPOSE_ENABLED):
+        logger.debug(f"Phase 1 skipped: both flags are OFF (decompose={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}, embed={smart_config.SMART_EMBED_RECALL_ENABLED})")
         telemetry["skipped_reason"] = "flags_off"
         return baseline_results, telemetry
     
@@ -86,6 +87,14 @@ def augment_retrieval(
     telemetry["trigger_reasons"] = reasons
     
     if not should_trigger:
+        fts_count = len(baseline_results)
+        top_score = max((r.get("score", 0) or r.get("rank", 0) for r in baseline_results), default=0)
+        decompose_check = should_decompose(query) if smart_config.SMART_QUERY_DECOMPOSE_ENABLED else False
+        logger.debug(
+            f"Phase 1 triggers not met: fts_count={fts_count} (min={smart_config.MIN_FTS_RESULTS}), "
+            f"top_score={top_score:.3f} (min={smart_config.MIN_TOP_SCORE}), "
+            f"should_decompose={decompose_check}, decompose_enabled={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}"
+        )
         telemetry["skipped_reason"] = "triggers_not_met"
         return baseline_results, telemetry
     

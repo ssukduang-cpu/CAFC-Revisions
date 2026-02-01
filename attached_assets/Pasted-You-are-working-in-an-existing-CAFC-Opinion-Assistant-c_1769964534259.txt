@@ -1,0 +1,46 @@
+You are working in an existing CAFC Opinion Assistant codebase with Voyager observability and a Phase 1 smartness module already integrated. Your job is NOT to add Phase 2 features yet. Your job is to make sure we are moving in the right direction by proving Phase 1 triggers when it should, and that evaluation metrics reflect that truth.
+
+Hard requirements:
+- Additive-only changes. Do NOT modify core components: doctrine classification, Postgres FTS retrieval, ranking scorer, controlling SCOTUS injection, quotable passage extraction, context build/pruning, LLM prompt strategy, citation verification, web search fallback ingestion.
+- Fail-soft: no exceptions propagate to user responses; Phase 1 must be skippable; time budget respected.
+- All new behavior must be behind flags and default OFF.
+- Update eval infrastructure only as needed.
+
+Tasks:
+
+A) Create a dedicated “trigger-focused” eval set and prove non-zero trigger_rate
+1) Add a new eval query file: backend/smart/eval_queries_trigger.json with ~12 queries designed to trigger Phase 1 (multi-issue + thin retrieval + enablement/112 combos + mixed doctrine cues).
+   - Include at least: 3 multi-issue queries (101+112), 3 thin retrieval queries (rare terms), 2 named-case + doctrine conflicts, 2 enablement-heavy queries, 2 obviousness motivation “combine references” queries.
+2) Extend backend/smart/eval_phase1.py to accept --query_file PATH (default remains existing eval_queries.json) and to record per-query:
+   - phase1_triggered (bool)
+   - triggers (list of strings)
+   - candidates_added (int)
+   - phase1_latency_ms (int)
+3) Ensure error cases include these telemetry keys with defaults (false/0/[]). If already done, do not regress.
+
+B) Fix the likely cause of “trigger rate 0.0%”
+1) Add debug logging (debug-level only) inside the Phase 1 augmentation gate that prints why augmentation was skipped (e.g., flags off, not multi-issue, thin retrieval not met, time budget).
+2) Identify if the current trigger logic is too narrow for our queries. Without changing the core retrieval/ranker, adjust ONLY the Phase 1 trigger predicates (still behind SMART_QUERY_DECOMPOSE_ENABLED / SMART_EMBED_RECALL_ENABLED and any existing smart_config gating) so that:
+   - Multi-issue queries reliably set phase1_triggered=true and add >=1 candidate
+   - Thin retrieval condition triggers augmentation when baseline retrieval is weak (e.g., <8 results OR top score <0.15). If these thresholds exist, wire them correctly; if not, add them behind a new flag SMART_THIN_RETRIEVAL_TRIGGER_ENABLED default OFF.
+
+C) Add tests to prevent lying metrics
+1) Add tests in tests/test_eval_phase1_trigger_set.py verifying:
+   - When phase1_triggered present for 5 queries with [T,F,T,F,F], trigger_rate=0.4.
+   - candidates_added averages treat missing as 0.
+2) Add tests for parse_replay_packet / normalization if needed to ensure triggers and candidates_added are extracted even when replay packets are truncated.
+
+D) Add a single runner script for “directional check”
+Create scripts/run_phase1_directional_check.sh that:
+- Runs fail-soft checks
+- Runs unit tests for parse_replay_packet + aggregation + trigger set tests
+- Runs: python -m backend.smart.eval_phase1 --compare --queries 12 --query_file backend/smart/eval_queries_trigger.json
+- Prints: trigger_rate, avg_candidates_added, and latency deltas
+
+E) Verification output
+At the end, print:
+- The expected command to run
+- A sample of the resulting summary showing NON-ZERO trigger_rate and NON-ZERO avg_candidates_added when Phase 1 flags are enabled
+- Confirm no core components were modified
+
+Do the work now: implement code + tests + scripts, run them, and report results.
