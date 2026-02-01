@@ -1,0 +1,71 @@
+You are a senior backend engineer running “Phase 1 Smartness Verification & Measurement” for the CAFC Opinion Assistant. Phase 1 code is implemented (query decomposition + embeddings fallback) behind flags. Your job is to execute a repeatable verification workflow, add only minimal test/eval glue if missing, and produce a concise results report.
+
+NON-NEGOTIABLE CONSTRAINTS
+1) Do NOT modify any core legal engine logic:
+   - doctrine classification
+   - Postgres FTS retrieval
+   - precedence-aware ranking scorer
+   - controlling SCOTUS injection
+   - quotable passage extraction
+   - context build/pruning
+   - LLM prompt strategy (quote-first)
+   - citation verification
+   - web search fallback ingestion
+2) Only add/adjust scripts and eval harnesses. No refactors.
+3) Flags default OFF. Baseline must remain unchanged.
+
+GOALS
+A) Prove baseline unchanged with Phase 1 flags OFF
+- Run: ./scripts/voyager_verify.sh (full, golden tests included)
+- Also run: python -m backend.golden_tests --mode verify
+- Capture outputs and confirm: VERIFICATION RESULT: PASS and Regressions: 0
+
+B) Measure smartness improvements safely (Phase 1 eval)
+- Ensure there is an eval harness: python -m backend.smart.eval_phase1
+  - If missing, implement it exactly as a non-prod harness that:
+    * runs a curated set of “hard queries”
+    * executes baseline (flags OFF) and Phase 1 (flags ON)
+    * reports:
+      - NOT FOUND rate delta
+      - verified citation tier counts delta
+      - retrieved page_id count + ordering stability
+      - augmentation latency deltas
+    * writes results to a JSON file: reports/phase1_eval_<timestamp>.json
+- The eval harness must not affect production behavior.
+
+C) Validate Query Decomposition alone (flag ON, embeddings OFF)
+- Set env:
+  - SMART_QUERY_DECOMPOSE_ENABLED=true
+  - SMART_EMBED_RECALL_ENABLED=false
+- Run eval harness and record results.
+
+D) Build embeddings offline and validate embeddings fallback (flag ON)
+- Run embeddings build job:
+  - python -m backend.smart.build_embeddings --all
+- Confirm it reports counts built and completes without error.
+- Then set env:
+  - SMART_EMBED_RECALL_ENABLED=true
+- Re-run eval harness and record results.
+
+E) Fail-soft + latency bound checks
+- Add minimal tests or a small script (scripts/phase1_failsoft_checks.sh) to verify:
+  1) With SMART_EMBED_RECALL_ENABLED=true but embeddings missing/incomplete, requests still succeed and augmentation is skipped.
+  2) Augmentation respects a hard time budget (e.g., 500ms) and skips if exceeded.
+  3) No exceptions from Phase 1 propagate to the user path (must be caught).
+- These checks should run quickly and print PASS/FAIL.
+
+DELIVERABLES
+1) A short “Results Summary” including:
+   - baseline regression status (PASS/FAIL)
+   - decomposition-only eval results (key deltas)
+   - embeddings+decomposition eval results (key deltas)
+   - latency impact summary
+2) The path to the JSON report file(s)
+3) Any new script(s) added and how to run them
+4) Confirmation that core components were not changed
+
+IMPORTANT
+- If any Phase 1 change degrades verified citation tiers or increases NOT FOUND, do not “fix” the engine. Instead:
+  - report the failing queries
+  - suggest adjustments to triggers/thresholds or candidate caps (behind flags), but do not change defaults.
+- Keep all changes additive and non-prod where possible.
