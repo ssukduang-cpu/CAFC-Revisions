@@ -1,0 +1,72 @@
+You are a senior backend engineer performing the FINAL “Phase 1 Smartness Go/No-Go Run” for the CAFC Opinion Assistant. Phase 1 (query decomposition + embeddings fallback) is already implemented behind feature flags and verified as fail-soft. Your task is to RUN, MEASURE, and SUMMARIZE—NOT to refactor or add features.
+
+NON-NEGOTIABLE CONSTRAINTS
+1) Do NOT modify any core legal engine logic:
+   - doctrine classification
+   - Postgres FTS retrieval
+   - precedence-aware ranking scorer
+   - controlling SCOTUS injection
+   - quotable passage extraction
+   - context build/pruning
+   - LLM prompt strategy (quote-first)
+   - citation verification
+   - web search fallback ingestion
+2) Do NOT change default flag values in code.
+3) Only execute scripts, collect metrics, and summarize results.
+4) Any scripts added previously (eval, fail-soft) may be executed but not rewritten.
+
+GOALS
+A) Confirm baseline stability (flags OFF)
+- Run:
+  ./scripts/voyager_verify.sh
+- Confirm:
+  - OVERALL: PASS
+  - No regressions reported
+
+B) Measure Phase 1 impact — Query Decomposition ONLY
+- Set environment:
+  SMART_QUERY_DECOMPOSE_ENABLED=true
+  SMART_EMBED_RECALL_ENABLED=false
+- Run:
+  python -m backend.smart.eval_phase1 --compare
+- Capture metrics:
+  - NOT FOUND rate (baseline vs decomposed)
+  - verified citation count / tiers
+  - latency delta
+
+C) Measure Phase 1 impact — Decomposition + Embeddings
+- Confirm embeddings exist; if not, build once:
+  python -m backend.smart.build_embeddings --all
+- Set environment:
+  SMART_EMBED_RECALL_ENABLED=true
+- Re-run:
+  python -m backend.smart.eval_phase1 --compare
+- Capture same metrics as (B)
+
+D) Summarize Results
+Produce a concise summary with:
+1) Baseline status (PASS/FAIL)
+2) Query decomposition impact:
+   - NOT FOUND delta
+   - citation delta
+   - latency delta
+3) Embeddings fallback impact:
+   - NOT FOUND delta
+   - citation delta
+   - latency delta
+4) Clear recommendation:
+   - Enable query decomposition by default for thin-retrieval cases? (YES/NO)
+   - Enable embeddings fallback only for NOT FOUND / thin retrieval? (YES/NO)
+   - Keep any feature gated? (YES/NO + reason)
+
+OUTPUT FORMAT (STRICT)
+Return:
+1) “PHASE 1 FINAL RESULTS” section
+2) Bullet-point metric deltas
+3) One-paragraph recommendation
+4) Explicit confirmation that no core components were modified
+
+IMPORTANT
+- If any metric worsens (higher NOT FOUND, lower verified citations), do NOT attempt to fix the engine.
+- Simply report the affected queries and recommend tighter gating.
+- This prompt is for decision-making, not further development.

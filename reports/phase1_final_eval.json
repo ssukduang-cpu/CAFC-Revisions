@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-02-01T02:30:45.870350",
+  "baseline": {
+    "mode": "baseline",
+    "total_queries": 2,
+    "successful": 2,
+    "failed": 0,
+    "avg_latency_ms": 24911.5,
+    "not_found_rate": 0.0,
+    "avg_verified_citations": 0.0,
+    "scotus_coverage": 0.0,
+    "results": [
+      {
+        "query_id": "multi_101_112",
+        "success": true,
+        "latency_ms": 25831,
+        "not_found": false,
+        "verified_citations": 0,
+        "unverified_citations": 5,
+        "total_sources": 5,
+        "scotus_present": false,
+        "en_banc_present": false,
+        "answer_length": 0
+      },
+      {
+        "query_id": "ksr_motivation",
+        "success": true,
+        "latency_ms": 23992,
+        "not_found": false,
+        "verified_citations": 0,
+        "unverified_citations": 5,
+        "total_sources": 5,
+        "scotus_present": false,
+        "en_banc_present": false,
+        "answer_length": 0
+      }
+    ]
+  },
+  "decompose_only": {
+    "mode": "phase1",
+    "total_queries": 2,
+    "successful": 2,
+    "failed": 0,
+    "avg_latency_ms": 27082.0,
+    "not_found_rate": 0.0,
+    "avg_verified_citations": 0.0,
+    "scotus_coverage": 0.0,
+    "results": [
+      {
+        "query_id": "multi_101_112",
+        "success": true,
+        "latency_ms": 32346,
+        "not_found": false,
+        "verified_citations": 0,
+        "unverified_citations": 5,
+        "total_sources": 5,
+        "scotus_present": false,
+        "en_banc_present": false,
+        "answer_length": 0
+      },
+      {
+        "query_id": "ksr_motivation",
+        "success": true,
+        "latency_ms": 21818,
+        "not_found": false,
+        "verified_citations": 0,
+        "unverified_citations": 5,
+        "total_sources": 5,
+        "scotus_present": false,
+        "en_banc_present": false,
+        "answer_length": 0
+      }
+    ]
+  },
+  "deltas": {
+    "latency_ms": 2170.5,
+    "not_found": 0.0,
+    "verified": 0.0,
+    "scotus": 0.0
+  }
+}
