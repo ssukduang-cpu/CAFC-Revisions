@@ -27,6 +27,34 @@ from backend.smart.embeddings import semantic_recall, check_embeddings_available
 logger = logging.getLogger(__name__)
 
 
+def is_strong_baseline(fts_results: List[Dict]) -> Tuple[bool, Dict[str, Any]]:
+    """
+    Check if baseline retrieval is strong enough to skip augmentation.
+    
+    Returns:
+        (is_strong, evidence_dict)
+    """
+    fts_count = len(fts_results)
+    top_score = 0.0
+    if fts_results:
+        top_score = max(r.get("score", 0) or r.get("rank", 0) for r in fts_results)
+    
+    is_strong = (
+        fts_count >= smart_config.STRONG_BASELINE_MIN_SOURCES or
+        top_score >= smart_config.STRONG_BASELINE_MIN_SCORE
+    )
+    
+    evidence = {
+        "fts_count": fts_count,
+        "top_score": top_score,
+        "min_sources_threshold": smart_config.STRONG_BASELINE_MIN_SOURCES,
+        "min_score_threshold": smart_config.STRONG_BASELINE_MIN_SCORE,
+        "is_strong": is_strong
+    }
+    
+    return is_strong, evidence
+
+
 def should_augment(fts_results: List[Dict], query: str, query_id: str = None) -> Tuple[bool, List[str], Dict[str, Any]]:
     """
     Determine if Phase 1 augmentation should be triggered.
@@ -37,6 +65,21 @@ def should_augment(fts_results: List[Dict], query: str, query_id: str = None) ->
     reasons = []
     fts_count = len(fts_results)
     top_score = 0.0
+    
+    strong_baseline, strong_evidence = is_strong_baseline(fts_results)
+    if strong_baseline:
+        decision_context = log_trigger_decision(
+            query=query,
+            query_id=query_id,
+            fts_count=fts_count,
+            top_score=strong_evidence["top_score"],
+            min_fts_results=smart_config.MIN_FTS_RESULTS,
+            min_top_score=smart_config.MIN_TOP_SCORE
+        )
+        decision_context["final_decision"] = False
+        decision_context["trigger_reasons"] = ["skip_strong_baseline"]
+        decision_context["strong_baseline_evidence"] = strong_evidence
+        return False, ["skip_strong_baseline"], decision_context
     
     if fts_count < smart_config.MIN_FTS_RESULTS:
         reasons.append("thin_results")
@@ -64,6 +107,7 @@ def should_augment(fts_results: List[Dict], query: str, query_id: str = None) ->
     )
     decision_context["final_decision"] = len(reasons) > 0
     decision_context["trigger_reasons"] = reasons
+    decision_context["strong_baseline_evidence"] = strong_evidence
     
     return len(reasons) > 0, reasons, decision_context
 
@@ -93,11 +137,14 @@ def augment_retrieval(
         "triggered": False,
         "trigger_reasons": [],
         "subqueries_generated": 0,
+        "subqueries_list": [],
         "embed_candidates_added": 0,
         "decompose_candidates_added": 0,
         "total_candidates_added": 0,
+        "candidates_added_list": [],
         "augmentation_latency_ms": 0,
-        "skipped_reason": None
+        "skipped_reason": None,
+        "decision_context": None
     }
     
     if not (smart_config.SMART_EMBED_RECALL_ENABLED or smart_config.SMART_QUERY_DECOMPOSE_ENABLED):
@@ -130,6 +177,7 @@ def augment_retrieval(
             if remaining_budget > 100:
                 subqueries = decompose_query(query)
                 telemetry["subqueries_generated"] = len(subqueries)
+                telemetry["subqueries_list"] = subqueries
                 
                 for subquery in subqueries:
                     if candidates_added >= smart_config.MAX_AUGMENT_CANDIDATES:
@@ -148,6 +196,12 @@ def augment_retrieval(
                                 baseline_ids.add(r.get("id"))
                                 candidates_added += 1
                                 telemetry["decompose_candidates_added"] += 1
+                                telemetry["candidates_added_list"].append({
+                                    "id": r.get("id"),
+                                    "title": r.get("title", r.get("case_name", ""))[:100],
+                                    "source": "decomposition",
+                                    "subquery": subquery
+                                })
                     except Exception as e:
                         logger.debug(f"Subquery search failed: {e}")
         

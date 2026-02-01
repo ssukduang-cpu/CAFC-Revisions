@@ -1,0 +1,61 @@
+We have Phase 1 triggering (≈60–67%), but metrics regress: NOT FOUND increases (25%→33.3%) and latency delta is huge (+3–5s avg; one query ~30s→55s). Also the eval report entries don’t include debug, so we can’t diagnose why augmentation hurts.
+
+Goal
+
+Make Phase 1 observable and then stop it from harming answers. Do not build “Phase 2 features” yet. First fix Phase 1 regressions.
+
+Tasks
+
+1) Add debugging/trace artifacts into eval report JSON (baseline + phase1)
+In backend/smart/eval_phase1.py (or wherever phase1 results dict is assembled), include these fields per query:
+	•	debug (entire debug dict returned by generate_chat_response, if available)
+	•	debug.phase1_telemetry (already exists sometimes; ensure it’s populated)
+	•	decision_context from backend/smart/query_decompose.py (log_trigger_decision output) including:
+	•	doctrines_detected + evidence
+	•	multi_issue/thin_retrieval/low_score flags + evidence
+	•	should_decompose, word_count
+	•	The actual subqueries produced by decomposition (list of strings)
+	•	The candidate queries that were added (list)
+	•	A compact “retrieval delta” summary:
+	•	baseline top-K source IDs/titles vs phase1 top-K
+	•	total sources count
+	•	prompt/context token estimate if available
+
+If debug is None, store {} (null-safe) but never omit the key.
+
+2) Add a regression-focused test that asserts Phase 1 does not degrade NF for known cases
+Create tests/test_phase1_regression_guards.py:
+	•	Use a mocked LLM / replay packet fixture (no real calls) and simulate baseline success.
+	•	Ensure Phase 1 augmentation does not flip not_found from False → True when:
+	•	baseline has sufficient retrieval (e.g., ≥5 verified citations or ≥N sources)
+	•	The test should enforce that the new guard (below) works.
+
+3) Add a guardrail to prevent harmful augmentation when baseline retrieval is already strong
+Implement in should_augment() or right after baseline retrieval scoring:
+
+Skip augmentation if baseline looks “good enough.” Example predicates (pick one and make it configurable):
+	•	If baseline verified_citations >= 3 OR total_sources >= 8 OR top_score >= threshold, then:
+	•	phase1_triggered=False
+	•	candidates_added=0
+	•	record reason: ["skip_strong_baseline"]
+
+Also cap augmentation:
+	•	MAX_SUBQUERIES = 2
+	•	MAX_CANDIDATES_ADDED = 1 (for now)
+
+4) Add a per-query breakdown script to identify offenders
+Add scripts/print_phase1_regressions.py that loads latest reports/phase1_eval_*.json and prints:
+	•	queries where NF flips F→T
+	•	largest latency deltas
+	•	for each, print decision_context + subqueries + candidates + retrieval delta summary
+
+5) Fix flag confusion at the end of the run
+The run output says “Phase 1 flags set to decompose=False” even when Phase 1 clearly triggered earlier. Ensure:
+	•	Flags are set ON for the phase1 run and restored OFF after the run.
+	•	Logging prints both: “enabled for eval run” and “restored after eval”.
+
+Definition of Done
+	1.	Running:
+SMART_QUERY_DECOMPOSE_ENABLED=true python -m backend.smart.eval_phase1 --compare --queries 12 --query_file backend/smart/eval_queries_trigger.json
+produces a JSON report where each result contains debug, decision_context, subqueries, and candidates_added_list.
+	2.	The regression guard causes NOT FOUND rate to not increase vs baseline on the trigger set (or at least eliminates F→T flips), and latency delta drops substantially.

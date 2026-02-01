@@ -176,12 +176,23 @@ async def run_single_query(query_info: Dict) -> Dict[str, Any]:
         phase1_triggered = phase1_telemetry.get("triggered", False)
         phase1_latency = phase1_telemetry.get("augmentation_latency_ms", 0)
         
+        decision_context = phase1_telemetry.get("decision_context") or {}
+        subqueries_list = phase1_telemetry.get("subqueries_list", [])
+        candidates_added_list = phase1_telemetry.get("candidates_added_list", [])
+        
         answer_text = response_metrics.get("final_answer_text", "")
         answer_length = response_metrics.get("answer_length", 0)
         not_found = response_metrics.get("not_found", False)
         
         if answer_length == 0 and not not_found:
             logger.warning(f"Query {query_id}: answer_length=0 but not_found=False - flagging as suspect")
+        
+        retrieval_snapshot = replay_data.get("retrieval_manifest_snapshot", []) if replay_data else []
+        retrieval_delta = {
+            "total_sources": len(retrieval_snapshot),
+            "top_5_source_ids": [s.get("page_id") or s.get("id") for s in retrieval_snapshot[:5]],
+            "top_5_source_titles": [s.get("case_name", s.get("title", ""))[:60] for s in retrieval_snapshot[:5]],
+        }
         
         return {
             "run_id": run_id or f"local_{conversation_id}",
@@ -211,7 +222,13 @@ async def run_single_query(query_info: Dict) -> Dict[str, Any]:
             "phase1_triggered": phase1_triggered,
             "phase1_latency_ms": phase1_latency,
             
-            "retrieval_manifest_snapshot": replay_data.get("retrieval_manifest_snapshot", []) if replay_data else [],
+            "debug": debug or {},
+            "decision_context": decision_context,
+            "subqueries_list": subqueries_list,
+            "candidates_added_list": candidates_added_list,
+            "retrieval_delta": retrieval_delta,
+            
+            "retrieval_manifest_snapshot": retrieval_snapshot,
             
             "_replay_packet_available": replay_data is not None,
             "_suspect": answer_length == 0 and not not_found
@@ -248,6 +265,7 @@ async def run_eval_batch(queries: List[Dict], phase1_enabled: bool) -> Dict[str,
     decompose_on, embed_on = set_phase1_flags(phase1_enabled)
     
     mode = "phase1" if phase1_enabled else "baseline"
+    logger.info(f"[FLAGS] Enabled for {mode.upper()} eval run: decompose={decompose_on}, embed={embed_on}")
     
     if phase1_enabled and not verify_phase1_flags_enabled():
         logger.error(f"FATAL: Phase 1 mode requested but flags are OFF! decompose={decompose_on}, embed={embed_on}")
@@ -454,7 +472,9 @@ async def main():
     
     if args.baseline or args.compare:
         print("Running BASELINE evaluation...")
-        results["baseline"] = await run_eval_batch(queries, phase1_enabled=False)
+        baseline_batch = await run_eval_batch(queries, phase1_enabled=False)
+        results["baseline"] = {k: v for k, v in baseline_batch.items() if k != "results"}
+        results["baseline_results"] = baseline_batch.get("results", [])
         print(f"  Avg latency: {results['baseline']['avg_latency_ms']:.0f}ms")
         print(f"  NOT FOUND rate: {results['baseline']['not_found_rate']:.1%}")
         print(f"  Avg verified citations: {results['baseline']['avg_verified_citations']:.1f}")
@@ -462,7 +482,9 @@ async def main():
     
     if args.phase1 or args.compare:
         print("\nRunning PHASE 1 evaluation...")
-        results["phase1"] = await run_eval_batch(queries, phase1_enabled=True)
+        phase1_batch = await run_eval_batch(queries, phase1_enabled=True)
+        results["phase1"] = {k: v for k, v in phase1_batch.items() if k != "results"}
+        results["phase1_results"] = phase1_batch.get("results", [])
         print(f"  Avg latency: {results['phase1']['avg_latency_ms']:.0f}ms")
         print(f"  NOT FOUND rate: {results['phase1']['not_found_rate']:.1%}")
         print(f"  Avg verified citations: {results['phase1']['avg_verified_citations']:.1f}")
@@ -491,7 +513,8 @@ async def main():
     
     print("\n" + summary_text)
     
-    set_phase1_flags(False)
+    decompose_off, embed_off = set_phase1_flags(False)
+    logger.info(f"[FLAGS] Restored after eval: decompose={decompose_off}, embed={embed_off}")
     
     return 0
 
