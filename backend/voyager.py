@@ -448,7 +448,8 @@ def complete_query_run_async(
     answer: str,
     verifications: List[Dict[str, Any]],
     latency_ms: int,
-    failure_reason: Optional[str] = None
+    failure_reason: Optional[str] = None,
+    phase1_telemetry: Optional[Dict[str, Any]] = None
 ) -> None:
     """
     Complete a query run with all data in a single non-blocking call.
@@ -476,6 +477,15 @@ def complete_query_run_async(
                 "max_tokens": max_tokens,
                 "system_prompt_version": SYSTEM_PROMPT_VERSION
             }
+            
+            if phase1_telemetry:
+                model_config["phase1"] = {
+                    "enabled": phase1_telemetry.get("phase1_enabled", False),
+                    "triggered": phase1_telemetry.get("triggered", False),
+                    "trigger_reasons": phase1_telemetry.get("trigger_reasons", []),
+                    "candidates_added": phase1_telemetry.get("total_candidates_added", 0),
+                    "augmentation_latency_ms": phase1_telemetry.get("augmentation_latency_ms", 0)
+                }
             
             clean_verifications = []
             for v in verifications[:50]:

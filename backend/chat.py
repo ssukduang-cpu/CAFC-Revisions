@@ -2540,6 +2540,25 @@ async def generate_chat_response(
         pages = merged_pages[:15]  # Keep top 15
         logging.info(f"Context Merge Success - {len(all_named_case_pages)} named case pages + FTS = {len(pages)} total")
     
+    # Phase 1 Smartness: Augment retrieval when baseline results are thin
+    # This is ADDITIVE only - never replaces baseline, just adds candidates
+    _phase1_telemetry = None
+    try:
+        from backend.smart.augmenter import augment_retrieval
+        from backend.smart.config import SMART_EMBED_RECALL_ENABLED, SMART_QUERY_DECOMPOSE_ENABLED
+        
+        if SMART_EMBED_RECALL_ENABLED or SMART_QUERY_DECOMPOSE_ENABLED:
+            def search_func(q, limit=10):
+                return db.search_pages(q, opinion_ids, limit=limit, party_only=False)
+            
+            pages, _phase1_telemetry = augment_retrieval(
+                query=message,
+                baseline_results=pages,
+                search_func=search_func
+            )
+    except Exception as _phase1_err:
+        logging.debug(f"Phase 1 augmentation skipped: {_phase1_err}")
+    
     search_terms = message.split()
     
     # Fallback retrieval strategy for natural language questions
@@ -3372,7 +3391,8 @@ async def generate_chat_response(
                     answer=answer_markdown,
                     verifications=_verification_results,
                     latency_ms=_latency_ms,
-                    failure_reason=None
+                    failure_reason=None,
+                    phase1_telemetry=_phase1_telemetry
                 )
             except Exception as _ve:
                 logging.debug(f"Voyager logging skipped: {_ve}")
