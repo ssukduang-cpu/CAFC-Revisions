@@ -1,0 +1,111 @@
+{
+  "timestamp": "2026-02-01T17:19:54.779068",
+  "queries": 2,
+  "harness_version": "2.0",
+  "phase1": {
+    "mode": "phase1",
+    "timestamp": "2026-02-01T17:21:02.592420",
+    "total_queries": 2,
+    "successful": 2,
+    "failed": 0,
+    "suspect": 0,
+    "avg_latency_ms": 32576.0,
+    "not_found_rate": 0.5,
+    "avg_verified_citations": 1.0,
+    "avg_unverified_citations": 0.0,
+    "scotus_coverage": 0.0,
+    "en_banc_coverage": 0.0,
+    "phase1_trigger_rate": 0.5,
+    "avg_candidates_added": 0.5,
+    "avg_phase1_latency_ms": 478.5,
+    "avg_answer_length": 1704.5,
+    "results": [
+      {
+        "run_id": "adc25dfc-cc36-4124-82ef-68b581c5329e",
+        "query_id": "multi_issue_101_112_a",
+        "query": "What are the requirements for patent eligibility under Alice 101 and written description under 112(a)?",
+        "conversation_id": "eval_multi_issue_101_112_a_1769966395_7b916f84",
+        "success": true,
+        "generated_at": "2026-02-01T17:20:29.599858",
+        "final_answer_text": "The requirements for patent eligibility under **Alice \u00a7 101** and written description under **\u00a7 112(a)** are as follows:\n\n### Patent Eligibility under Alice \u00a7 101:\n1. **Two-Step Test for Patent Eligibility**:\n   - **Step One**: Determine whether the claims are directed to a patent-ineligible concept, such as a law of nature, natural phenomenon, or abstract idea. \"The first step of the Alice test requires a court to determine whether the claims at issue are directed to a patent-ineligible concept",
+        "answer_length": 3093,
+        "not_found": false,
+        "verified_citations": 2,
+        "unverified_citations": 0,
+        "tier_counts": {
+          "STRONG": 2,
+          "MODERATE": 0,
+          "WEAK": 0,
+          "UNVERIFIED": 0
+        },
+        "total_sources": 2,
+        "scotus_present": false,
+        "en_banc_present": false,
+        "latency_ms": 33462,
+        "augmentation_used": {
+          "decompose": true,
+          "embeddings": false
+        },
+        "triggers": [
+          "multi_issue"
+        ],
+        "candidates_added": 1,
+        "phase1_triggered": true,
+        "phase1_latency_ms": 957,
+        "retrieval_manifest_snapshot": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "_replay_packet_available": true,
+        "_suspect": false
+      },
+      {
+        "run_id": "local_eval_multi_issue_101_112_b_1769966430_49af59f4",
+        "query_id": "multi_issue_101_112_b",
+        "query": "When is a software claim both abstract under 101 and lacking enablement under 112?",
+        "conversation_id": "eval_multi_issue_101_112_b_1769966430_49af59f4",
+        "success": true,
+        "generated_at": "2026-02-01T17:21:02.091835",
+        "final_answer_text": "NOT FOUND IN PROVIDED OPINIONS.\n\n**New cases were ingested but no relevant excerpts found.**\n\nIngested: Teva Pharmaceuticals USA, Inc. v. Sandoz, Inc., Williamson v. Citrix Online, LLC, Vasudevan Software, Inc. v. Tibco Software, Inc.\n\nThe topic may require more specialized case law. Try refining your search terms.",
+        "answer_length": 316,
+        "not_found": true,
+        "verified_citations": 0,
+        "unverified_citations": 0,
+        "tier_counts": {
+          "STRONG": 0,
+          "MODERATE": 0,
+          "WEAK": 0,
+          "UNVERIFIED": 0
+        },
+        "total_sources": 0,
+        "scotus_present": false,
+        "en_banc_present": false,
+        "latency_ms": 31690,
+        "augmentation_used": {
+          "decompose": false,
+          "embeddings": false
+        },
+        "triggers": [],
+        "candidates_added": 0,
+        "phase1_triggered": false,
+        "phase1_latency_ms": 0,
+        "retrieval_manifest_snapshot": [],
+        "_replay_packet_available": false,
+        "_suspect": false
+      }
+    ]
+  }
+}

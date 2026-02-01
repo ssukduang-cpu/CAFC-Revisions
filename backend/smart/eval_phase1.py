@@ -76,11 +76,19 @@ FALLBACK_QUERIES = [
 ]
 
 
-def set_phase1_flags(enabled: bool):
-    """Set Phase 1 feature flags and reload modules to ensure they take effect."""
-    value = "true" if enabled else "false"
-    os.environ["SMART_EMBED_RECALL_ENABLED"] = value
-    os.environ["SMART_QUERY_DECOMPOSE_ENABLED"] = value
+def set_phase1_flags(enabled: bool, decompose_only: bool = True):
+    """
+    Set Phase 1 feature flags and reload modules to ensure they take effect.
+    
+    Args:
+        enabled: Whether to enable Phase 1 features
+        decompose_only: If True, only enable decomposition (not embeddings) since embeddings require build step
+    """
+    decompose_value = "true" if enabled else "false"
+    embed_value = "true" if enabled and not decompose_only else "false"
+    
+    os.environ["SMART_QUERY_DECOMPOSE_ENABLED"] = decompose_value
+    os.environ["SMART_EMBED_RECALL_ENABLED"] = embed_value
     
     from importlib import reload
     import backend.smart.config
@@ -89,8 +97,19 @@ def set_phase1_flags(enabled: bool):
     import backend.smart.augmenter
     reload(backend.smart.augmenter)
     
+    import backend.smart.query_decompose
+    reload(backend.smart.query_decompose)
+    
     from backend.smart import config as smart_config
-    logger.info(f"Phase 1 flags set to: {value} (verified: decompose={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}, embed={smart_config.SMART_EMBED_RECALL_ENABLED})")
+    logger.info(f"Phase 1 flags set to: decompose={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}, embed={smart_config.SMART_EMBED_RECALL_ENABLED}")
+    
+    return smart_config.SMART_QUERY_DECOMPOSE_ENABLED, smart_config.SMART_EMBED_RECALL_ENABLED
+
+
+def verify_phase1_flags_enabled() -> bool:
+    """Verify that at least one Phase 1 flag is enabled. Returns True if OK."""
+    from backend.smart import config as smart_config
+    return smart_config.SMART_QUERY_DECOMPOSE_ENABLED or smart_config.SMART_EMBED_RECALL_ENABLED
 
 
 async def run_single_query(query_info: Dict) -> Dict[str, Any]:
@@ -226,10 +245,16 @@ async def run_single_query(query_info: Dict) -> Dict[str, Any]:
 
 async def run_eval_batch(queries: List[Dict], phase1_enabled: bool) -> Dict[str, Any]:
     """Run evaluation batch with specified flag state."""
-    set_phase1_flags(phase1_enabled)
+    decompose_on, embed_on = set_phase1_flags(phase1_enabled)
     
     mode = "phase1" if phase1_enabled else "baseline"
-    logger.info(f"Running {len(queries)} queries in {mode} mode...")
+    
+    if phase1_enabled and not verify_phase1_flags_enabled():
+        logger.error(f"FATAL: Phase 1 mode requested but flags are OFF! decompose={decompose_on}, embed={embed_on}")
+        raise RuntimeError("Phase 1 evaluation requested but SMART_QUERY_DECOMPOSE_ENABLED is not true. "
+                          "Set environment variable or check flag configuration.")
+    
+    logger.info(f"Running {len(queries)} queries in {mode} mode (decompose={decompose_on}, embed={embed_on})...")
     
     results = []
     for i, query in enumerate(queries):

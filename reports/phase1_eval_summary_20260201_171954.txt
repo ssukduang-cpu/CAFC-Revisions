@@ -1,0 +1,15 @@
+============================================================
+PHASE 1 EVALUATION SUMMARY
+============================================================
+Generated: 2026-02-01T17:19:54.779068
+Queries evaluated: 2
+
+PHASE 1 (Augmented):
+  Latency: 32576ms
+  NOT FOUND rate: 50.0%
+  Verified citations: 1.0
+  SCOTUS coverage: 0.0%
+  Trigger rate: 50.0%
+  Avg candidates added: 0.5
+
+============================================================

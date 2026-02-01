@@ -162,6 +162,32 @@ class TestTriggerQueryFile:
         assert len(found) >= 2, f"Expected at least 2 of {required}, found {found}"
 
 
+class TestFlagConfiguration:
+    """Test that Phase 1 flags are properly configured for phase1 mode."""
+    
+    def test_set_phase1_flags_enables_decompose(self):
+        """Verify set_phase1_flags(True) enables decomposition."""
+        import os
+        from backend.smart.eval_phase1 import set_phase1_flags, verify_phase1_flags_enabled
+        
+        decompose, embed = set_phase1_flags(True, decompose_only=True)
+        
+        assert decompose is True, "SMART_QUERY_DECOMPOSE_ENABLED should be True"
+        assert verify_phase1_flags_enabled() is True, "At least one flag should be enabled"
+        
+        set_phase1_flags(False)
+    
+    def test_set_phase1_flags_disabled(self):
+        """Verify set_phase1_flags(False) disables both."""
+        from backend.smart.eval_phase1 import set_phase1_flags, verify_phase1_flags_enabled
+        
+        decompose, embed = set_phase1_flags(False)
+        
+        assert decompose is False, "SMART_QUERY_DECOMPOSE_ENABLED should be False"
+        assert embed is False, "SMART_EMBED_RECALL_ENABLED should be False"
+        assert verify_phase1_flags_enabled() is False, "No flags should be enabled"
+
+
 class TestShouldDecompose:
     """Test query decomposition detection logic."""
     

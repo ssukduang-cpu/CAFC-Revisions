@@ -3431,7 +3431,8 @@ async def generate_chat_response(
                 "return_branch": "ok",
                 "doctrine_tag": doctrine_tag,
                 "controlling_authorities_count": len(controlling_authorities),
-                "run_id": _run_id
+                "run_id": _run_id,
+                "phase1_telemetry": _phase1_telemetry
             }
         })
         

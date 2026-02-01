@@ -42,6 +42,16 @@ echo "  Query file: $QUERY_FILE"
 echo "  Query limit: $QUERY_LIMIT"
 echo ""
 
+# CRITICAL: Export Phase 1 flags so the eval harness runs with augmentation enabled
+# The harness will set these for each run, but we export them here as a fallback
+export SMART_QUERY_DECOMPOSE_ENABLED=true
+export SMART_EMBED_RECALL_ENABLED=false
+
+echo "  Environment flags exported:"
+echo "    SMART_QUERY_DECOMPOSE_ENABLED=$SMART_QUERY_DECOMPOSE_ENABLED"
+echo "    SMART_EMBED_RECALL_ENABLED=$SMART_EMBED_RECALL_ENABLED"
+echo ""
+
 python -m backend.smart.eval_phase1 --compare --queries "$QUERY_LIMIT" --query_file "$QUERY_FILE" --verbose
 
 echo ""
@@ -81,7 +91,7 @@ fi
 
 echo ""
 echo "Command to re-run:"
-echo "  python -m backend.smart.eval_phase1 --compare --queries $QUERY_LIMIT --query_file $QUERY_FILE"
+echo "  SMART_QUERY_DECOMPOSE_ENABLED=true python -m backend.smart.eval_phase1 --compare --queries $QUERY_LIMIT --query_file $QUERY_FILE"
 echo ""
 
 exit 0
