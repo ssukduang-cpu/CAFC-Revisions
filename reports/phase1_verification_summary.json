@@ -1,0 +1,57 @@
+{
+  "timestamp": "2026-02-01T02:30:00Z",
+  "verification_summary": {
+    "baseline_regression": "PASS",
+    "fail_soft_verification": "PASS",
+    "phase1_flags_default_off": true
+  },
+  "golden_tests": {
+    "mode": "verify",
+    "queries_tested": 4,
+    "status": {
+      "alice_101": "PASS",
+      "mayo_101": "PASS",
+      "ksr_obviousness": "PASS",
+      "graham_103": "PASS"
+    },
+    "regressions": 0
+  },
+  "voyager_verification": {
+    "policy_endpoint": "PASS",
+    "corpus_version": "PASS",
+    "auth_protection": "PASS",
+    "circuit_breaker_protected": "PASS",
+    "retention_stats": "PASS"
+  },
+  "fail_soft_checks": {
+    "flags_off_skips": "PASS",
+    "embeddings_missing_succeeds": "PASS",
+    "time_budget_respected": "PASS",
+    "no_exceptions_propagate": "PASS",
+    "total_passed": 4,
+    "total_failed": 0
+  },
+  "phase1_status": {
+    "decompose_enabled_default": false,
+    "embed_enabled_default": false,
+    "budget_ms": 500,
+    "max_candidates": 50,
+    "min_fts_results": 8,
+    "min_top_score": 0.15
+  },
+  "observations": {
+    "baseline_unchanged": "Verified - flags OFF produces identical behavior",
+    "decomposition_triggers": "Multi-issue queries (101+112) correctly detected",
+    "latency_impact": "Minimal when flags OFF (skipped immediately)",
+    "telemetry_captured": ["phase1.triggered", "trigger_reasons", "candidates_added", "augmentation_latency_ms"]
+  },
+  "recommendations": {
+    "embeddings_build": "Run 'python -m backend.smart.build_embeddings --all' before enabling embed flag",
+    "eval_harness": "Use 'python -m backend.smart.eval_phase1 --compare' for full comparison",
+    "monitoring": "Check query_runs.model_config for phase1 telemetry in production"
+  },
+  "files_created": [
+    "scripts/phase1_failsoft_checks.sh"
+  ],
+  "core_components_modified": false
+}
