@@ -211,7 +211,12 @@ async def run_single_query(query_info: Dict) -> Dict[str, Any]:
             "not_found": "unknown",
             "scotus_present": "unknown",
             "en_banc_present": "unknown",
-            "answer_length": 0
+            "answer_length": 0,
+            
+            "phase1_triggered": False,
+            "candidates_added": 0,
+            "triggers": [],
+            "phase1_latency_ms": 0
         }
 
 
@@ -234,7 +239,19 @@ async def run_eval_batch(queries: List[Dict], phase1_enabled: bool) -> Dict[str,
     suspect = [r for r in successful if r.get("_suspect")]
     
     def safe_avg(key: str) -> float:
+        """Average only numeric values present (excludes missing/unknown)."""
         vals = [r.get(key, 0) for r in successful if isinstance(r.get(key), (int, float))]
+        return sum(vals) / len(vals) if vals else 0
+    
+    def safe_avg_with_default(key: str, default: float = 0) -> float:
+        """Average treating missing values as default (0). Used for Phase 1 telemetry."""
+        vals = []
+        for r in successful:
+            v = r.get(key)
+            if isinstance(v, (int, float)):
+                vals.append(v)
+            else:
+                vals.append(default)
         return sum(vals) / len(vals) if vals else 0
     
     def safe_rate(key: str, value: bool) -> float:
@@ -257,8 +274,8 @@ async def run_eval_batch(queries: List[Dict], phase1_enabled: bool) -> Dict[str,
         "en_banc_coverage": safe_rate("en_banc_present", True),
         
         "phase1_trigger_rate": safe_rate("phase1_triggered", True),
-        "avg_candidates_added": safe_avg("candidates_added"),
-        "avg_phase1_latency_ms": safe_avg("phase1_latency_ms"),
+        "avg_candidates_added": safe_avg_with_default("candidates_added", 0),
+        "avg_phase1_latency_ms": safe_avg_with_default("phase1_latency_ms", 0),
         
         "avg_answer_length": safe_avg("answer_length"),
         

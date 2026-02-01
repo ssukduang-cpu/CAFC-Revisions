@@ -1,0 +1,36 @@
+Goal: Fix backend/smart/eval_phase1.py summary aggregation so Trigger rate and Avg candidates added reflect the per-query Phase 1 telemetry fields already present in the JSON (phase1_triggered, candidates_added, triggers, phase1_latency_ms, etc.). Do not modify core assistant logic, only eval harness + tests/fixtures as needed.
+
+Constraints (critical):
+	•	Additive-only changes limited to: backend/smart/eval_phase1.py, optional small helper in backend/smart/parse_replay_packet.py, and tests under tests/.
+	•	Do not change: doctrine classification, FTS retrieval, ranking scorer, controlling injection, context build/pruning, prompting, citation verification, voyager logging.
+	•	Preserve existing JSON schema/output paths; only correct the computed values.
+	•	Fail-soft: if telemetry fields are missing on a query, treat as 0/false rather than error.
+
+What to implement:
+	1.	Locate the per-query result object produced by the harness for both baseline and phase1 modes (likely a dict appended into results).
+	2.	Ensure each per-query result includes (already present per user):
+	•	phase1_triggered (bool)
+	•	candidates_added (int)
+	•	triggers (list[str] or list)
+	•	(optional) phase1_latency_ms (int)
+	3.	Fix summary computation to use these per-query fields:
+	•	trigger_rate = (# queries where phase1_triggered == True) / total_queries
+	•	avg_candidates_added = (sum(candidates_added)) / total_queries
+	•	If baseline mode: force these to 0 (or compute but should be 0 if fields absent).
+	4.	Do not compute trigger rate from top-level fields (e.g., don’t reuse stale avg_candidates_added or phase1_trigger_rate values); compute directly from the results list.
+	5.	Print summary values using consistent formatting:
+	•	Trigger rate: <percent>%
+	•	Avg candidates added: <float>
+	6.	Update the generated reports/phase1_eval_summary_*.txt to reflect corrected values.
+	7.	Add/adjust unit tests:
+	•	Create a minimal test fixture result list with 5 queries, 2 triggered, candidates_added [1,0,0,2,0] → trigger_rate = 0.4, avg_candidates_added = 0.6.
+	•	Assert the summary dict contains those exact computed values.
+
+Verification steps to run (must pass):
+	•	pytest -q (or at minimum the eval harness tests you add)
+	•	QUERY_LIMIT=5 ./scripts/run_phase1_eval.sh and confirm the summary now shows non-zero trigger rate / avg candidates added when Phase 1 augmentation occurs.
+
+Deliverables:
+	•	Code patch with corrected aggregation
+	•	1+ unit tests proving trigger rate and avg candidates added are computed from per-query telemetry
+	•	Keep output files and structure unchanged aside from corrected numbers
