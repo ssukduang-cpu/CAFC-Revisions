@@ -15,22 +15,30 @@ import time
 from typing import List, Dict, Tuple, Optional, Any
 
 from backend.smart import config as smart_config
-from backend.smart.query_decompose import should_decompose, decompose_query, get_decomposition_info
+from backend.smart.query_decompose import (
+    should_decompose, 
+    decompose_query, 
+    get_decomposition_info,
+    log_trigger_decision,
+    detect_doctrine_signals
+)
 from backend.smart.embeddings import semantic_recall, check_embeddings_available
 
 logger = logging.getLogger(__name__)
 
 
-def should_augment(fts_results: List[Dict], query: str) -> Tuple[bool, List[str]]:
+def should_augment(fts_results: List[Dict], query: str, query_id: str = None) -> Tuple[bool, List[str], Dict[str, Any]]:
     """
     Determine if Phase 1 augmentation should be triggered.
     
     Returns:
-        (should_trigger, list of trigger reasons)
+        (should_trigger, list of trigger reasons, decision_context)
     """
     reasons = []
+    fts_count = len(fts_results)
+    top_score = 0.0
     
-    if len(fts_results) < smart_config.MIN_FTS_RESULTS:
+    if fts_count < smart_config.MIN_FTS_RESULTS:
         reasons.append("thin_results")
     
     if fts_results:
@@ -40,10 +48,24 @@ def should_augment(fts_results: List[Dict], query: str) -> Tuple[bool, List[str]
     else:
         reasons.append("no_results")
     
-    if smart_config.SMART_QUERY_DECOMPOSE_ENABLED and should_decompose(query):
-        reasons.append("multi_issue")
+    multi_issue = False
+    if smart_config.SMART_QUERY_DECOMPOSE_ENABLED:
+        multi_issue = should_decompose(query)
+        if multi_issue:
+            reasons.append("multi_issue")
     
-    return len(reasons) > 0, reasons
+    decision_context = log_trigger_decision(
+        query=query,
+        query_id=query_id,
+        fts_count=fts_count,
+        top_score=top_score,
+        min_fts_results=smart_config.MIN_FTS_RESULTS,
+        min_top_score=smart_config.MIN_TOP_SCORE
+    )
+    decision_context["final_decision"] = len(reasons) > 0
+    decision_context["trigger_reasons"] = reasons
+    
+    return len(reasons) > 0, reasons, decision_context
 
 
 def augment_retrieval(
@@ -83,17 +105,13 @@ def augment_retrieval(
         telemetry["skipped_reason"] = "flags_off"
         return baseline_results, telemetry
     
-    should_trigger, reasons = should_augment(baseline_results, query)
+    should_trigger, reasons, decision_context = should_augment(baseline_results, query)
     telemetry["trigger_reasons"] = reasons
+    telemetry["decision_context"] = decision_context
     
     if not should_trigger:
-        fts_count = len(baseline_results)
-        top_score = max((r.get("score", 0) or r.get("rank", 0) for r in baseline_results), default=0)
-        decompose_check = should_decompose(query) if smart_config.SMART_QUERY_DECOMPOSE_ENABLED else False
         logger.debug(
-            f"Phase 1 triggers not met: fts_count={fts_count} (min={smart_config.MIN_FTS_RESULTS}), "
-            f"top_score={top_score:.3f} (min={smart_config.MIN_TOP_SCORE}), "
-            f"should_decompose={decompose_check}, decompose_enabled={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}"
+            f"Phase 1 triggers not met: {decision_context}"
         )
         telemetry["skipped_reason"] = "triggers_not_met"
         return baseline_results, telemetry

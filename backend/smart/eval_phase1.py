@@ -166,7 +166,7 @@ async def run_single_query(query_info: Dict) -> Dict[str, Any]:
             if replay_data.get("en_banc_present") not in [None, "unknown"]:
                 en_banc_present = replay_data["en_banc_present"]
         
-        phase1_telemetry = debug.get("phase1_telemetry", {})
+        phase1_telemetry = (debug or {}).get("phase1_telemetry") or {}
         augmentation_used = {
             "decompose": phase1_telemetry.get("decompose_enabled", False),
             "embeddings": phase1_telemetry.get("embed_enabled", False)
