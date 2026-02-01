@@ -1,13 +1,16 @@
 """
-Phase 1 Eval Harness
+Phase 1 Eval Harness (Hardened)
 
 Evaluates Phase 1 Smartness improvements by comparing baseline (flags OFF)
-vs augmented (flags ON) performance on a curated set of hard queries.
+vs augmented (flags ON) performance on a curated set of queries.
+
+Produces trustworthy metrics by parsing query_runs/replay-packet data.
 
 Usage:
     python -m backend.smart.eval_phase1 --baseline
     python -m backend.smart.eval_phase1 --phase1
     python -m backend.smart.eval_phase1 --compare
+    python -m backend.smart.eval_phase1 --compare --queries 5
 
 Output: JSON report with metrics comparison
 """
@@ -19,72 +22,52 @@ import logging
 import os
 import sys
 import time
+import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-HARD_QUERIES = [
+from backend.smart.parse_replay_packet import (
+    extract_metrics_from_response,
+    fetch_replay_packet,
+    normalize_replay_packet,
+    is_verified_tier
+)
+
+
+def load_eval_queries() -> List[Dict]:
+    """Load evaluation queries from JSON file."""
+    queries_path = Path(__file__).parent / "eval_queries.json"
+    if queries_path.exists():
+        with open(queries_path) as f:
+            data = json.load(f)
+            return data.get("queries", [])
+    else:
+        logger.warning(f"eval_queries.json not found at {queries_path}, using fallback")
+        return FALLBACK_QUERIES
+
+
+FALLBACK_QUERIES = [
+    {
+        "id": "alice_101_basic",
+        "query": "What is the Alice two-step test for patent eligibility under 35 USC 101?",
+        "expected_doctrines": ["101"],
+        "category": "alice_101"
+    },
+    {
+        "id": "ksr_motivation",
+        "query": "After KSR, what motivation is required to combine prior art references?",
+        "expected_doctrines": ["103"],
+        "category": "obviousness"
+    },
     {
         "id": "multi_issue_101_112",
         "query": "What are the requirements for patent eligibility under Alice and written description under 112?",
         "expected_doctrines": ["101", "112"],
         "category": "multi_issue"
-    },
-    {
-        "id": "multi_issue_103_secondary",
-        "query": "How do courts analyze obviousness and secondary considerations together in pharmaceutical patent cases?",
-        "expected_doctrines": ["103"],
-        "category": "multi_issue"
-    },
-    {
-        "id": "complex_claim_construction",
-        "query": "What is the role of prosecution history estoppel and specification context in claim construction?",
-        "expected_doctrines": ["112", "claim_construction"],
-        "category": "complex"
-    },
-    {
-        "id": "rare_doctrine",
-        "query": "What are the elements required to prove inequitable conduct before the CAFC?",
-        "expected_doctrines": ["inequitable_conduct"],
-        "category": "rare"
-    },
-    {
-        "id": "damages_apportionment",
-        "query": "How does the Federal Circuit apply the entire market value rule and apportionment in damages calculations?",
-        "expected_doctrines": ["damages"],
-        "category": "damages"
-    },
-    {
-        "id": "alice_abstract_idea",
-        "query": "What types of claims have been found to be directed to abstract ideas under Alice step one?",
-        "expected_doctrines": ["101"],
-        "category": "eligibility"
-    },
-    {
-        "id": "enablement_undue_experimentation",
-        "query": "What factors determine whether undue experimentation is required for enablement under Wands?",
-        "expected_doctrines": ["112"],
-        "category": "disclosure"
-    },
-    {
-        "id": "doe_equivalents",
-        "query": "What is the function-way-result test for doctrine of equivalents infringement?",
-        "expected_doctrines": ["infringement"],
-        "category": "infringement"
-    },
-    {
-        "id": "ksr_motivation",
-        "query": "After KSR, what motivation is required to combine prior art references for obviousness?",
-        "expected_doctrines": ["103"],
-        "category": "obviousness"
-    },
-    {
-        "id": "markman_construction",
-        "query": "What is the standard of review for Markman claim construction rulings on appeal?",
-        "expected_doctrines": ["claim_construction"],
-        "category": "procedure"
     }
 ]
 
@@ -107,58 +90,128 @@ def set_phase1_flags(enabled: bool):
 
 
 async def run_single_query(query_info: Dict) -> Dict[str, Any]:
-    """Run a single query and collect metrics."""
+    """
+    Run a single query and collect comprehensive metrics.
+    
+    Uses both direct response parsing AND query_runs/replay-packet for reliable data.
+    """
     from backend.chat import generate_chat_response
     
     query = query_info["query"]
     query_id = query_info["id"]
+    run_uuid = str(uuid.uuid4())[:8]
+    conversation_id = f"eval_{query_id}_{int(time.time())}_{run_uuid}"
     
     start_time = time.time()
     
     try:
         result = await generate_chat_response(
             message=query,
-            conversation_id=f"eval_{query_id}_{int(time.time())}"
+            conversation_id=conversation_id
         )
         
         latency_ms = int((time.time() - start_time) * 1000)
         
-        answer = result.get("answer", "")
-        sources = result.get("sources", [])
+        response_metrics = extract_metrics_from_response(result)
         
-        not_found = "NOT FOUND" in answer or "not found" in answer.lower()
+        await asyncio.sleep(0.3)
         
-        verified_citations = 0
-        unverified_citations = 0
-        for src in sources:
-            tier = src.get("confidenceTier", "UNVERIFIED")
-            if tier in ["STRONG", "MODERATE"]:
-                verified_citations += 1
-            else:
-                unverified_citations += 1
+        debug = result.get("debug", {})
+        run_id = debug.get("run_id")
         
-        scotus_present = any("supreme" in str(s.get("caseName", "")).lower() for s in sources)
-        en_banc_present = any("en banc" in str(s.get("caseName", "")).lower() for s in sources)
+        replay_data = None
+        if run_id:
+            try:
+                replay_data = await fetch_replay_packet(run_id)
+            except Exception as e:
+                logger.debug(f"Could not fetch replay packet: {e}")
+        
+        verified_citations = response_metrics["verified_citations"]
+        unverified_citations = response_metrics["unverified_citations"]
+        tier_counts = response_metrics.get("tier_counts", {})
+        scotus_present = response_metrics["scotus_present"]
+        en_banc_present = response_metrics.get("en_banc_present", False)
+        
+        if replay_data:
+            if replay_data.get("verified_citations", 0) > 0 or replay_data.get("unverified_citations", 0) > 0:
+                verified_citations = replay_data["verified_citations"]
+                unverified_citations = replay_data["unverified_citations"]
+                tier_counts = replay_data.get("tier_counts", tier_counts)
+            
+            if replay_data.get("scotus_present") not in [None, "unknown"]:
+                scotus_present = replay_data["scotus_present"]
+            if replay_data.get("en_banc_present") not in [None, "unknown"]:
+                en_banc_present = replay_data["en_banc_present"]
+        
+        phase1_telemetry = debug.get("phase1_telemetry", {})
+        augmentation_used = {
+            "decompose": phase1_telemetry.get("decompose_enabled", False),
+            "embeddings": phase1_telemetry.get("embed_enabled", False)
+        }
+        triggers = phase1_telemetry.get("trigger_reasons", [])
+        candidates_added = phase1_telemetry.get("total_candidates_added", 0)
+        phase1_triggered = phase1_telemetry.get("triggered", False)
+        phase1_latency = phase1_telemetry.get("augmentation_latency_ms", 0)
+        
+        answer_text = response_metrics.get("final_answer_text", "")
+        answer_length = response_metrics.get("answer_length", 0)
+        not_found = response_metrics.get("not_found", False)
+        
+        if answer_length == 0 and not not_found:
+            logger.warning(f"Query {query_id}: answer_length=0 but not_found=False - flagging as suspect")
         
         return {
+            "run_id": run_id or f"local_{conversation_id}",
             "query_id": query_id,
+            "query": query,
+            "conversation_id": conversation_id,
             "success": True,
-            "latency_ms": latency_ms,
+            "generated_at": datetime.utcnow().isoformat(),
+            
+            "final_answer_text": answer_text[:500] if answer_text else None,
+            "answer_length": answer_length,
             "not_found": not_found,
+            
             "verified_citations": verified_citations,
             "unverified_citations": unverified_citations,
-            "total_sources": len(sources),
+            "tier_counts": tier_counts,
+            "total_sources": verified_citations + unverified_citations,
+            
             "scotus_present": scotus_present,
             "en_banc_present": en_banc_present,
-            "answer_length": len(answer)
+            
+            "latency_ms": latency_ms,
+            
+            "augmentation_used": augmentation_used,
+            "triggers": triggers,
+            "candidates_added": candidates_added,
+            "phase1_triggered": phase1_triggered,
+            "phase1_latency_ms": phase1_latency,
+            
+            "retrieval_manifest_snapshot": replay_data.get("retrieval_manifest_snapshot", []) if replay_data else [],
+            
+            "_replay_packet_available": replay_data is not None,
+            "_suspect": answer_length == 0 and not not_found
         }
         
     except Exception as e:
+        logger.error(f"Query {query_id} failed: {e}")
         return {
+            "run_id": f"error_{conversation_id}",
             "query_id": query_id,
+            "query": query,
+            "conversation_id": conversation_id,
             "success": False,
             "error": str(e),
-            "latency_ms": int((time.time() - start_time) * 1000)
+            "latency_ms": int((time.time() - start_time) * 1000),
+            "generated_at": datetime.utcnow().isoformat(),
+            
+            "verified_citations": "unknown",
+            "unverified_citations": "unknown",
+            "not_found": "unknown",
+            "scotus_present": "unknown",
+            "en_banc_present": "unknown",
+            "answer_length": 0
         }
 
 
@@ -177,16 +230,38 @@ async def run_eval_batch(queries: List[Dict], phase1_enabled: bool) -> Dict[str,
         await asyncio.sleep(0.5)
     
     successful = [r for r in results if r.get("success")]
+    failed = [r for r in results if not r.get("success")]
+    suspect = [r for r in successful if r.get("_suspect")]
+    
+    def safe_avg(key: str) -> float:
+        vals = [r.get(key, 0) for r in successful if isinstance(r.get(key), (int, float))]
+        return sum(vals) / len(vals) if vals else 0
+    
+    def safe_rate(key: str, value: bool) -> float:
+        vals = [r for r in successful if r.get(key) == value]
+        return len(vals) / len(successful) if successful else 0
     
     summary = {
         "mode": mode,
+        "timestamp": datetime.utcnow().isoformat(),
         "total_queries": len(queries),
         "successful": len(successful),
-        "failed": len(queries) - len(successful),
-        "avg_latency_ms": sum(r["latency_ms"] for r in successful) / len(successful) if successful else 0,
-        "not_found_rate": sum(1 for r in successful if r.get("not_found")) / len(successful) if successful else 0,
-        "avg_verified_citations": sum(r.get("verified_citations", 0) for r in successful) / len(successful) if successful else 0,
-        "scotus_coverage": sum(1 for r in successful if r.get("scotus_present")) / len(successful) if successful else 0,
+        "failed": len(failed),
+        "suspect": len(suspect),
+        
+        "avg_latency_ms": safe_avg("latency_ms"),
+        "not_found_rate": safe_rate("not_found", True),
+        "avg_verified_citations": safe_avg("verified_citations"),
+        "avg_unverified_citations": safe_avg("unverified_citations"),
+        "scotus_coverage": safe_rate("scotus_present", True),
+        "en_banc_coverage": safe_rate("en_banc_present", True),
+        
+        "phase1_trigger_rate": safe_rate("phase1_triggered", True),
+        "avg_candidates_added": safe_avg("candidates_added"),
+        "avg_phase1_latency_ms": safe_avg("phase1_latency_ms"),
+        
+        "avg_answer_length": safe_avg("answer_length"),
+        
         "results": results
     }
     
@@ -194,25 +269,39 @@ async def run_eval_batch(queries: List[Dict], phase1_enabled: bool) -> Dict[str,
 
 
 def compare_results(baseline: Dict, phase1: Dict) -> Dict[str, Any]:
-    """Compare baseline vs phase1 results."""
+    """Compare baseline vs phase1 results with detailed deltas."""
+    
+    def delta(key: str):
+        b = baseline.get(key, 0)
+        p = phase1.get(key, 0)
+        if isinstance(b, str) or isinstance(p, str):
+            return "unknown"
+        return p - b
+    
     comparison = {
         "baseline": {
+            "total_queries": baseline["total_queries"],
+            "successful": baseline["successful"],
             "avg_latency_ms": baseline["avg_latency_ms"],
             "not_found_rate": baseline["not_found_rate"],
             "avg_verified_citations": baseline["avg_verified_citations"],
             "scotus_coverage": baseline["scotus_coverage"]
         },
         "phase1": {
+            "total_queries": phase1["total_queries"],
+            "successful": phase1["successful"],
             "avg_latency_ms": phase1["avg_latency_ms"],
             "not_found_rate": phase1["not_found_rate"],
             "avg_verified_citations": phase1["avg_verified_citations"],
-            "scotus_coverage": phase1["scotus_coverage"]
+            "scotus_coverage": phase1["scotus_coverage"],
+            "phase1_trigger_rate": phase1.get("phase1_trigger_rate", 0),
+            "avg_candidates_added": phase1.get("avg_candidates_added", 0)
         },
         "deltas": {
-            "latency_delta_ms": phase1["avg_latency_ms"] - baseline["avg_latency_ms"],
-            "not_found_delta": phase1["not_found_rate"] - baseline["not_found_rate"],
-            "verified_citations_delta": phase1["avg_verified_citations"] - baseline["avg_verified_citations"],
-            "scotus_coverage_delta": phase1["scotus_coverage"] - baseline["scotus_coverage"]
+            "latency_delta_ms": delta("avg_latency_ms"),
+            "not_found_delta": delta("not_found_rate"),
+            "verified_citations_delta": delta("avg_verified_citations"),
+            "scotus_coverage_delta": delta("scotus_coverage")
         },
         "improvements": {
             "reduced_not_found": phase1["not_found_rate"] < baseline["not_found_rate"],
@@ -224,26 +313,97 @@ def compare_results(baseline: Dict, phase1: Dict) -> Dict[str, Any]:
     return comparison
 
 
+def generate_summary_text(results: Dict) -> str:
+    """Generate human-readable summary text."""
+    lines = [
+        "=" * 60,
+        "PHASE 1 EVALUATION SUMMARY",
+        "=" * 60,
+        f"Generated: {results.get('timestamp', datetime.utcnow().isoformat())}",
+        f"Queries evaluated: {results.get('queries', 'unknown')}",
+        ""
+    ]
+    
+    if "baseline" in results:
+        b = results["baseline"]
+        lines.extend([
+            "BASELINE (Phase 1 OFF):",
+            f"  Latency: {b.get('avg_latency_ms', 0):.0f}ms",
+            f"  NOT FOUND rate: {b.get('not_found_rate', 0):.1%}",
+            f"  Verified citations: {b.get('avg_verified_citations', 0):.1f}",
+            f"  SCOTUS coverage: {b.get('scotus_coverage', 0):.1%}",
+            ""
+        ])
+    
+    if "phase1" in results:
+        p = results["phase1"]
+        lines.extend([
+            "PHASE 1 (Augmented):",
+            f"  Latency: {p.get('avg_latency_ms', 0):.0f}ms",
+            f"  NOT FOUND rate: {p.get('not_found_rate', 0):.1%}",
+            f"  Verified citations: {p.get('avg_verified_citations', 0):.1f}",
+            f"  SCOTUS coverage: {p.get('scotus_coverage', 0):.1%}",
+            f"  Trigger rate: {p.get('phase1_trigger_rate', 0):.1%}",
+            f"  Avg candidates added: {p.get('avg_candidates_added', 0):.1f}",
+            ""
+        ])
+    
+    if "comparison" in results:
+        d = results["comparison"].get("deltas", {})
+        lines.extend([
+            "DELTAS (Phase 1 - Baseline):",
+            f"  Latency: {d.get('latency_delta_ms', 0):+.0f}ms",
+            f"  NOT FOUND: {d.get('not_found_delta', 0):+.1%}",
+            f"  Verified citations: {d.get('verified_citations_delta', 0):+.1f}",
+            f"  SCOTUS coverage: {d.get('scotus_coverage_delta', 0):+.1%}",
+            ""
+        ])
+    
+    lines.append("=" * 60)
+    
+    return "\n".join(lines)
+
+
 async def main():
-    parser = argparse.ArgumentParser(description="Phase 1 Evaluation Harness")
+    parser = argparse.ArgumentParser(description="Phase 1 Evaluation Harness (Hardened)")
     parser.add_argument("--baseline", action="store_true", help="Run baseline evaluation (flags OFF)")
     parser.add_argument("--phase1", action="store_true", help="Run Phase 1 evaluation (flags ON)")
     parser.add_argument("--compare", action="store_true", help="Run both and compare")
-    parser.add_argument("--output", default="phase1_eval_results.json", help="Output file path")
+    parser.add_argument("--output", default=None, help="Output file path (auto-generated if not specified)")
     parser.add_argument("--queries", type=int, default=None, help="Limit number of queries")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     
     args = parser.parse_args()
     
-    queries = HARD_QUERIES[:args.queries] if args.queries else HARD_QUERIES
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+    
+    all_queries = load_eval_queries()
+    queries = all_queries[:args.queries] if args.queries else all_queries
+    
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    if not args.output:
+        json_output = f"reports/phase1_eval_{timestamp}.json"
+        txt_output = f"reports/phase1_eval_summary_{timestamp}.txt"
+    else:
+        json_output = args.output
+        txt_output = args.output.replace(".json", "_summary.txt")
+    
+    os.makedirs("reports", exist_ok=True)
     
     print("\n" + "=" * 60)
-    print("PHASE 1 EVALUATION HARNESS")
+    print("PHASE 1 EVALUATION HARNESS (HARDENED)")
     print("=" * 60)
     print(f"Queries: {len(queries)}")
-    print(f"Output: {args.output}")
+    print(f"JSON output: {json_output}")
+    print(f"Summary output: {txt_output}")
     print("")
     
-    results = {"timestamp": datetime.utcnow().isoformat(), "queries": len(queries)}
+    results = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "queries": len(queries),
+        "harness_version": "2.0"
+    }
     
     if args.baseline or args.compare:
         print("Running BASELINE evaluation...")
@@ -251,6 +411,7 @@ async def main():
         print(f"  Avg latency: {results['baseline']['avg_latency_ms']:.0f}ms")
         print(f"  NOT FOUND rate: {results['baseline']['not_found_rate']:.1%}")
         print(f"  Avg verified citations: {results['baseline']['avg_verified_citations']:.1f}")
+        print(f"  SCOTUS coverage: {results['baseline']['scotus_coverage']:.1%}")
     
     if args.phase1 or args.compare:
         print("\nRunning PHASE 1 evaluation...")
@@ -258,6 +419,8 @@ async def main():
         print(f"  Avg latency: {results['phase1']['avg_latency_ms']:.0f}ms")
         print(f"  NOT FOUND rate: {results['phase1']['not_found_rate']:.1%}")
         print(f"  Avg verified citations: {results['phase1']['avg_verified_citations']:.1f}")
+        print(f"  SCOTUS coverage: {results['phase1']['scotus_coverage']:.1%}")
+        print(f"  Trigger rate: {results['phase1']['phase1_trigger_rate']:.1%}")
     
     if args.compare and "baseline" in results and "phase1" in results:
         print("\nCOMPARISON:")
@@ -269,10 +432,17 @@ async def main():
         print(f"  Verified citations delta: {comparison['deltas']['verified_citations_delta']:+.1f}")
         print(f"  SCOTUS coverage delta: {comparison['deltas']['scotus_coverage_delta']:+.1%}")
     
-    with open(args.output, "w") as f:
+    with open(json_output, "w") as f:
         json.dump(results, f, indent=2, default=str)
     
-    print(f"\nResults written to: {args.output}")
+    summary_text = generate_summary_text(results)
+    with open(txt_output, "w") as f:
+        f.write(summary_text)
+    
+    print(f"\nJSON results written to: {json_output}")
+    print(f"Summary written to: {txt_output}")
+    
+    print("\n" + summary_text)
     
     set_phase1_flags(False)
     

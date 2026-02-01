@@ -1,0 +1,59 @@
+{
+  "run_id": "test-run-001",
+  "created_at": "2026-01-15T10:30:00Z",
+  "conversation_id": "test_conv_001",
+  "user_query": "What is the Alice two-step test?",
+  "doctrine_tag": "101",
+  "corpus_version_id": "abc123",
+  "retrieval_manifest": {
+    "page_ids": ["page-1", "page-2", "page-3"],
+    "opinion_ids": ["op-1", "op-2"],
+    "origins": ["SCOTUS", "CAFC"],
+    "case_names": ["Alice Corp. v. CLS Bank", "Enfish v. Microsoft"]
+  },
+  "context_manifest": {
+    "page_ids": ["page-1", "page-2"],
+    "token_count": 5000
+  },
+  "model_config": {
+    "model": "gpt-4o",
+    "temperature": 0.1,
+    "phase1": {
+      "triggered": true,
+      "decompose_enabled": true,
+      "embed_enabled": false,
+      "trigger_reasons": ["multi_issue"],
+      "total_candidates_added": 5,
+      "augmentation_latency_ms": 250
+    }
+  },
+  "citations_manifest": [
+    {
+      "page_id": "page-1",
+      "opinion_id": "op-1",
+      "tier": "STRONG",
+      "match_type": "exact",
+      "binding_tags": ["strict"],
+      "score": 95
+    },
+    {
+      "page_id": "page-2",
+      "opinion_id": "op-2",
+      "tier": "MODERATE",
+      "match_type": "fuzzy",
+      "binding_tags": [],
+      "score": 75
+    },
+    {
+      "page_id": "page-3",
+      "opinion_id": "op-1",
+      "tier": "UNVERIFIED",
+      "match_type": "none",
+      "binding_tags": [],
+      "score": 0
+    }
+  ],
+  "final_answer": "The Alice two-step test is a framework for determining patent eligibility under 35 U.S.C. § 101. Step one asks whether the claim is directed to a patent-ineligible concept. Step two asks whether the claim elements transform the nature of the claim into a patent-eligible application.",
+  "latency_ms": 2500,
+  "failure_reason": null
+}

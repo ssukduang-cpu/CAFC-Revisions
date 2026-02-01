@@ -1,0 +1,100 @@
+You are a senior backend engineer. Your task: FIX and HARDEN the Phase 1 evaluation harness (backend/smart/eval_phase1.py and related scripts) so Phase 1 Smartness metrics are trustworthy. Do NOT change any core legal-engine logic. Only modify or add non-prod test/eval code and small telemetry parsing helpers as needed.
+
+NON-NEGOTIABLE CONSTRAINTS
+1) Do NOT modify any core logic:
+   - doctrine classification
+   - Postgres FTS retrieval
+   - precedence-aware ranking scorer
+   - controlling SCOTUS injection
+   - quotable passage extraction
+   - context build/pruning
+   - LLM prompt strategy (quote-first)
+   - citation verification
+   - web search fallback ingestion
+2) Only modify/add code under backend/smart/, scripts/, tests/, or reports/. No changes to production API handlers or ranking/verification code.
+3) All changes must be additive, behind debug/test flags or test-only paths, and fail-soft.
+4) The harness must be runnable locally and must not alter production data.
+
+OBJECTIVE (what the harness must provide)
+- For each evaluated query, produce these definitive fields:
+  - run_id (UUID)
+  - final_answer_text (string) and answer_length (chars)
+  - generated_at timestamp (from query_runs or API response)
+  - verified_citations: list of {page_id, opinion_id, tier (STRONG/MODERATE/WEAK/UNVERIFIED), match_type, binding_tags}
+  - verified_citations_count (count of tier != UNVERIFIED)
+  - unverified_citations_count
+  - total_sources (count)
+  - scotus_present (boolean) — true if any retrieved or injected controlling SCOTUS pages are present in retrieval_manifest or context_manifest
+  - en_banc_present (boolean)
+  - not_found (boolean)
+  - latency_ms (end-to-end)
+  - augmentation_used: {decompose: bool, embeddings: bool, added_candidates_count: int}
+  - triggers: list of trigger reasons (e.g., thin_results, low_top_score, multi_issue)
+  - retrieval_manifest_snapshot: ordered list of page_ids/opinion_ids (as captured from query_runs or retrieval hook)
+- The harness must assert these fields are present and non-empty where applicable; if any piece is unavailable, log a clear warning and mark that metric as "unknown" rather than zero.
+
+REPAIRS & FEATURES TO IMPLEMENT
+1) **Reliable source of truth**  
+   - Prefer reading from `query_runs` (DB table / API) for replayable metadata. If query_runs lacks final fields at test time, fallback to calling the protected replay-packet endpoint (use EXTERNAL_API_KEY from env) and parse the returned JSON.
+   - Add a small helper `backend/smart/parse_replay_packet.py` that normalizes fields (final_answer_text, citations with tiers, retrieval_manifest ordered IDs).
+
+2) **Capture final answer text and verification**  
+   - Ensure harness waits for verification step if verification is async: if query_runs indicates verification_pending, poll replay-packet up to a short timeout (e.g., 5s) before reading verification results. If still pending, mark verification as "incomplete" but include any available data.
+   - Compute `answer_length` by counting unicode codepoints in final_answer_text.
+
+3) **Count verified vs unverified citations correctly**  
+   - Parse citations_manifest and compute counts by tier (STRONG/MODERATE/WEAK vs UNVERIFIED).
+   - Add a deterministic function to detect "verified" tiers (tier != UNVERIFIED).
+
+4) **Detect SCOTUS / en banc presence**  
+   - Inspect retrieval_manifest/context_manifest for opinion_ids; if any opinion_id maps to SCOTUS or en banc in your documents metadata table, set scotus_present/en_banc_present true.
+   - If mapping metadata is absent, use simple heuristics: case names in citation strings containing "U.S." or "Supreme" or "en banc".
+
+5) **Expand evaluation set**  
+   - Replace the current 2-query set with a curated set of 15–25 queries covering:
+     - Alice §101 paraphrase (2)
+     - Mayo §101 (1)
+     - KSR motivation (1)
+     - Phillips/Markman claim construction (2)
+     - Enablement / written description §112 (2)
+     - Obviousness secondary considerations (1)
+     - Damages / remedies (1)
+     - NOT FOUND / rare edge cases (2)
+     - Paraphrase-heavy queries (2)
+     - Multi-issue compound queries (2)
+   - Provide the list as `backend/smart/eval_queries.json` (editable).
+
+6) **Produce human-readable & JSON reports**  
+   - Write per-run JSON objects into `reports/phase1_eval_<timestamp>.json` and a short plaintext summary `reports/phase1_eval_summary_<timestamp>.txt` showing deltas (NOT FOUND rate, verified citation delta, avg latency delta).
+   - Summary must include counts: baseline_total, phase_total, delta_not_found_pct, delta_verified_citations_avg, delta_latency_ms.
+
+7) **Add validation unit tests**  
+   - Add lightweight tests under tests/ verifying that parse_replay_packet works on sample replay_packet fixtures (include a few fixtures in backend/smart/fixtures/).
+
+8) **Maintain safety**  
+   - If any required field cannot be obtained without touching production internals, mark the metric as "unknown" and continue; do not change production behavior to populate it.
+   - All DB/API reads must be read-only and test-scoped.
+
+OUTPUT / DELIVERABLES
+- Updated/added harness files (list file diffs):
+  - backend/smart/parse_replay_packet.py
+  - backend/smart/eval_phase1.py (updated)
+  - backend/smart/eval_queries.json (new)
+  - backend/smart/fixtures/* (sample replay packets)
+  - tests/test_parse_replay_packet.py
+  - reports/ (generated after run)
+  - scripts/run_phase1_eval.sh (helper)
+- Commands to run:
+  - `./scripts/run_phase1_eval.sh` (runs baseline and augmented comparisons and writes reports)
+  - `python -m pytest tests/test_parse_replay_packet.py`
+- Post-run: prints a short plaintext summary and path to JSON report.
+- Keep all new code behind a test/eval flag if needed.
+
+ACCEPTANCE CRITERIA
+1) Running the harness produces `reports/phase1_eval_<timestamp>.json` with the fields listed above for every query.
+2) `answer_length` > 0 for queries that returned answers; if zero, harness must flag that run as suspect.
+3) Verified citation counts reflect actual verification tiers from query_runs/replay-packet.
+4) The summary shows meaningful deltas (or "unknown") and the script exits 0 on success.
+5) All new unit tests pass.
+
+If anything is uncertain about available fields in query_runs or replay-packet, do not attempt to change production pipeline—log the gap and mark metrics as "unknown." Produce the report regardless.

@@ -1,0 +1,146 @@
+{
+  "version": "1.0",
+  "description": "Curated evaluation queries for Phase 1 Smartness testing",
+  "queries": [
+    {
+      "id": "alice_101_basic",
+      "query": "What is the Alice two-step test for patent eligibility under 35 USC 101?",
+      "expected_doctrines": ["101"],
+      "category": "alice_101",
+      "difficulty": "easy"
+    },
+    {
+      "id": "alice_101_abstract",
+      "query": "What types of claims have been found to be directed to abstract ideas under Alice step one?",
+      "expected_doctrines": ["101"],
+      "category": "alice_101",
+      "difficulty": "medium"
+    },
+    {
+      "id": "mayo_101",
+      "query": "How does the Mayo framework apply to method claims involving natural phenomena?",
+      "expected_doctrines": ["101"],
+      "category": "mayo_101",
+      "difficulty": "medium"
+    },
+    {
+      "id": "ksr_motivation",
+      "query": "After KSR, what motivation is required to combine prior art references for obviousness?",
+      "expected_doctrines": ["103"],
+      "category": "ksr_obviousness",
+      "difficulty": "medium"
+    },
+    {
+      "id": "phillips_construction",
+      "query": "What is the standard for claim construction under Phillips v. AWH?",
+      "expected_doctrines": ["claim_construction"],
+      "category": "claim_construction",
+      "difficulty": "medium"
+    },
+    {
+      "id": "markman_review",
+      "query": "What is the standard of review for Markman claim construction rulings on appeal?",
+      "expected_doctrines": ["claim_construction"],
+      "category": "claim_construction",
+      "difficulty": "easy"
+    },
+    {
+      "id": "enablement_wands",
+      "query": "What factors determine whether undue experimentation is required for enablement under Wands?",
+      "expected_doctrines": ["112"],
+      "category": "enablement_112",
+      "difficulty": "medium"
+    },
+    {
+      "id": "written_description",
+      "query": "What is the written description requirement under 35 USC 112 and how is possession shown?",
+      "expected_doctrines": ["112"],
+      "category": "written_description_112",
+      "difficulty": "medium"
+    },
+    {
+      "id": "secondary_considerations",
+      "query": "What are the secondary considerations of non-obviousness and how are they weighed?",
+      "expected_doctrines": ["103"],
+      "category": "obviousness_secondary",
+      "difficulty": "medium"
+    },
+    {
+      "id": "damages_emvr",
+      "query": "How does the Federal Circuit apply the entire market value rule in patent damages?",
+      "expected_doctrines": ["damages"],
+      "category": "damages",
+      "difficulty": "hard"
+    },
+    {
+      "id": "rare_inequitable",
+      "query": "What are the elements required to prove inequitable conduct before the CAFC?",
+      "expected_doctrines": ["inequitable_conduct"],
+      "category": "rare_doctrine",
+      "difficulty": "hard"
+    },
+    {
+      "id": "rare_laches",
+      "query": "What is the doctrine of laches in patent litigation?",
+      "expected_doctrines": ["laches"],
+      "category": "rare_doctrine",
+      "difficulty": "hard"
+    },
+    {
+      "id": "paraphrase_obvious",
+      "query": "When can a skilled artisan be motivated to modify prior art to reach the claimed invention?",
+      "expected_doctrines": ["103"],
+      "category": "paraphrase",
+      "difficulty": "medium"
+    },
+    {
+      "id": "paraphrase_eligibility",
+      "query": "Under what circumstances is a software patent claim considered ineligible subject matter?",
+      "expected_doctrines": ["101"],
+      "category": "paraphrase",
+      "difficulty": "medium"
+    },
+    {
+      "id": "multi_issue_101_112",
+      "query": "What are the requirements for patent eligibility under Alice and written description under 112?",
+      "expected_doctrines": ["101", "112"],
+      "category": "multi_issue",
+      "difficulty": "hard"
+    },
+    {
+      "id": "multi_issue_103_secondary",
+      "query": "How do courts analyze obviousness and secondary considerations together in pharmaceutical cases?",
+      "expected_doctrines": ["103"],
+      "category": "multi_issue",
+      "difficulty": "hard"
+    },
+    {
+      "id": "doe_equivalents",
+      "query": "What is the function-way-result test for doctrine of equivalents infringement?",
+      "expected_doctrines": ["infringement"],
+      "category": "infringement",
+      "difficulty": "medium"
+    },
+    {
+      "id": "prosecution_estoppel",
+      "query": "What is the role of prosecution history estoppel in limiting claim scope?",
+      "expected_doctrines": ["claim_construction", "infringement"],
+      "category": "estoppel",
+      "difficulty": "medium"
+    },
+    {
+      "id": "indefiniteness",
+      "query": "What is the Nautilus standard for indefiniteness under 35 USC 112(b)?",
+      "expected_doctrines": ["112"],
+      "category": "indefiniteness",
+      "difficulty": "medium"
+    },
+    {
+      "id": "means_plus_function",
+      "query": "How are means-plus-function claims construed under 35 USC 112(f)?",
+      "expected_doctrines": ["112", "claim_construction"],
+      "category": "means_plus_function",
+      "difficulty": "hard"
+    }
+  ]
+}
