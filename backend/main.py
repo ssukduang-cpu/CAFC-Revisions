@@ -95,6 +95,48 @@ async def startup_voyager():
     except Exception as e:
         logger.error(f"Error initializing Voyager: {e}")
 
+@app.on_event("startup")
+async def startup_auto_sync():
+    """Start the automatic opinion sync background task."""
+    import os
+    if os.environ.get("ENABLE_AUTO_SYNC", "true").lower() == "true":
+        asyncio.create_task(auto_sync_loop())
+        logger.info("Automatic opinion sync enabled (runs every 24 hours)")
+    else:
+        logger.info("Automatic opinion sync disabled")
+
+async def auto_sync_loop():
+    """Background loop that syncs new opinions from Federal Circuit daily."""
+    from backend.scheduled_sync import run_scheduled_sync, get_last_sync_date
+    from datetime import datetime, timedelta
+    
+    await asyncio.sleep(60)
+    
+    while True:
+        try:
+            last_sync = get_last_sync_date()
+            should_sync = False
+            
+            if not last_sync:
+                should_sync = True
+                logger.info("No previous sync found, starting initial sync")
+            else:
+                last_dt = datetime.strptime(last_sync, "%Y-%m-%d")
+                if datetime.now() - last_dt > timedelta(hours=24):
+                    should_sync = True
+                    logger.info(f"Last sync was {last_sync}, starting daily sync")
+            
+            if should_sync:
+                result = await run_scheduled_sync(sync_type="scheduled", force=False)
+                if result.get('success'):
+                    logger.info(f"Auto sync completed: found {result.get('opinions_found', 0)}, ingested {result.get('opinions_ingested', 0)}")
+                else:
+                    logger.error(f"Auto sync failed: {result.get('error')}")
+        except Exception as e:
+            logger.error(f"Auto sync error: {e}")
+        
+        await asyncio.sleep(3600)
+
 def to_camel_case(snake_str: str) -> str:
     components = snake_str.split('_')
     return components[0] + ''.join(x.title() for x in components[1:])

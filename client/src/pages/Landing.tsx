@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Scale, Shield, BookOpen, ArrowRight } from "lucide-react";
+import { Scale, ArrowRight } from "lucide-react";
 
 export default function Landing() {
   return (
@@ -29,44 +29,12 @@ export default function Landing() {
             Natural-language conversations with precedential opinions from the Court of Appeals for the Federal Circuit. Citation-backed answers directly from opinion text.
           </p>
 
-          <Button size="lg" asChild className="mb-16" data-testid="get-started-button">
+          <Button size="lg" asChild data-testid="get-started-button">
             <a href="/api/login">
               Get Started
               <ArrowRight className="h-5 w-5 ml-2" />
             </a>
           </Button>
-
-          <div className="grid md:grid-cols-3 gap-8 text-left">
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm border">
-              <div className="p-3 bg-primary/10 rounded-lg w-fit mb-4">
-                <Scale className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Citation-Grounded</h3>
-              <p className="text-muted-foreground">
-                Every answer includes verbatim quotes and proper citations from CAFC opinions. 93.9% verification accuracy.
-              </p>
-            </div>
-
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm border">
-              <div className="p-3 bg-primary/10 rounded-lg w-fit mb-4">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Attorney Mode</h3>
-              <p className="text-muted-foreground">
-                Strict provenance verification flags unverified statements. Built for litigation-grade research.
-              </p>
-            </div>
-
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm border">
-              <div className="p-3 bg-primary/10 rounded-lg w-fit mb-4">
-                <BookOpen className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Precedential Opinions</h3>
-              <p className="text-muted-foreground">
-                Access the full corpus of CAFC precedential opinions plus landmark SCOTUS patent cases.
-              </p>
-            </div>
-          </div>
         </main>
 
         <footer className="text-center text-sm text-muted-foreground mt-16 pb-8">
