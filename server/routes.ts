@@ -1,10 +1,15 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import httpProxy from "http-proxy";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 
 const PYTHON_PORT = 8000;
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<void> {
+  // Set up Replit Auth FIRST (before other routes)
+  await setupAuth(app);
+  registerAuthRoutes(app);
+
   const proxy = httpProxy.createProxyServer({
     target: `http://localhost:${PYTHON_PORT}`,
     changeOrigin: true,

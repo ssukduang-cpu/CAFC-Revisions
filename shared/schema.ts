@@ -4,6 +4,9 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+// Re-export auth models (required for Replit Auth)
+export * from "./models/auth";
+
 // Opinions table - stores metadata for CAFC opinions
 export const opinions = pgTable("opinions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -34,9 +37,13 @@ export const chunks = pgTable("chunks", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Conversations table - stores chat sessions
+// Import users for foreign key reference
+import { users } from "./models/auth";
+
+// Conversations table - stores chat sessions (linked to user)
 export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

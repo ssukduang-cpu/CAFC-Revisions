@@ -5,8 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppProvider } from "@/context/AppContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { AuthGuard } from "@/components/AuthGuard";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
+import UserAdmin from "@/pages/UserAdmin";
 import CitationGuide from "@/pages/CitationGuide";
 import TelemetryDashboard from "@/pages/TelemetryDashboard";
 import EvalDashboard from "@/pages/EvalDashboard";
@@ -17,6 +19,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/admin" component={Admin} />
+      <Route path="/users" component={UserAdmin} />
       <Route path="/citation-guide" component={CitationGuide} />
       <Route path="/telemetry" component={TelemetryDashboard} />
       <Route path="/eval" component={EvalDashboard} />
@@ -32,7 +35,9 @@ function App() {
         <AppProvider>
           <TooltipProvider>
             <Toaster />
-            <Router />
+            <AuthGuard>
+              <Router />
+            </AuthGuard>
           </TooltipProvider>
         </AppProvider>
       </ThemeProvider>

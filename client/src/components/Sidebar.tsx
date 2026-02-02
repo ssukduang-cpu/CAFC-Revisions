@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings, HelpCircle, Shield, ShieldOff, BarChart3 } from "lucide-react";
+import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings, HelpCircle, Shield, ShieldOff, BarChart3, LogOut, Users } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/context/ThemeContext";
@@ -28,6 +28,8 @@ import { useApp } from "@/context/AppContext";
 import { useConversations, useCreateConversation, useDeleteConversation, useClearAllConversations } from "@/hooks/useConversations";
 import { useStatus } from "@/hooks/useOpinions";
 import { HelpModal } from "@/components/HelpModal";
+import { useAuth } from "@/hooks/use-auth";
+import { Link } from "wouter";
 
 export function Sidebar() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -318,6 +320,60 @@ export function Sidebar() {
             <ThemeToggleButton />
           </div>
         </div>
+
+        <UserSection />
+      </div>
+    </div>
+  );
+}
+
+function UserSection() {
+  const { user, logout } = useAuth();
+
+  if (!user) return null;
+
+  return (
+    <div className="pt-3 mt-3 border-t border-sidebar-border space-y-2">
+      <div className="flex items-center gap-2">
+        {user.profileImageUrl ? (
+          <img src={user.profileImageUrl} alt="" className="h-8 w-8 rounded-full" />
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-medium">
+            {user.firstName?.[0] || user.email?.[0] || "U"}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium truncate" data-testid="user-name">
+            {user.firstName} {user.lastName}
+          </p>
+          <p className="text-[10px] text-sidebar-foreground/50 truncate">{user.email}</p>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-1">
+        {user.isAdmin && (
+          <Link href="/users">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 flex-1 text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground"
+              data-testid="admin-users-link"
+            >
+              <Users className="h-3.5 w-3.5 mr-1" />
+              Manage Users
+            </Button>
+          </Link>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => logout()}
+          className="h-7 flex-1 text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground"
+          data-testid="logout-button"
+        >
+          <LogOut className="h-3.5 w-3.5 mr-1" />
+          Sign Out
+        </Button>
       </div>
     </div>
   );
