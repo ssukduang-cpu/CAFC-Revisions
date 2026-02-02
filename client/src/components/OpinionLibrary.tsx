@@ -141,7 +141,7 @@ function OpinionCard({ opinion, onIngest, isIngesting }: OpinionRowProps) {
   );
 }
 
-const YEARS = Array.from({ length: 2024 - 2004 + 1 }, (_, i) => 2024 - i);
+const YEARS = Array.from({ length: 2026 - 2004 + 1 }, (_, i) => 2026 - i);
 
 export function OpinionLibrary() {
   const { showOpinionLibrary, setShowOpinionLibrary } = useApp();

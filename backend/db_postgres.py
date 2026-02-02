@@ -10,6 +10,8 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import hashlib
 
+logger = logging.getLogger(__name__)
+
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 # Legal stop words that add noise to FTS queries

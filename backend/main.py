@@ -13,6 +13,7 @@ import threading
 import logging
 
 from backend import db_postgres as db
+from backend.scraper import scrape_opinions
 
 logger = logging.getLogger(__name__)
 
@@ -204,34 +205,47 @@ async def get_status():
 @app.post("/api/opinions/sync")
 async def sync_opinions():
     """
-    DEPRECATED: Legacy sync endpoint that scraped CAFC website.
+    Sync new precedential opinions from the CAFC website.
     
-    For a complete backfill, use:
-    1. python scripts/build_manifest_courtlistener.py
-    2. POST /api/admin/load_manifest_file
-    
-    This endpoint now returns instructions instead of scraping.
+    Scrapes the Federal Circuit's official opinions page and adds
+    any new precedential opinions to the database.
     """
-    stats = db.get_ingestion_stats()
-    
-    return {
-        "success": True,
-        "message": "CAFC website scraping is deprecated. Use CourtListener-based manifest import instead.",
-        "deprecated": True,
-        "instructions": [
-            "For a complete backfill of all Federal Circuit precedential opinions:",
-            "1. Run: python scripts/build_manifest_courtlistener.py",
-            "2. Call: POST /api/admin/load_manifest_file",
-            "",
-            "Or use the batch ingest endpoint after importing:",
-            "  POST /api/admin/ingest_batch?limit=50"
-        ],
-        "current_status": {
-            "total_documents": stats["total_documents"],
-            "ingested": stats["ingested"],
-            "pending": stats["pending"]
+    try:
+        opinions = await scrape_opinions()
+        logger.info(f"Scraped {len(opinions)} precedential opinions from CAFC website")
+        
+        new_count = 0
+        for opinion in opinions:
+            result = db.add_opinion({
+                'pdf_url': opinion['pdf_url'],
+                'case_name': opinion['case_name'],
+                'appeal_no': opinion['appeal_no'],
+                'release_date': opinion['release_date'],
+                'origin': opinion.get('origin', ''),
+                'status': opinion['status'],
+                'document_type': opinion.get('document_type', 'OPINION')
+            })
+            if result:
+                new_count += 1
+        
+        db.record_cafc_sync(new_count, 0)
+        
+        stats = db.get_ingestion_stats()
+        
+        return {
+            "success": True,
+            "message": f"Synced from CAFC website. Found {len(opinions)} precedential opinions, {new_count} new.",
+            "new_opinions": new_count,
+            "total_scraped": len(opinions),
+            "current_status": {
+                "total_documents": stats["total_documents"],
+                "ingested": stats["ingested"],
+                "pending": stats["pending"]
+            }
         }
-    }
+    except Exception as e:
+        logger.error(f"CAFC sync failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
 @app.get("/api/opinions")
 async def list_opinions(
