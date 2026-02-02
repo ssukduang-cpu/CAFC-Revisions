@@ -101,41 +101,63 @@ async def startup_auto_sync():
     import os
     if os.environ.get("ENABLE_AUTO_SYNC", "true").lower() == "true":
         asyncio.create_task(auto_sync_loop())
-        logger.info("Automatic opinion sync enabled (runs every 24 hours)")
+        logger.info("Automatic opinion sync enabled (runs weekly from CAFC website)")
     else:
         logger.info("Automatic opinion sync disabled")
 
 async def auto_sync_loop():
-    """Background loop that syncs new opinions from Federal Circuit daily."""
-    from backend.scheduled_sync import run_scheduled_sync, get_last_sync_date
+    """Background loop that syncs new opinions from Federal Circuit website weekly."""
+    from backend.scraper import scrape_opinions
+    from backend.ingestion import ingest_opinion
     from datetime import datetime, timedelta
     
-    await asyncio.sleep(60)
+    await asyncio.sleep(120)
     
     while True:
         try:
-            last_sync = get_last_sync_date()
+            last_sync = db.get_last_cafc_sync_date()
             should_sync = False
             
             if not last_sync:
                 should_sync = True
-                logger.info("No previous sync found, starting initial sync")
+                logger.info("No previous CAFC sync found, starting initial sync")
             else:
-                last_dt = datetime.strptime(last_sync, "%Y-%m-%d")
-                if datetime.now() - last_dt > timedelta(hours=24):
+                if datetime.now() - last_sync > timedelta(days=7):
                     should_sync = True
-                    logger.info(f"Last sync was {last_sync}, starting daily sync")
+                    logger.info(f"Last CAFC sync was {last_sync.date()}, starting weekly sync")
             
             if should_sync:
-                result = await run_scheduled_sync(sync_type="scheduled", force=False)
-                if result.get('success'):
-                    logger.info(f"Auto sync completed: found {result.get('opinions_found', 0)}, ingested {result.get('opinions_ingested', 0)}")
-                else:
-                    logger.error(f"Auto sync failed: {result.get('error')}")
+                logger.info("Fetching new opinions from Federal Circuit website...")
+                opinions = await scrape_opinions()
+                new_count = 0
+                ingested_count = 0
+                
+                for opinion in opinions:
+                    existing = db.get_opinion_by_pdf_url(opinion['pdf_url'])
+                    if not existing:
+                        new_count += 1
+                        doc_id = db.add_opinion({
+                            'case_name': opinion['case_name'],
+                            'appeal_no': opinion['appeal_no'],
+                            'release_date': opinion['release_date'],
+                            'origin': opinion['origin'],
+                            'document_type': opinion['document_type'],
+                            'status': opinion['status'],
+                            'pdf_url': opinion['pdf_url'],
+                        })
+                        if doc_id:
+                            try:
+                                await ingest_opinion(doc_id)
+                                ingested_count += 1
+                            except Exception as e:
+                                logger.error(f"Failed to ingest {opinion['case_name']}: {e}")
+                
+                db.record_cafc_sync(new_count, ingested_count)
+                logger.info(f"CAFC sync completed: {len(opinions)} found, {new_count} new, {ingested_count} ingested")
         except Exception as e:
             logger.error(f"Auto sync error: {e}")
         
-        await asyncio.sleep(3600)
+        await asyncio.sleep(86400)
 
 def to_camel_case(snake_str: str) -> str:
     components = snake_str.split('_')

@@ -1776,3 +1776,61 @@ def get_latency_percentiles(start_date: datetime, end_date: datetime, mode: Opti
             """, (start_date, end_date))
         result = cursor.fetchone()
         return {"p50": result["p50"] or 0, "p95": result["p95"] or 0} if result else {"p50": 0, "p95": 0}
+
+
+# CAFC Auto-Sync Functions
+def get_last_cafc_sync_date() -> Optional[datetime]:
+    """Get the date of the last successful CAFC sync."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT completed_at 
+            FROM sync_history 
+            WHERE status = 'completed' AND sync_type = 'cafc_auto'
+            ORDER BY completed_at DESC 
+            LIMIT 1
+        """)
+        row = cursor.fetchone()
+        return row['completed_at'] if row else None
+
+def record_cafc_sync(new_found: int, ingested: int) -> None:
+    """Record a successful CAFC sync."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO sync_history (id, sync_type, status, started_at, completed_at, new_opinions_found, new_opinions_ingested)
+            VALUES (gen_random_uuid(), 'cafc_auto', 'completed', NOW(), NOW(), %s, %s)
+        """, (new_found, ingested))
+
+def get_opinion_by_pdf_url(pdf_url: str) -> Optional[Dict]:
+    """Get opinion by PDF URL (alias for get_document_by_url)."""
+    return get_document_by_url(pdf_url)
+
+def add_opinion(data: Dict) -> Optional[str]:
+    """Add a new opinion to the database. Returns document ID if successful."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO documents (
+                    id, pdf_url, case_name, appeal_number, release_date,
+                    status, origin, document_type, is_ingested
+                ) VALUES (
+                    gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, false
+                )
+                ON CONFLICT (pdf_url) DO NOTHING
+                RETURNING id
+            """, (
+                data['pdf_url'],
+                data.get('case_name', 'Unknown'),
+                data.get('appeal_no', ''),
+                data.get('release_date', ''),
+                data.get('status', 'Precedential'),
+                data.get('origin', 'CAFC'),
+                data.get('document_type', 'OPINION'),
+            ))
+            result = cursor.fetchone()
+            return result['id'] if result else None
+        except Exception as e:
+            logger.error(f"Error adding opinion: {e}")
+            return None

@@ -1,27 +1,20 @@
 """
-DEPRECATED: CAFC website scraper.
+CAFC website scraper for fetching new precedential opinions.
 
-This module is DEPRECATED. The sync endpoint now uses CourtListener API.
-
-For full backfill, use:
-    python scripts/build_manifest_courtlistener.py
-
-Then import via:
-    POST /api/admin/load_manifest_file
+Scrapes the Federal Circuit's official opinions page to find new cases.
 """
 import httpx
 from bs4 import BeautifulSoup
 from typing import List, Dict
 import re
-import warnings
+import logging
+
+logger = logging.getLogger(__name__)
 
 CAFC_URL = "https://www.cafc.uscourts.gov/home/case-information/opinions-orders/"
 
 async def scrape_opinions() -> List[Dict]:
-    warnings.warn(
-        "scrape_opinions() is deprecated. Use CourtListener API via scripts/build_manifest_courtlistener.py",
-        DeprecationWarning
-    )
+    """Scrape precedential opinions from the Federal Circuit website."""
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
         response = await client.get(CAFC_URL)
         response.raise_for_status()
