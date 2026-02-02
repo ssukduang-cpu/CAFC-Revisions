@@ -153,15 +153,17 @@ async def query_patent_law(
         raw_sources = response.get("sources", [])
         
         for src in raw_sources:
-            cv = src.get("citation_verification", {})
+            # Support both top-level fields (new contract) and nested (legacy)
+            tier = src.get("tier") or src.get("citation_verification", {}).get("tier", "UNKNOWN")
+            verified = src.get("verified") or src.get("citation_verification", {}).get("verified", False)
             sources.append(SourceInfo(
                 case_name=src.get("caseName", "Unknown"),
                 appeal_number=src.get("appealNo"),
                 release_date=src.get("releaseDate"),
                 page_number=src.get("pageNumber", 0),
                 quote=src.get("quote", "")[:500],
-                confidence_tier=cv.get("tier", "UNKNOWN"),
-                verified=cv.get("verified", False)
+                confidence_tier=tier,
+                verified=verified
             ))
         
         # Build citation summary

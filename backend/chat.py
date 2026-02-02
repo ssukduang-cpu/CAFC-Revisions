@@ -1630,13 +1630,11 @@ def build_sources_from_markers(
                 "court": unverified_court,
                 "precedential_status": "unknown",
                 "is_en_banc": False,
-                # Citation verification fields
-                "citation_verification": {
-                    "tier": "unverified",
-                    "score": 0,
-                    "signals": signals,
-                    "binding_method": binding_method
-                }
+                # Citation verification fields - MUST be at top level per contract
+                "tier": "unverified",
+                "score": 0,
+                "signals": signals,
+                "binding_method": "failed"
             })
             continue
 
@@ -1673,13 +1671,11 @@ def build_sources_from_markers(
             "court": page.get("origin", "CAFC"),
             "precedential_status": "precedential" if page.get("is_precedential", True) else "nonprecedential",
             "is_en_banc": page.get("is_en_banc", False),
-            # Citation verification fields (separate from ranking)
-            "citation_verification": {
-                "tier": tier,
-                "score": score,
-                "signals": signals,
-                "binding_method": binding_method
-            }
+            # Citation verification fields - MUST be at top level per contract
+            "tier": tier,
+            "score": score,
+            "signals": signals,
+            "binding_method": binding_method
         })
 
     # Apply composite scoring for precedence-aware ranking
@@ -3268,12 +3264,11 @@ async def generate_chat_response(
                         "pdf_url": f"/pdf/{p.get('opinion_id')}?page={p.get('page_number', 1)}",
                         "courtlistener_url": p.get('courtlistener_url', ''),
                         "court": p.get('origin', 'CAFC'),
-                        "citation_verification": {
-                            "tier": "moderate",
-                            "score": 50,
-                            "signals": ["fallback_source", "context_page"],
-                            "binding_method": "context"
-                        },
+                        # Citation verification fields - MUST be at top level per contract
+                        "tier": "moderate",
+                        "score": 50,
+                        "signals": ["fallback_source", "context_page"],
+                        "binding_method": "context",
                         "injected_as_controlling": p.get('injected_as_controlling', False)
                     }
                     explain = ranking_scorer.compute_composite_score(0.5, p, page_text)

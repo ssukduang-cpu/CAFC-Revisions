@@ -522,9 +522,10 @@ def _run_single_prompt(prompt_text: str, doctrine: str) -> Dict:
         failure_reasons: Dict[str, int] = defaultdict(int)
         sources = response.get("sources", [])
         for s in sources:
-            cv = s.get("citation_verification", {})
-            if cv.get("tier", "").upper() == "UNVERIFIED":
-                signals = cv.get("signals", [])
+            # Support both top-level fields (new contract) and nested (legacy)
+            tier = (s.get("tier") or s.get("citation_verification", {}).get("tier", "")).upper()
+            if tier == "UNVERIFIED":
+                signals = s.get("signals") or s.get("citation_verification", {}).get("signals", [])
                 quote = s.get("quote", "")
                 
                 # Classify failure using enhanced taxonomy

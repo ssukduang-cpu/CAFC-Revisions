@@ -649,10 +649,9 @@ def rank_sources_by_composite(
         opinion_id = source.get("opinion_id", "")
         page = pages_by_id.get(opinion_id, {})
         
-        # Get citation verification score if available (new structure)
-        citation_verif = source.get("citation_verification", {})
-        verif_score = citation_verif.get("score", 0)
-        verif_tier = citation_verif.get("tier", "")
+        # Get citation verification score - support both top-level (new) and nested (legacy)
+        verif_score = source.get("score") or source.get("citation_verification", {}).get("score", 0)
+        verif_tier = source.get("tier") or source.get("citation_verification", {}).get("tier", "")
         
         # Compute base relevance score from verification or default
         if verif_score:

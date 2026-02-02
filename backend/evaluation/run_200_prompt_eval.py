@@ -273,12 +273,14 @@ def run_single_query(query: str, doctrine: str) -> Dict:
         sources = result.get("sources", [])
         binding_failures = []
         for s in sources:
-            cv = s.get("citation_verification", {})
-            if cv.get("tier", "").upper() == "UNVERIFIED":
+            # Support both top-level fields (new contract) and nested (legacy)
+            tier = (s.get("tier") or s.get("citation_verification", {}).get("tier", "")).upper()
+            if tier == "UNVERIFIED":
+                signals = s.get("signals") or s.get("citation_verification", {}).get("signals", [])
                 binding_failures.append({
                     "case_name": s.get("case_name", "Unknown"),
                     "quote": s.get("quote", "")[:100],
-                    "signals": cv.get("signals", [])
+                    "signals": signals
                 })
         
         return {
