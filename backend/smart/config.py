@@ -9,6 +9,9 @@ import os
 SMART_EMBED_RECALL_ENABLED = os.environ.get("SMART_EMBED_RECALL_ENABLED", "false").lower() == "true"
 SMART_QUERY_DECOMPOSE_ENABLED = os.environ.get("SMART_QUERY_DECOMPOSE_ENABLED", "false").lower() == "true"
 
+# Eval-only flag: bypass strong baseline gating to force Phase 1 to run
+EVAL_FORCE_PHASE1 = os.environ.get("EVAL_FORCE_PHASE1", "false").lower() == "true"
+
 PHASE1_BUDGET_MS = int(os.environ.get("PHASE1_BUDGET_MS", "500"))
 MAX_AUGMENT_CANDIDATES = int(os.environ.get("MAX_AUGMENT_CANDIDATES", "1"))
 MIN_FTS_RESULTS = int(os.environ.get("MIN_FTS_RESULTS", "8"))

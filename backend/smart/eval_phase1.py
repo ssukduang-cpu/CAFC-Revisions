@@ -76,19 +76,22 @@ FALLBACK_QUERIES = [
 ]
 
 
-def set_phase1_flags(enabled: bool, decompose_only: bool = True):
+def set_phase1_flags(enabled: bool, decompose_only: bool = True, force_trigger: bool = True):
     """
     Set Phase 1 feature flags and reload modules to ensure they take effect.
     
     Args:
         enabled: Whether to enable Phase 1 features
         decompose_only: If True, only enable decomposition (not embeddings) since embeddings require build step
+        force_trigger: If True, bypass strong baseline gating (for evaluation)
     """
     decompose_value = "true" if enabled else "false"
     embed_value = "true" if enabled and not decompose_only else "false"
+    force_value = "true" if enabled and force_trigger else "false"
     
     os.environ["SMART_QUERY_DECOMPOSE_ENABLED"] = decompose_value
     os.environ["SMART_EMBED_RECALL_ENABLED"] = embed_value
+    os.environ["EVAL_FORCE_PHASE1"] = force_value
     
     from importlib import reload
     import backend.smart.config
@@ -101,7 +104,10 @@ def set_phase1_flags(enabled: bool, decompose_only: bool = True):
     reload(backend.smart.query_decompose)
     
     from backend.smart import config as smart_config
-    logger.info(f"Phase 1 flags set to: decompose={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}, embed={smart_config.SMART_EMBED_RECALL_ENABLED}")
+    logger.info(
+        f"Phase 1 flags set to: decompose={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}, "
+        f"embed={smart_config.SMART_EMBED_RECALL_ENABLED}, force={smart_config.EVAL_FORCE_PHASE1}"
+    )
     
     return smart_config.SMART_QUERY_DECOMPOSE_ENABLED, smart_config.SMART_EMBED_RECALL_ENABLED
 

@@ -67,7 +67,19 @@ def should_augment(fts_results: List[Dict], query: str, query_id: str = None) ->
     top_score = 0.0
     
     strong_baseline, strong_evidence = is_strong_baseline(fts_results)
+    
+    # EVAL_FORCE_PHASE1: bypass strong baseline gating for evaluation
+    if smart_config.EVAL_FORCE_PHASE1:
+        logger.info(f"EVAL_FORCE_PHASE1=true: bypassing strong baseline check (was: {strong_baseline})")
+        strong_baseline = False
+        reasons.append("eval_force")
+    
     if strong_baseline:
+        skip_reason = (
+            f"skip_strong_baseline: fts_count={fts_count} >= {smart_config.STRONG_BASELINE_MIN_SOURCES} "
+            f"OR top_score={strong_evidence['top_score']:.3f} >= {smart_config.STRONG_BASELINE_MIN_SCORE}"
+        )
+        logger.debug(f"Phase 1 SKIP: {skip_reason}")
         decision_context = log_trigger_decision(
             query=query,
             query_id=query_id,
@@ -79,6 +91,7 @@ def should_augment(fts_results: List[Dict], query: str, query_id: str = None) ->
         decision_context["final_decision"] = False
         decision_context["trigger_reasons"] = ["skip_strong_baseline"]
         decision_context["strong_baseline_evidence"] = strong_evidence
+        decision_context["skip_reason_detail"] = skip_reason
         return False, ["skip_strong_baseline"], decision_context
     
     if fts_count < smart_config.MIN_FTS_RESULTS:
@@ -108,6 +121,18 @@ def should_augment(fts_results: List[Dict], query: str, query_id: str = None) ->
     decision_context["final_decision"] = len(reasons) > 0
     decision_context["trigger_reasons"] = reasons
     decision_context["strong_baseline_evidence"] = strong_evidence
+    
+    # Log detailed skip reason if not triggering
+    if len(reasons) == 0:
+        skip_detail = (
+            f"triggers_not_met: fts_count={fts_count} (min={smart_config.MIN_FTS_RESULTS}), "
+            f"top_score={top_score:.3f} (min={smart_config.MIN_TOP_SCORE}), "
+            f"decompose_enabled={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}, multi_issue={multi_issue}"
+        )
+        logger.debug(f"Phase 1 SKIP: {skip_detail}")
+        decision_context["skip_reason_detail"] = skip_detail
+    else:
+        logger.info(f"Phase 1 TRIGGER: reasons={reasons}")
     
     return len(reasons) > 0, reasons, decision_context
 
@@ -170,7 +195,13 @@ def augment_retrieval(
         augmented = list(baseline_results)
         candidates_added = 0
         
-        if smart_config.SMART_QUERY_DECOMPOSE_ENABLED and "multi_issue" in reasons and search_func:
+        # Run decomposition if: multi-issue query OR eval_force mode
+        run_decompose = (
+            smart_config.SMART_QUERY_DECOMPOSE_ENABLED and 
+            search_func and
+            ("multi_issue" in reasons or "eval_force" in reasons)
+        )
+        if run_decompose:
             elapsed_ms = (time.time() - start_time) * 1000
             remaining_budget = smart_config.PHASE1_BUDGET_MS - elapsed_ms
             
