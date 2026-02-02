@@ -1452,6 +1452,41 @@ def find_closest_matching_quote(ai_quote: str, pages: List[Dict], min_similarity
     return None
 
 
+def normalize_source(obj: Any) -> Dict[str, Any]:
+    """Normalize source to ensure it's always a dict with required fields.
+    
+    CRITICAL INVARIANT: Every element in sources MUST be a dict.
+    Strings are never allowed past construction.
+    
+    Args:
+        obj: Source object (should be dict, but handles string fallback)
+        
+    Returns:
+        Dict with required tier/binding_method fields guaranteed
+        
+    Raises:
+        TypeError: If obj is neither dict nor str
+    """
+    if isinstance(obj, str):
+        # String fallback - convert to unverified source dict
+        return {
+            "text": obj,
+            "tier": "unverified",
+            "binding_failed": True,
+            "binding_method": "none",
+            "signals": ["string_fallback"],
+            "score": 0
+        }
+    if isinstance(obj, dict):
+        # Ensure required fields exist
+        obj.setdefault("tier", "unverified")
+        obj.setdefault("binding_method", "none")
+        obj.setdefault("signals", [])
+        obj.setdefault("score", 0)
+        return obj
+    raise TypeError(f"Invalid source type: {type(obj)}")
+
+
 def build_sources_from_markers(
     markers: List[Dict],
     pages: List[Dict],
@@ -2010,7 +2045,7 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str], searc
             continue
         exact_quote = extract_exact_quote_from_page(page['text'], max_len=200)
         if exact_quote and verify_quote_strict(exact_quote, page['text']):
-            sources.append({
+            sources.append(normalize_source({
                 "sid": str(i),
                 "opinion_id": page['opinion_id'],
                 "case_name": page['case_name'],
@@ -2020,8 +2055,10 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str], searc
                 "quote": exact_quote,
                 "viewer_url": f"/pdf/{page['opinion_id']}?page={page['page_number']}",
                 "pdf_url": page.get('pdf_url', ''),
-                "courtlistener_url": page.get('courtlistener_url', '')
-            })
+                "courtlistener_url": page.get('courtlistener_url', ''),
+                "tier": "moderate",
+                "binding_method": "fallback"
+            }))
     
     pages_sample = [{"opinion_id": p.get("opinion_id"), "case_name": p.get("case_name"), "page_number": p.get("page_number")} for p in pages[:5]]
     
@@ -2785,17 +2822,26 @@ async def generate_chat_response(
         # Build sources from matching cases
         sources = []
         for i, (case_id, page) in enumerate(seen_cases.items(), 1):
-            sources.append({
+            sources.append(normalize_source({
                 "sid": f"S{i}",
                 "opinionId": case_id,
+                "opinion_id": case_id,
                 "caseName": page.get("case_name", ""),
+                "case_name": page.get("case_name", ""),
                 "appealNo": page.get("appeal_no", ""),
+                "appeal_no": page.get("appeal_no", ""),
                 "releaseDate": page.get("release_date", ""),
+                "release_date": page.get("release_date", ""),
                 "pageNumber": page.get("page_number", 1),
+                "page_number": page.get("page_number", 1),
                 "quote": extract_exact_quote_from_page(page.get("text", ""), min_len=50, max_len=200),
                 "viewerUrl": f"/opinions/{case_id}?page={page.get('page_number', 1)}",
-                "pdfUrl": page.get("pdf_url", "")
-            })
+                "viewer_url": f"/opinions/{case_id}?page={page.get('page_number', 1)}",
+                "pdfUrl": page.get("pdf_url", ""),
+                "pdf_url": page.get("pdf_url", ""),
+                "tier": "moderate",
+                "binding_method": "party_listing"
+            }))
         
         # Build a summary response listing the matching cases
         case_list = "\n".join([
@@ -3274,7 +3320,7 @@ async def generate_chat_response(
                     explain = ranking_scorer.compute_composite_score(0.5, p, page_text)
                     source_entry["explain"] = explain
                     source_entry["application_reason"] = ranking_scorer.generate_application_reason(explain, p)
-                    sources.append(source_entry)
+                    sources.append(normalize_source(source_entry))
                     
             # Sort fallback sources by composite score, then limit to 5
             sources.sort(key=lambda x: x.get("explain", {}).get("composite_score", 0), reverse=True)

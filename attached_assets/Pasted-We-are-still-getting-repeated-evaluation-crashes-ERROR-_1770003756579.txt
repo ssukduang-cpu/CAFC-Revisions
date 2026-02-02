@@ -1,0 +1,59 @@
+We are still getting repeated evaluation crashes:
+
+ERROR - Query <id> failed: 'str' object has no attribute 'get'
+
+This is corrupting Phase 1 metrics (trigger rate = 0, NOT FOUND = 100%, latency spikes) and makes all summaries meaningless.
+
+ROOT CAUSE
+Some fallback-generated `sources` are strings, but downstream code assumes every source is a dict and calls `.get()`. Once a string reaches eval aggregation, the query crashes and poisons the report.
+
+TASKS (ALL REQUIRED — NO NEW FEATURES)
+
+1) Enforce a strict invariant:
+   Every element in `sources` MUST be a dict. Strings are never allowed past construction.
+
+2) Add a normalization function (or equivalent inline logic):
+
+   def normalize_source(obj):
+       if isinstance(obj, str):
+           return {
+               "text": obj,
+               "tier": "unverified",
+               "binding_failed": True,
+               "binding_method": "none",
+           }
+       if isinstance(obj, dict):
+           obj.setdefault("tier", "unverified")
+           obj.setdefault("binding_failed", False)
+           obj.setdefault("binding_method", "none")
+           return obj
+       raise TypeError(f"Invalid source type: {type(obj)}")
+
+3) Apply normalize_source() EVERYWHERE sources are created or appended, including:
+   - fallback source generation
+   - citation marker processing
+   - web-search fallback ingestion
+   - any path contributing to `sources`, `retrieval_delta`, or eval artifacts
+
+4) Add a hard assertion during eval/report generation (eval-only is fine):
+   assert all(isinstance(s, dict) for s in sources)
+   so this bug can never silently recur.
+
+5) Add a regression test:
+   - Simulate a fallback path that previously produced a string
+   - Assert eval completes without exception
+   - Assert resulting source has tier == "unverified"
+
+6) Re-run verification:
+   pytest -q
+   SMART_QUERY_DECOMPOSE_ENABLED=true python -m backend.smart.eval_phase1 --compare --queries 12 --query_file backend/smart/eval_queries_trigger.json
+
+CONFIRM SUCCESS WHEN:
+- ZERO `'str' object has no attribute 'get'` errors
+- All 12 queries complete
+- Phase 1 summary metrics are non-degenerate and stable
+
+CONSTRAINTS
+- Do NOT add Phase 2 features
+- Do NOT change core retrieval, ranking, prompting, or citation logic
+- This is a correctness and robustness fix only

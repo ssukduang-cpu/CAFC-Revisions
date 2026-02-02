@@ -188,6 +188,11 @@ async def run_single_query(query_info: Dict) -> Dict[str, Any]:
             logger.warning(f"Query {query_id}: answer_length=0 but not_found=False - flagging as suspect")
         
         retrieval_snapshot = replay_data.get("retrieval_manifest_snapshot", []) if replay_data else []
+        
+        # CRITICAL INVARIANT: Every element in sources must be a dict
+        # Filter out any non-dict items (strings) to prevent crashes
+        retrieval_snapshot = [s for s in retrieval_snapshot if isinstance(s, dict)]
+        
         retrieval_delta = {
             "total_sources": len(retrieval_snapshot),
             "top_5_source_ids": [s.get("page_id") or s.get("id") for s in retrieval_snapshot[:5]],
