@@ -1,0 +1,60 @@
+You are a Replit agent working in this repo. Goal: do a “ship-ready cleanup” pass focused on removing eval-only behavior, tightening CLI ergonomics, and ensuring deterministic/reproducible reports—WITHOUT changing core baseline behavior.
+
+CONTEXT
+- We recently fixed a crash: "'str' object has no attribute 'get'".
+- Phase1 augmentation did not improve NOT FOUND rate and increased latency; it is gated (often “skip_strong_baseline”) and should not affect prod by default.
+- There is a CLI script: scripts/print_phase1_regressions.py. A user tried:
+    python scripts/print_phase1_regressions.py reports/phase1_eval_*.json
+  and got “unrecognized arguments …” (it expects --report REPORT).
+- Reports are written to reports/phase1_eval_*.json and phase1_eval_summary_*.txt.
+- “SCOTUS coverage” appears as 0.0 in summaries; keep metric as-is unless you can fix it confidently and cheaply.
+
+TASKS (DO THESE IN ORDER)
+1) Repo scan + inventory
+   - Identify: evaluation runner entrypoint(s), Phase1 flags/feature gates, report writers, regression script CLI, and any “eval-only” environment variables.
+   - Produce a short list of files you will modify and why.
+
+2) Make Phase1 unquestionably OFF in production defaults
+   - Ensure Phase1/decompose/embed augmentations are disabled by default unless explicitly enabled.
+   - If there are any “force” flags used for evaluation, ensure they are hard-scoped to eval scripts only and cannot be accidentally enabled in normal runs.
+   - Add a single canonical config surface (env var or config file) that clearly controls Phase1.
+   - Add log line at startup summarizing effective flags (baseline, phase1, decompose, embed), but do not spam.
+
+3) Fix the regression script UX (print_phase1_regressions.py)
+   - Update argparse to accept one or more positional report paths (globs expanded by shell) IN ADDITION to existing --report.
+   - Behavior:
+     - If positional args provided: treat them as reports list.
+     - If --report provided: add it to the list.
+     - If neither provided: print helpful usage + examples, exit code 2.
+   - Keep existing options (e.g., --top) stable.
+   - Add examples in --help showing both:
+       python scripts/print_phase1_regressions.py reports/phase1_eval_*.json
+       python scripts/print_phase1_regressions.py --report reports/phase1_eval_20260202_034850.json
+
+4) Reporting / determinism cleanup
+   - Confirm report filenames are unique and timestamped consistently; avoid collisions.
+   - Ensure JSON includes: baseline summary, phase1 summary, deltas, per-query results with latency, NOT FOUND status, trigger info, candidates added.
+   - If any fields are missing or inconsistent across runs, normalize them (but do not change semantics).
+   - Ensure summaries print “N/A” only when truly unavailable; otherwise compute.
+
+5) Tests / smoke checks
+   - Add or update minimal tests (or a smoke script) that:
+     - Runs a small eval on 1–2 queries and writes reports.
+     - Runs print_phase1_regressions.py both ways (positional + --report) and verifies exit code 0 and non-empty output.
+   - If the repo has no test framework, add a simple bash/python smoke script in scripts/ and document how to run.
+
+6) Documentation
+   - Update README or a short doc (docs/eval.md) describing:
+     - How to run baseline vs phase1.
+     - How to interpret NOT FOUND rate / latency deltas.
+     - How to use the regressions script with globs.
+     - What “skip_strong_baseline” means.
+
+OUTPUT REQUIREMENTS
+- Make a single PR-style summary at the end:
+  - What changed (bulleted)
+  - Why (bulleted)
+  - How to run (commands)
+  - Risk assessment (what could break)
+- Keep baseline behavior identical unless an issue is clearly a bug (e.g., CLI parsing).
+- Prefer small, surgical edits.

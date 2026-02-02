@@ -2,26 +2,37 @@
 """
 Phase 1 Regression Analysis Script
 
-Loads the latest eval report and identifies:
+Loads eval reports and identifies:
 - Queries where NOT FOUND flips from False (baseline) to True (phase1)
 - Largest latency deltas
 - Per-query decision context, subqueries, and retrieval delta
 
 Usage:
-    python scripts/print_phase1_regressions.py [--report PATH]
+    # Process multiple reports (shell glob expansion):
+    python scripts/print_phase1_regressions.py reports/phase1_eval_*.json
+    
+    # Process a single report with --report:
+    python scripts/print_phase1_regressions.py --report reports/phase1_eval_20260202_034850.json
+    
+    # Show top N latency deltas:
+    python scripts/print_phase1_regressions.py --top 10 reports/phase1_eval_*.json
+    
+    # Auto-find latest report:
+    python scripts/print_phase1_regressions.py
 """
 
 import argparse
 import json
 import os
-import glob
+import sys
+import glob as glob_module
 from typing import Dict, List, Any, Optional
 
 
 def find_latest_report(reports_dir: str = "reports") -> Optional[str]:
     """Find the most recent phase1_eval_*.json report."""
     pattern = os.path.join(reports_dir, "phase1_eval_*.json")
-    files = glob.glob(pattern)
+    files = glob_module.glob(pattern)
     if not files:
         return None
     return max(files, key=os.path.getmtime)
@@ -165,20 +176,16 @@ def print_summary(report: Dict):
     print(f"Phase1 Avg latency: {phase1.get('avg_latency_ms', 'N/A')}ms")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Analyze Phase 1 eval regressions")
-    parser.add_argument("--report", help="Path to eval report JSON", default=None)
-    parser.add_argument("--top", type=int, default=5, help="Number of top latency deltas to show")
-    args = parser.parse_args()
+def process_report(report_path: str, top_n: int = 5) -> int:
+    """Process a single report file. Returns 1 if regressions found, 0 otherwise."""
+    if not os.path.exists(report_path):
+        print(f"ERROR: Report not found: {report_path}")
+        return 2
     
-    report_path = args.report or find_latest_report()
+    print(f"\n{'='*70}")
+    print(f"Report: {report_path}")
+    print(f"{'='*70}")
     
-    if not report_path or not os.path.exists(report_path):
-        print("ERROR: No eval report found. Run eval first:")
-        print("  SMART_QUERY_DECOMPOSE_ENABLED=true python -m backend.smart.eval_phase1 --compare --queries 12")
-        return 1
-    
-    print(f"Loading report: {report_path}")
     report = load_report(report_path)
     
     print_summary(report)
@@ -187,7 +194,7 @@ def main():
     print_nf_flips(flips)
     
     deltas = analyze_latency_deltas(report)
-    print_latency_analysis(deltas, args.top)
+    print_latency_analysis(deltas, top_n)
     
     if flips:
         print(f"\n⚠️  {len(flips)} NOT FOUND regression(s) detected!")
@@ -197,5 +204,80 @@ def main():
         return 0
 
 
+def main():
+    parser = argparse.ArgumentParser(
+        description="Analyze Phase 1 eval regressions",
+        epilog="""
+Examples:
+  # Process multiple reports (shell glob expansion):
+  python scripts/print_phase1_regressions.py reports/phase1_eval_*.json
+  
+  # Process a single report with --report:
+  python scripts/print_phase1_regressions.py --report reports/phase1_eval_20260202_034850.json
+  
+  # Show top N latency deltas:
+  python scripts/print_phase1_regressions.py --top 10 reports/phase1_eval_*.json
+  
+  # Auto-find latest report:
+  python scripts/print_phase1_regressions.py
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "reports", 
+        nargs="*", 
+        help="Report file paths (supports shell glob expansion)"
+    )
+    parser.add_argument(
+        "--report", 
+        dest="legacy_report",
+        help="Path to eval report JSON (legacy, use positional args instead)"
+    )
+    parser.add_argument(
+        "--top", 
+        type=int, 
+        default=5, 
+        help="Number of top latency deltas to show (default: 5)"
+    )
+    args = parser.parse_args()
+    
+    # Collect all report paths
+    report_paths = list(args.reports) if args.reports else []
+    if args.legacy_report:
+        report_paths.append(args.legacy_report)
+    
+    # If no reports specified, auto-find latest
+    if not report_paths:
+        latest = find_latest_report()
+        if latest:
+            report_paths = [latest]
+    
+    # Validate we have reports
+    if not report_paths:
+        print("ERROR: No eval reports found.")
+        print()
+        print("Usage examples:")
+        print("  python scripts/print_phase1_regressions.py reports/phase1_eval_*.json")
+        print("  python scripts/print_phase1_regressions.py --report reports/phase1_eval_20260202_034850.json")
+        print()
+        print("To generate a report, run:")
+        print("  PYTHONPATH=. python backend/smart/eval_phase1.py --compare --queries 12")
+        return 2
+    
+    # Process all reports
+    exit_code = 0
+    for report_path in sorted(report_paths):
+        result = process_report(report_path, args.top)
+        if result > exit_code:
+            exit_code = result
+    
+    if len(report_paths) > 1:
+        print(f"\n{'='*70}")
+        print(f"Processed {len(report_paths)} reports")
+        print(f"{'='*70}")
+    
+    return exit_code
+
+
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

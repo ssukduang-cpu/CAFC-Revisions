@@ -8,20 +8,30 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 import pytest
 
 
+def _set_env_and_reload(**kwargs):
+    """Helper to set env vars and reload config modules."""
+    for key, value in kwargs.items():
+        os.environ[key] = value
+    
+    from importlib import reload
+    import backend.smart.config
+    reload(backend.smart.config)
+    import backend.smart.augmenter
+    reload(backend.smart.augmenter)
+
+
 class TestEvalForcePhase1:
     """Test that EVAL_FORCE_PHASE1 bypasses gating."""
     
     def test_force_flag_bypasses_strong_baseline(self):
-        """When EVAL_FORCE_PHASE1=true, Phase 1 should trigger even with strong baseline."""
-        os.environ['EVAL_FORCE_PHASE1'] = 'true'
-        os.environ['SMART_QUERY_DECOMPOSE_ENABLED'] = 'true'
-        os.environ['SMART_EMBED_RECALL_ENABLED'] = 'false'
-        
-        from importlib import reload
-        import backend.smart.config
-        reload(backend.smart.config)
-        import backend.smart.augmenter
-        reload(backend.smart.augmenter)
+        """When EVAL_FORCE_PHASE1=true (in eval mode), Phase 1 should trigger even with strong baseline."""
+        _set_env_and_reload(
+            PHASE1_ENABLED='true',
+            PHASE1_EVAL_MODE='true',
+            EVAL_FORCE_PHASE1='true',
+            SMART_QUERY_DECOMPOSE_ENABLED='true',
+            SMART_EMBED_RECALL_ENABLED='false'
+        )
         
         from backend.smart.augmenter import should_augment, is_strong_baseline
         from backend.smart import config as smart_config
@@ -46,15 +56,13 @@ class TestEvalForcePhase1:
     
     def test_force_flag_disabled_respects_strong_baseline(self):
         """When EVAL_FORCE_PHASE1=false, Phase 1 should respect strong baseline check."""
-        os.environ['EVAL_FORCE_PHASE1'] = 'false'
-        os.environ['SMART_QUERY_DECOMPOSE_ENABLED'] = 'true'
-        os.environ['SMART_EMBED_RECALL_ENABLED'] = 'false'
-        
-        from importlib import reload
-        import backend.smart.config
-        reload(backend.smart.config)
-        import backend.smart.augmenter
-        reload(backend.smart.augmenter)
+        _set_env_and_reload(
+            PHASE1_ENABLED='true',
+            PHASE1_EVAL_MODE='false',
+            EVAL_FORCE_PHASE1='false',
+            SMART_QUERY_DECOMPOSE_ENABLED='true',
+            SMART_EMBED_RECALL_ENABLED='false'
+        )
         
         from backend.smart.augmenter import should_augment, is_strong_baseline
         from backend.smart import config as smart_config
@@ -78,14 +86,12 @@ class TestEvalForcePhase1:
     
     def test_force_flag_adds_eval_force_reason(self):
         """When forced, the 'eval_force' reason should be added."""
-        os.environ['EVAL_FORCE_PHASE1'] = 'true'
-        os.environ['SMART_QUERY_DECOMPOSE_ENABLED'] = 'true'
-        
-        from importlib import reload
-        import backend.smart.config
-        reload(backend.smart.config)
-        import backend.smart.augmenter
-        reload(backend.smart.augmenter)
+        _set_env_and_reload(
+            PHASE1_ENABLED='true',
+            PHASE1_EVAL_MODE='true',
+            EVAL_FORCE_PHASE1='true',
+            SMART_QUERY_DECOMPOSE_ENABLED='true'
+        )
         
         from backend.smart.augmenter import should_augment
         

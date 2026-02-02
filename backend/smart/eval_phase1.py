@@ -85,6 +85,10 @@ def set_phase1_flags(enabled: bool, decompose_only: bool = True, force_trigger: 
         decompose_only: If True, only enable decomposition (not embeddings) since embeddings require build step
         force_trigger: If True, bypass strong baseline gating (for evaluation)
     """
+    # Set umbrella flag and eval mode marker
+    os.environ["PHASE1_ENABLED"] = "true" if enabled else "false"
+    os.environ["PHASE1_EVAL_MODE"] = "true"  # Mark we're in eval mode
+    
     decompose_value = "true" if enabled else "false"
     embed_value = "true" if enabled and not decompose_only else "false"
     force_value = "true" if enabled and force_trigger else "false"
@@ -105,7 +109,8 @@ def set_phase1_flags(enabled: bool, decompose_only: bool = True, force_trigger: 
     
     from backend.smart import config as smart_config
     logger.info(
-        f"Phase 1 flags set to: decompose={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}, "
+        f"[EVAL] Phase 1 flags: enabled={smart_config.PHASE1_ENABLED}, "
+        f"decompose={smart_config.SMART_QUERY_DECOMPOSE_ENABLED}, "
         f"embed={smart_config.SMART_EMBED_RECALL_ENABLED}, force={smart_config.EVAL_FORCE_PHASE1}"
     )
     
