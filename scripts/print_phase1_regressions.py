@@ -37,8 +37,10 @@ def analyze_nf_flips(report: Dict) -> List[Dict]:
     """Find queries where NOT FOUND flips F→T between baseline and phase1."""
     flips = []
     
-    baseline_results = {r["query_id"]: r for r in report.get("baseline_results", [])}
-    phase1_results = {r["query_id"]: r for r in report.get("phase1_results", [])}
+    baseline_data = report.get("baseline", {})
+    phase1_data = report.get("phase1", {})
+    baseline_results = {r["query_id"]: r for r in baseline_data.get("results", [])}
+    phase1_results = {r["query_id"]: r for r in phase1_data.get("results", [])}
     
     for query_id, baseline in baseline_results.items():
         phase1 = phase1_results.get(query_id)
@@ -69,8 +71,10 @@ def analyze_latency_deltas(report: Dict) -> List[Dict]:
     """Find queries with largest latency deltas."""
     deltas = []
     
-    baseline_results = {r["query_id"]: r for r in report.get("baseline_results", [])}
-    phase1_results = {r["query_id"]: r for r in report.get("phase1_results", [])}
+    baseline_data = report.get("baseline", {})
+    phase1_data = report.get("phase1", {})
+    baseline_results = {r["query_id"]: r for r in baseline_data.get("results", [])}
+    phase1_results = {r["query_id"]: r for r in phase1_data.get("results", [])}
     
     for query_id, baseline in baseline_results.items():
         phase1 = phase1_results.get(query_id)

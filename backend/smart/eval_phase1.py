@@ -472,9 +472,7 @@ async def main():
     
     if args.baseline or args.compare:
         print("Running BASELINE evaluation...")
-        baseline_batch = await run_eval_batch(queries, phase1_enabled=False)
-        results["baseline"] = {k: v for k, v in baseline_batch.items() if k != "results"}
-        results["baseline_results"] = baseline_batch.get("results", [])
+        results["baseline"] = await run_eval_batch(queries, phase1_enabled=False)
         print(f"  Avg latency: {results['baseline']['avg_latency_ms']:.0f}ms")
         print(f"  NOT FOUND rate: {results['baseline']['not_found_rate']:.1%}")
         print(f"  Avg verified citations: {results['baseline']['avg_verified_citations']:.1f}")
@@ -482,9 +480,7 @@ async def main():
     
     if args.phase1 or args.compare:
         print("\nRunning PHASE 1 evaluation...")
-        phase1_batch = await run_eval_batch(queries, phase1_enabled=True)
-        results["phase1"] = {k: v for k, v in phase1_batch.items() if k != "results"}
-        results["phase1_results"] = phase1_batch.get("results", [])
+        results["phase1"] = await run_eval_batch(queries, phase1_enabled=True)
         print(f"  Avg latency: {results['phase1']['avg_latency_ms']:.0f}ms")
         print(f"  NOT FOUND rate: {results['phase1']['not_found_rate']:.1%}")
         print(f"  Avg verified citations: {results['phase1']['avg_verified_citations']:.1f}")
