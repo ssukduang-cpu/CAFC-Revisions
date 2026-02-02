@@ -1816,7 +1816,7 @@ def add_opinion(data: Dict) -> Optional[str]:
             cursor.execute("""
                 INSERT INTO documents (
                     id, pdf_url, case_name, appeal_number, release_date,
-                    status, origin, document_type, is_ingested
+                    status, origin, document_type, ingested
                 ) VALUES (
                     gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, false
                 )
