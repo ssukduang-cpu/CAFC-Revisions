@@ -1,0 +1,89 @@
+python - <<'PY'
+import json, glob
+
+path = sorted(glob.glob("reports/phase1_eval_*.json"))[-1]
+d = json.load(open(path))
+print("Latest report:", path)
+
+b = {r["query_id"]: r for r in d["baseline"]["results"]}
+p = {r["query_id"]: r for r in d["phase1"]["results"]}
+
+# ---- checks
+nf_flips = []
+lat_deltas = []
+vc_drops = []
+missing = []
+
+required_always = ["phase1_triggered","candidates_added","phase1_latency_ms","triggers","not_found","verified_citations","latency_ms"]
+required_artifacts = ["subqueries_list","candidates_added_list","retrieval_delta"]  # decision_context/debug handled specially
+
+for qid, pr in p.items():
+    br = b[qid]
+
+    # NF flips
+    if (br.get("not_found") is False) and (pr.get("not_found") is True):
+        nf_flips.append(qid)
+
+    # latency delta
+    lat_b = int(br.get("latency_ms") or 0)
+    lat_p = int(pr.get("latency_ms") or 0)
+    lat_deltas.append((lat_p - lat_b, qid, lat_b, lat_p))
+
+    # verified citations drops
+    vc_b = int(br.get("verified_citations") or 0)
+    vc_p = int(pr.get("verified_citations") or 0)
+    if vc_p < vc_b:
+        vc_drops.append((qid, vc_b, vc_p))
+
+    # key presence checks
+    miss = []
+    for k in required_always:
+        if k not in pr:
+            miss.append(k)
+
+    for k in required_artifacts:
+        if k not in pr:
+            miss.append(k)
+
+    # decision_context/debug checks
+    dc = pr.get("decision_context")
+    dbg = pr.get("debug")
+    if dbg is None:
+        miss.append("debug")
+    if (dc is None) and not (isinstance(dbg, dict) and dbg.get("decision_context") is not None):
+        miss.append("decision_context OR debug.decision_context")
+
+    # If triggered, we expect at least some artifact content (not strictly required to be non-empty if strong-baseline guard skipped,
+    # but we want visibility into why. decision_context should explain.)
+    if pr.get("phase1_triggered") and pr.get("candidates_added",0) > 0:
+        if isinstance(pr.get("subqueries_list"), list) and len(pr["subqueries_list"]) == 0:
+            miss.append("subqueries_list (empty)")
+        if isinstance(pr.get("candidates_added_list"), list) and len(pr["candidates_added_list"]) == 0:
+            miss.append("candidates_added_list (empty)")
+
+    if miss:
+        missing.append((qid, miss))
+
+# ---- summary metrics
+avg_lat_delta = sum(d for d, *_ in lat_deltas) / max(1, len(lat_deltas))
+lat_deltas.sort(reverse=True)
+
+print("\n=== REGRESSION GATE ===")
+print("NF flips (F->T):", len(nf_flips), nf_flips)
+print("Avg latency delta (ms):", round(avg_lat_delta, 1))
+print("\nTop 5 latency increases:")
+for dlt, qid, lb, lp in lat_deltas[:5]:
+    print(f" - {qid}: {lb}->{lp} (Δ{dlt}ms)")
+
+print("\nVerified citation drops:", len(vc_drops))
+for qid, vb, vp in vc_drops:
+    print(f" - {qid}: {vb}->{vp}")
+
+print("\nMissing/insufficient artifacts:", len(missing))
+for qid, miss in missing:
+    print(" -", qid, ":", ", ".join(miss))
+
+# ---- verdict
+go = (len(nf_flips) == 0) and (avg_lat_delta < 500) and (len(missing) == 0)
+print("\nVERDICT:", "GO ✅" if go else "NO-GO ❌")
+PY
