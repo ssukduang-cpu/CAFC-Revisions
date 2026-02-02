@@ -1332,26 +1332,32 @@ def search_pages_two_pass(
         return all_results[:limit]
 
 
-def create_conversation(title: str = "New Research") -> str:
+def create_conversation(title: str = "New Research", user_id: Optional[str] = None) -> str:
     with get_db() as conn:
         cursor = conn.cursor()
         conv_id = str(uuid.uuid4())
         cursor.execute(
-            "INSERT INTO conversations (id, title) VALUES (%s, %s)",
-            (conv_id, title)
+            "INSERT INTO conversations (id, title, user_id) VALUES (%s, %s, %s)",
+            (conv_id, title, user_id)
         )
         return conv_id
 
-def get_conversations() -> List[Dict]:
+def get_conversations(user_id: Optional[str] = None) -> List[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM conversations ORDER BY updated_at DESC")
+        if user_id:
+            cursor.execute("SELECT * FROM conversations WHERE user_id = %s ORDER BY updated_at DESC", (user_id,))
+        else:
+            cursor.execute("SELECT * FROM conversations ORDER BY updated_at DESC")
         return [dict(row) for row in cursor.fetchall()]
 
-def get_conversation(conv_id: str) -> Optional[Dict]:
+def get_conversation(conv_id: str, user_id: Optional[str] = None) -> Optional[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM conversations WHERE id = %s", (conv_id,))
+        if user_id:
+            cursor.execute("SELECT * FROM conversations WHERE id = %s AND user_id = %s", (conv_id, user_id))
+        else:
+            cursor.execute("SELECT * FROM conversations WHERE id = %s", (conv_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
@@ -1383,25 +1389,37 @@ def get_messages(conv_id: str) -> List[Dict]:
         cursor.execute("SELECT * FROM messages WHERE conversation_id = %s ORDER BY created_at", (conv_id,))
         return [dict(row) for row in cursor.fetchall()]
 
-def delete_conversation(conv_id: str) -> bool:
+def delete_conversation(conv_id: str, user_id: Optional[str] = None) -> bool:
     """Delete a single conversation and its messages. Atomic operation."""
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM conversations WHERE id = %s", (conv_id,))
+        if user_id:
+            cursor.execute("SELECT id FROM conversations WHERE id = %s AND user_id = %s", (conv_id, user_id))
+        else:
+            cursor.execute("SELECT id FROM conversations WHERE id = %s", (conv_id,))
         if cursor.fetchone() is None:
             return False
         cursor.execute("DELETE FROM messages WHERE conversation_id = %s", (conv_id,))
         cursor.execute("DELETE FROM conversations WHERE id = %s", (conv_id,))
         return True
 
-def clear_all_conversations() -> int:
-    """Delete all conversations and their messages. Returns count of deleted conversations."""
+def clear_all_conversations(user_id: Optional[str] = None) -> int:
+    """Delete all conversations and their messages for a user. Returns count of deleted conversations."""
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) as count FROM conversations")
-        count = cursor.fetchone()["count"]
-        cursor.execute("DELETE FROM messages")
-        cursor.execute("DELETE FROM conversations")
+        if user_id:
+            cursor.execute("SELECT COUNT(*) as count FROM conversations WHERE user_id = %s", (user_id,))
+            count = cursor.fetchone()["count"]
+            cursor.execute("""
+                DELETE FROM messages 
+                WHERE conversation_id IN (SELECT id FROM conversations WHERE user_id = %s)
+            """, (user_id,))
+            cursor.execute("DELETE FROM conversations WHERE user_id = %s", (user_id,))
+        else:
+            cursor.execute("SELECT COUNT(*) as count FROM conversations")
+            count = cursor.fetchone()["count"]
+            cursor.execute("DELETE FROM messages")
+            cursor.execute("DELETE FROM conversations")
         return count
 
 def set_pending_disambiguation(conv_id: str, candidates: List[Dict], original_query: str) -> None:

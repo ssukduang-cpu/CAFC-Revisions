@@ -18,6 +18,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   proxy.on("proxyReq", (proxyReq, req: any, res, options) => {
+    // Pass user ID to Python backend if authenticated
+    if (req.user?.claims?.sub) {
+      proxyReq.setHeader("X-User-Id", req.user.claims.sub);
+    }
+    
     if (req.body && Object.keys(req.body).length > 0) {
       const bodyData = JSON.stringify(req.body);
       proxyReq.setHeader("Content-Type", "application/json");
@@ -38,6 +43,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Protected routes - require authentication for conversation endpoints
+  app.use("/api/conversations", isAuthenticated, (req: Request, res: Response, next: NextFunction) => {
+    req.setTimeout(180000);  // 3 minutes for chat with web search
+    res.setTimeout(180000);
+    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api/conversations` });
+  });
+
   // Admin endpoints need longer timeout for bulk operations
   app.use("/api/admin", (req: Request, res: Response, next: NextFunction) => {
     req.setTimeout(600000);  // 10 minutes
@@ -45,14 +57,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api/admin` });
   });
 
-  // Chat endpoints need longer timeout for web search + ingestion
-  app.post("/api/conversations/:id/messages", (req: Request, res: Response, next: NextFunction) => {
-    req.setTimeout(180000);  // 3 minutes for chat with web search
-    res.setTimeout(180000);
-    // Preserve original URL when proxying
-    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}` });
-  });
-
+  // Public API endpoints (status, search, etc.)
   app.use("/api", (req: Request, res: Response, next: NextFunction) => {
     req.setTimeout(120000);
     res.setTimeout(120000);

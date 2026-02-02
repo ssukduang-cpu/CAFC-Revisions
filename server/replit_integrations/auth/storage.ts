@@ -25,21 +25,52 @@ class AuthStorage implements IAuthStorage {
     // Check if this is the admin email - auto-approve and set admin flag
     const isAdmin = userData.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     
+    // First check if a user with this ID already exists
+    const existingById = await this.getUser(userData.id);
+    
+    if (existingById) {
+      // Update existing user by ID
+      const [user] = await db
+        .update(users)
+        .set({
+          ...userData,
+          updatedAt: new Date(),
+          // If it's the admin, ensure they stay admin and approved
+          ...(isAdmin ? { isAdmin: true, approvalStatus: "approved" } : {}),
+        })
+        .where(eq(users.id, userData.id))
+        .returning();
+      return user;
+    }
+    
+    // Check if email already exists (different ID but same email)
+    if (userData.email) {
+      const [existingByEmail] = await db.select().from(users).where(eq(users.email, userData.email));
+      if (existingByEmail) {
+        // Update the existing user's ID to the new one (Replit Auth may regenerate sub IDs)
+        const [user] = await db
+          .update(users)
+          .set({
+            id: userData.id,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            profileImageUrl: userData.profileImageUrl,
+            updatedAt: new Date(),
+            ...(isAdmin ? { isAdmin: true, approvalStatus: "approved" } : {}),
+          })
+          .where(eq(users.id, existingByEmail.id))
+          .returning();
+        return user;
+      }
+    }
+    
+    // Insert new user
     const [user] = await db
       .insert(users)
       .values({
         ...userData,
         isAdmin: isAdmin,
         approvalStatus: isAdmin ? "approved" : "pending",
-      })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-          // If it's the admin, ensure they stay admin and approved
-          ...(isAdmin ? { isAdmin: true, approvalStatus: "approved" } : {}),
-        },
       })
       .returning();
     return user;

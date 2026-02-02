@@ -1022,31 +1022,36 @@ async def serve_pdf(filename: str):
     )
 
 @app.get("/api/conversations")
-async def list_conversations():
-    convs = db.get_conversations()
+async def list_conversations(request: Request):
+    user_id = request.headers.get("X-User-Id")
+    convs = db.get_conversations(user_id)
     return serialize_for_json(convert_keys_to_camel(convs))
 
 @app.post("/api/conversations")
-async def create_conversation():
-    conv_id = db.create_conversation()
-    conv = db.get_conversation(conv_id)
+async def create_conversation(request: Request):
+    user_id = request.headers.get("X-User-Id")
+    conv_id = db.create_conversation(user_id=user_id)
+    conv = db.get_conversation(conv_id, user_id)
     return serialize_for_json(convert_keys_to_camel(conv))
 
 @app.delete("/api/conversations")
-async def clear_all_conversations():
-    count = db.clear_all_conversations()
+async def clear_all_conversations(request: Request):
+    user_id = request.headers.get("X-User-Id")
+    count = db.clear_all_conversations(user_id)
     return {"success": True, "deleted": count}
 
 @app.delete("/api/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: str):
-    success = db.delete_conversation(conversation_id)
+async def delete_conversation(conversation_id: str, request: Request):
+    user_id = request.headers.get("X-User-Id")
+    success = db.delete_conversation(conversation_id, user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"success": True}
 
 @app.get("/api/conversations/{conversation_id}")
-async def get_conversation_endpoint(conversation_id: str):
-    conv = db.get_conversation(conversation_id)
+async def get_conversation_endpoint(conversation_id: str, request: Request):
+    user_id = request.headers.get("X-User-Id")
+    conv = db.get_conversation(conversation_id, user_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     messages = db.get_messages(conversation_id)
@@ -1055,7 +1060,11 @@ async def get_conversation_endpoint(conversation_id: str):
     return result
 
 @app.get("/api/conversations/{conversation_id}/messages")
-async def get_messages(conversation_id: str):
+async def get_messages(conversation_id: str, request: Request):
+    user_id = request.headers.get("X-User-Id")
+    conv = db.get_conversation(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
     messages = db.get_messages(conversation_id)
     return serialize_for_json(convert_keys_to_camel(messages))
 
@@ -1064,12 +1073,17 @@ class MessageRequest(BaseModel):
     searchMode: str = "all"  # "all" = full text + case names, "parties" = case names only
 
 @app.post("/api/conversations/{conversation_id}/messages")
-async def send_message(conversation_id: str, request: MessageRequest):
-    user_msg_id = db.add_message(conversation_id, "user", request.content)
+async def send_message(conversation_id: str, message: MessageRequest, http_request: Request):
+    user_id = http_request.headers.get("X-User-Id")
+    conv = db.get_conversation(conversation_id, user_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
     
-    party_only = request.searchMode == "parties"
+    user_msg_id = db.add_message(conversation_id, "user", message.content)
+    
+    party_only = message.searchMode == "parties"
     result = await generate_chat_response(
-        message=request.content,
+        message=message.content,
         opinion_ids=None,
         conversation_id=conversation_id,
         party_only=party_only

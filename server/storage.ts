@@ -33,10 +33,11 @@ export interface IStorage {
 
   // Conversation operations
   getConversation(id: string): Promise<Conversation | undefined>;
-  listConversations(limit?: number): Promise<Conversation[]>;
+  listConversations(userId: string, limit?: number): Promise<Conversation[]>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
   updateConversationTitle(id: string, title: string): Promise<void>;
   deleteConversation(id: string): Promise<void>;
+  clearUserConversations(userId: string): Promise<void>;
 
   // Message operations
   getMessage(id: string): Promise<Message | undefined>;
@@ -185,10 +186,11 @@ export class DatabaseStorage implements IStorage {
     return conversation || undefined;
   }
 
-  async listConversations(limit: number = 50): Promise<Conversation[]> {
+  async listConversations(userId: string, limit: number = 50): Promise<Conversation[]> {
     return await db
       .select()
       .from(conversations)
+      .where(eq(conversations.userId, userId))
       .orderBy(desc(conversations.updatedAt))
       .limit(limit);
   }
@@ -211,6 +213,18 @@ export class DatabaseStorage implements IStorage {
   async deleteConversation(id: string): Promise<void> {
     await db.delete(messages).where(eq(messages.conversationId, id));
     await db.delete(conversations).where(eq(conversations.id, id));
+  }
+
+  async clearUserConversations(userId: string): Promise<void> {
+    const userConvs = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(eq(conversations.userId, userId));
+    
+    for (const conv of userConvs) {
+      await db.delete(messages).where(eq(messages.conversationId, conv.id));
+    }
+    await db.delete(conversations).where(eq(conversations.userId, userId));
   }
 
   // Message operations
