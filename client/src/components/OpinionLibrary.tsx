@@ -20,6 +20,7 @@ import { useSyncOpinions, useIngestOpinion, useStatus } from "@/hooks/useOpinion
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { fetchOpinions } from "@/lib/api";
 import type { Opinion } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 25;
 
@@ -154,6 +155,7 @@ export function OpinionLibrary() {
   const [currentPage, setCurrentPage] = useState(1);
   const [author, setAuthor] = useState("");
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const { toast } = useToast();
   
   const { data: status } = useStatus();
   const syncOpinions = useSyncOpinions();
@@ -182,11 +184,16 @@ export function OpinionLibrary() {
       });
       setOpinions(data.opinions);
       setTotal(data.total);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load opinions:", error);
+      toast({
+        title: "Failed to Load Opinions",
+        description: error?.message || "Could not load opinions. Please try again.",
+        variant: "destructive",
+      });
     }
     setIsLoading(false);
-  }, [debouncedSearch, author, currentPage, selectedYear]);
+  }, [debouncedSearch, author, currentPage, selectedYear, toast]);
 
   useEffect(() => {
     if (showOpinionLibrary) {
@@ -198,8 +205,17 @@ export function OpinionLibrary() {
     try {
       await syncOpinions.mutateAsync();
       loadOpinions();
-    } catch (error) {
+      toast({
+        title: "Sync Complete",
+        description: "Successfully synced opinions from the Federal Circuit website.",
+      });
+    } catch (error: any) {
       console.error("Sync failed:", error);
+      toast({
+        title: "Sync Failed",
+        description: error?.message || "Could not sync opinions. Please try again later.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -210,8 +226,17 @@ export function OpinionLibrary() {
       setOpinions(prev => prev.map(op => 
         op.id === opinionId ? { ...op, isIngested: true } : op
       ));
-    } catch (error) {
+      toast({
+        title: "Ingestion Complete",
+        description: "Opinion has been successfully ingested and is now searchable.",
+      });
+    } catch (error: any) {
       console.error("Ingest failed:", error);
+      toast({
+        title: "Ingestion Failed",
+        description: error?.message || "Could not ingest opinion. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIngestingId(null);
     }

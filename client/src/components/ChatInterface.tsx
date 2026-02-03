@@ -12,6 +12,7 @@ import { useStatus } from "@/hooks/useOpinions";
 import { SearchProgress } from "@/components/SearchProgress";
 import type { Citation, Source } from "@/lib/api";
 import type { Message } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
@@ -19,6 +20,7 @@ export function ChatInterface() {
   const [webSearchCases, setWebSearchCases] = useState<string[]>([]);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   
   const handleCopyMessage = async (content: string, messageId: string) => {
     try {
@@ -87,9 +89,24 @@ export function ChatInterface() {
       } else {
         setControllingAuthorities([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send message:", error);
       setInputValue(messageContent);
+      
+      // Show user-friendly error toast
+      const errorMessage = error?.message || "Unknown error occurred";
+      const isTimeout = errorMessage.includes("timeout") || errorMessage.includes("timed out");
+      const isUnavailable = errorMessage.includes("unavailable") || errorMessage.includes("503");
+      
+      toast({
+        title: "Message Failed",
+        description: isTimeout 
+          ? "The request took too long. Legal research queries may take up to 2 minutes - please try again." 
+          : isUnavailable
+            ? "The backend is starting up. Please wait a moment and try again."
+            : `Failed to send message: ${errorMessage}`,
+        variant: "destructive",
+      });
     }
   };
 

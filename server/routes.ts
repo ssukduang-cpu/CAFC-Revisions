@@ -18,9 +18,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   proxy.on("proxyReq", (proxyReq, req: any, res, options) => {
+    // Debug logging - show target URL properly
+    const userId = req.user?.claims?.sub;
+    const targetUrl = typeof options.target === 'string' ? options.target : 
+      (options.target ? `${(options.target as any).protocol || 'http:'}//${(options.target as any).host}` : 'unknown');
+    console.log(`[proxy] ${req.method} ${req.originalUrl} -> ${targetUrl}${req.url} (user: ${userId || 'anonymous'})`);
+    
     // Pass user ID to Python backend if authenticated
-    if (req.user?.claims?.sub) {
-      proxyReq.setHeader("X-User-Id", req.user.claims.sub);
+    if (userId) {
+      proxyReq.setHeader("X-User-Id", userId);
     }
     
     if (req.body && Object.keys(req.body).length > 0) {
@@ -43,29 +49,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Helper to restore original URL before proxying (Express strips the mount path)
+  const proxyWithOriginalUrl = (mountPath: string, timeout: number) => {
+    return (req: Request, res: Response, next: NextFunction) => {
+      req.setTimeout(timeout);
+      res.setTimeout(timeout);
+      // Restore the original URL that Express stripped
+      req.url = mountPath + req.url;
+      // Remove double slashes that can occur (e.g., /api/conversations + / → /api/conversations/)
+      if (req.url.endsWith('/') && req.url.length > 1) {
+        req.url = req.url.slice(0, -1);
+      }
+      proxy.web(req, res);
+    };
+  };
+
   // Protected routes - require authentication for conversation endpoints
-  app.use("/api/conversations", isAuthenticated, (req: Request, res: Response, next: NextFunction) => {
-    req.setTimeout(180000);  // 3 minutes for chat with web search
-    res.setTimeout(180000);
-    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api/conversations` });
-  });
+  app.use("/api/conversations", isAuthenticated, proxyWithOriginalUrl("/api/conversations", 180000));
 
   // Admin endpoints need longer timeout for bulk operations
-  app.use("/api/admin", (req: Request, res: Response, next: NextFunction) => {
-    req.setTimeout(600000);  // 10 minutes
-    res.setTimeout(600000);
-    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api/admin` });
-  });
+  app.use("/api/admin", proxyWithOriginalUrl("/api/admin", 600000));
 
   // Public API endpoints (status, search, etc.)
-  app.use("/api", (req: Request, res: Response, next: NextFunction) => {
-    req.setTimeout(120000);
-    res.setTimeout(120000);
-    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/api` });
-  });
+  app.use("/api", proxyWithOriginalUrl("/api", 120000));
 
   // PDF serving route - proxy to Python backend
-  app.use("/pdf", (req: Request, res: Response, next: NextFunction) => {
-    proxy.web(req, res, { target: `http://localhost:${PYTHON_PORT}/pdf` });
-  });
+  app.use("/pdf", proxyWithOriginalUrl("/pdf", 60000));
 }
