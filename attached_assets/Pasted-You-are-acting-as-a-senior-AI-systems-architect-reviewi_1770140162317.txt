@@ -1,0 +1,61 @@
+You are acting as a senior AI systems architect reviewing a production Replit agent application.
+
+Your task is NOT to suggest better prompts.
+Your task is to analyze the agent’s execution architecture and propose structural improvements.
+
+────────────────────────────────────────────────────
+CONTEXT
+────────────────────────────────────────────────────
+The application is a legal AI assistant.
+Observed failures include:
+• Refusing to answer basic doctrinal questions
+• Treating multi-authority legal issues as “ambiguous queries”
+• Blocking answers due to retrieval uncertainty
+• Emitting system or UX error messages instead of legal analysis
+• Quality regressions over time despite unchanged prompts
+
+────────────────────────────────────────────────────
+YOUR TASK
+────────────────────────────────────────────────────
+Produce a concrete improvement plan that addresses HOW the agent decides what to return.
+
+Your plan must include:
+
+1. CURRENT-STATE ANALYSIS
+   - Where in the agent pipeline decisions are likely being made
+   - How retrieval, ambiguity detection, and response generation interact
+   - Which components are likely overriding reasoning
+
+2. FAILURE MODE IDENTIFICATION
+   - Identify architectural patterns that cause:
+     • Retrieval-first dominance
+     • Overuse of ambiguity flags
+     • “NOT FOUND” or refusal responses
+   - Explain why these patterns degrade performance in legal domains
+
+3. PROPOSED ARCHITECTURAL CHANGES
+   - Recommend specific changes to agent structure, such as:
+     • Separating routing/planning from answering
+     • Introducing reasoning-first gates
+     • Adding post-response validation or review steps
+     • Using graded confidence instead of binary retrieval outcomes
+   - Explain how each change improves reliability
+
+4. IMPLEMENTATION STRATEGY
+   - Describe how these changes could be implemented incrementally
+   - Identify which changes offer the highest ROI with minimal disruption
+   - Note which changes require multiple agents vs. prompt-only updates
+
+5. SUCCESS CRITERIA
+   - Define measurable indicators that the changes worked
+   - Examples: reduction in clarification loops, fewer refusals, improved doctrinal coverage
+
+────────────────────────────────────────────────────
+CONSTRAINTS
+────────────────────────────────────────────────────
+• Focus on system behavior, not legal correctness
+• Avoid generic advice
+• Be explicit about decision points and control flow
+• Assume this will be reviewed by engineers and architects, not end users
+
+Your goal is to produce an actionable system-level plan, not a prompt rewrite.
