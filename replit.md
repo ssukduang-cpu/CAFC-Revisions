@@ -78,12 +78,31 @@ Preferred communication style: Simple, everyday language.
 - **AI-Powered Query Expansion:** Generates related legal keywords when initial FTS is insufficient.
 - **Agentic Reasoning & Reflection:** Internal reasoning loop for query classification, search strategy, Chain-of-Verification (CoVe), and dynamic synthesis of legal principles.
 
-### Doctrine Mode & Query Classification (Phase 1)
-- **Query Classification:** Classifies queries as DOCTRINAL, PROCEDURAL, or CASE_SPECIFIC to route appropriately.
+### Query Classification & Routing (Phase 1+2)
+- **Query Classification:** Classifies queries into 5 types: DOCTRINAL, PROCEDURAL, CASE_SPECIFIC, SYNTHESIS, FACT_DEPENDENT.
+- **Routing Rules:**
+  - DOCTRINAL/PROCEDURAL/SYNTHESIS → doctrine-first approach, retrieval optional
+  - CASE_SPECIFIC → retrieval required, grounding mandatory
+  - FACT_DEPENDENT → provide legal framework + request missing facts from user
 - **Doctrine Mode Fallback:** For doctrinal/procedural queries when retrieval fails, LLM answers from legal training knowledge instead of refusing.
 - **Retrieval Confidence:** Scores retrieval quality as HIGH, MODERATE, LOW, or NONE based on page count and ranks.
-- **Decision-Path Logging:** Logs query_type, retrieval_confidence, pages_count, doctrine_mode, refusal_detected, ambiguity_detected for each query.
-- **Post-Response Issue Detection:** Detects refusals and ambiguity clarification requests in LLM responses for Phase 2 validator preparation.
+- **Decision-Path Logging:** Logs query_type, retrieval_confidence, pages_count, doctrine_mode, refusal_detected, ambiguity_detected, freshness_sensitive, validator_triggered, final_response_path for each query.
+
+### Authoritative Post-Response Validator
+- **Validator Logic:** Detects invalid refusals for answerable query types and triggers auto-regeneration.
+- **Override Triggers:** Refusal on doctrinal/procedural/synthesis when answer is possible, ambiguity requests for clear queries.
+- **Correction Instructions:** Provides specific guidance for regeneration based on override reason.
+- **Decision Path Authority:** Validator decisions override earlier routing logic.
+
+### Freshness Awareness
+- **Temporal Detection:** Detects freshness-sensitive queries via keywords ("latest", "recent", "updated", "2023", "2024", etc.).
+- **Fast-Evolving Doctrines:** Auto-flags queries in rapidly changing areas (101 eligibility, PTAB, venue, remedies, claim construction, obviousness).
+- **Response Annotation:** Freshness-sensitive responses can include caveats about potential newer developments.
+
+### Authority Reconciliation Pipeline
+- **DISCOVER → RECONCILE → SERVE:** Three-stage pipeline for external authority validation.
+- **Case Status Types:** PRESENT (fully indexed), PARTIAL (metadata only), ABSENT (mention only).
+- **Citation Authority:** Only PRESENT cases can be cited as controlling authority; PARTIAL/ABSENT trigger web search or disclaimers.
 
 ### Voyager AI Observability Layer
 - **Purpose:** Non-invasive observability, governance, and audit replay layer.
