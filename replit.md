@@ -78,6 +78,13 @@ Preferred communication style: Simple, everyday language.
 - **AI-Powered Query Expansion:** Generates related legal keywords when initial FTS is insufficient.
 - **Agentic Reasoning & Reflection:** Internal reasoning loop for query classification, search strategy, Chain-of-Verification (CoVe), and dynamic synthesis of legal principles.
 
+### Doctrine Mode & Query Classification (Phase 1)
+- **Query Classification:** Classifies queries as DOCTRINAL, PROCEDURAL, or CASE_SPECIFIC to route appropriately.
+- **Doctrine Mode Fallback:** For doctrinal/procedural queries when retrieval fails, LLM answers from legal training knowledge instead of refusing.
+- **Retrieval Confidence:** Scores retrieval quality as HIGH, MODERATE, LOW, or NONE based on page count and ranks.
+- **Decision-Path Logging:** Logs query_type, retrieval_confidence, pages_count, doctrine_mode, refusal_detected, ambiguity_detected for each query.
+- **Post-Response Issue Detection:** Detects refusals and ambiguity clarification requests in LLM responses for Phase 2 validator preparation.
+
 ### Voyager AI Observability Layer
 - **Purpose:** Non-invasive observability, governance, and audit replay layer.
 - **Corpus Versioning:** SHA256-based deterministic version IDs.
