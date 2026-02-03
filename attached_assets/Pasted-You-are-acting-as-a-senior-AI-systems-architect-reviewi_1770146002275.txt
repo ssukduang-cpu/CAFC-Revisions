@@ -1,0 +1,124 @@
+You are acting as a senior AI systems architect reviewing and improving a production legal research agent.
+
+Your task is to design and implement system-level behavior that ensures:
+• reliable doctrinal answers,
+• resistance to retrieval failure,
+• freshness awareness, and
+• authoritative, traceable citations.
+
+This is an architectural planning task, not a content-generation task.
+
+────────────────────────────────────────────────────
+CORE DESIGN PRINCIPLES (NON-NEGOTIABLE)
+────────────────────────────────────────────────────
+1. Legal reasoning must never be blocked by retrieval failure.
+2. Retrieval is advisory, not authoritative.
+3. Doctrinal and procedural questions must always receive substantive answers.
+4. Authority requires traceability: do not cite what cannot be served.
+5. The system must distinguish uncertainty from absence.
+
+────────────────────────────────────────────────────
+REQUIRED EXECUTION MODEL
+────────────────────────────────────────────────────
+
+A. QUERY CLASSIFICATION (PRE-RETRIEVAL)
+Every query must be classified before retrieval into one of:
+• DOCTRINAL (black-letter law, frameworks, standards)
+• PROCEDURAL (process, appeals, jurisdiction, review)
+• CASE_SPECIFIC (a named case is the subject)
+• SYNTHESIS (how doctrine/cases have evolved)
+• FACT_DEPENDENT (requires missing facts)
+
+Routing rules:
+• DOCTRINAL / PROCEDURAL → doctrine-first, retrieval optional
+• CASE_SPECIFIC → retrieval required
+• SYNTHESIS → hybrid reasoning + retrieval
+• FACT_DEPENDENT → request facts only if outcome truly depends on them
+
+────────────────────────────────────────────────────
+B. DOCTRINE-FIRST FALLBACK (CRITICAL)
+If retrieval returns no results:
+• DOCTRINAL / PROCEDURAL → LLM must answer from settled legal doctrine
+• CASE_SPECIFIC → may return “not found” (with explanation)
+• SYNTHESIS → answer doctrinally and note limits
+
+Under no circumstances may the system return:
+• “NOT FOUND”
+• “AMBIGUOUS QUERY”
+• or any UX/system error
+for doctrinal or procedural questions.
+
+────────────────────────────────────────────────────
+C. FRESHNESS AWARENESS (SELECTIVE, NOT GLOBAL)
+The system must assess whether a query is freshness-sensitive.
+
+Freshness-sensitive indicators include:
+• “recent,” “latest,” “after,” “since,” “current”
+• fast-evolving areas (e.g., §101, PTAB, venue, remedies)
+
+If freshness-sensitive AND retrieval confidence is low:
+• Provide the best doctrinal answer available
+• Explicitly flag possible recency limits
+• Offer to check recent cases
+
+Do NOT suppress the answer due to possible staleness.
+
+────────────────────────────────────────────────────
+D. DISCOVER → RECONCILE → SERVE (AUTHORITY PIPELINE)
+If external discovery (web / recency search) identifies a case:
+
+1. DISCOVER
+   - Extract case metadata (name, court, year, docket if available)
+
+2. RECONCILE
+   - Query the internal knowledge base for the case
+   - Classify case status:
+     • PRESENT (full opinion indexed)
+     • PARTIAL (metadata only)
+     • ABSENT (not indexed)
+
+3. SERVE
+   - PRESENT → cite as authority and provide retrievable link/PDF
+   - PARTIAL → mention cautiously; flag as recently issued/unindexed
+   - ABSENT → do NOT cite as holding; treat as informational only
+
+The system must never present a case as authoritative unless it exists in the internal knowledge base with a retrievable source.
+
+────────────────────────────────────────────────────
+E. POST-RESPONSE VALIDATION (AUTHORITATIVE)
+After generating a response, a validation step must run.
+
+The validator must:
+• Detect invalid refusals
+• Detect unnecessary ambiguity requests
+• Detect citations to non-reconcilable authority
+
+If detected:
+• Automatically regenerate with corrected instructions
+• Validator decisions override earlier routing and retrieval logic
+
+────────────────────────────────────────────────────
+F. OBSERVABILITY & AUDITABILITY
+The system must log, per query:
+• query_type
+• retrieval_confidence
+• doctrine_mode_activated
+• freshness_sensitive (yes/no)
+• validator_triggered (yes/no)
+• final_response_path (doctrine | hybrid | retrieval)
+
+These logs are required to diagnose regressions and guide iteration.
+
+────────────────────────────────────────────────────
+GOAL STATE
+────────────────────────────────────────────────────
+The system should behave like a competent legal researcher:
+
+• It answers from doctrine when it can.
+• It checks for recent developments when it should.
+• It cites only what it can serve.
+• It never hides behind retrieval failure.
+• It is explicit about uncertainty without becoming obstructive.
+
+Your output should be an implementation plan aligned with these requirements,
+prioritized by ROI and feasibility.

@@ -756,11 +756,11 @@ def _build_agentic_reasoning_plan(query_lower: str, pages: List[Dict]) -> Dict[s
 
 class QueryType:
     """Classification of query types for routing decisions."""
-    DOCTRINAL = "doctrinal"           # Black-letter law, standards, tests
-    PROCEDURAL = "procedural"          # Standards of review, burdens
-    CASE_SPECIFIC = "case_specific"    # Analysis of a named case
-    MULTI_CASE = "multi_case"          # Synthesis across cases
-    FACT_DEPENDENT = "fact_dependent"  # Application to specific facts
+    DOCTRINAL = "doctrinal"           # Black-letter law, frameworks, standards
+    PROCEDURAL = "procedural"          # Process, appeals, jurisdiction, review
+    CASE_SPECIFIC = "case_specific"    # A named case is the subject
+    SYNTHESIS = "synthesis"            # How doctrine/cases have evolved
+    FACT_DEPENDENT = "fact_dependent"  # Requires missing facts to answer
 
 
 class RetrievalConfidence:
@@ -774,53 +774,86 @@ class RetrievalConfidence:
 def classify_query_type(query: str) -> str:
     """
     Classify the query to determine appropriate response strategy.
-    Doctrinal/procedural queries don't require case excerpts.
+    
+    Routing rules per spec:
+    - DOCTRINAL/PROCEDURAL → doctrine-first, retrieval optional
+    - CASE_SPECIFIC → retrieval required
+    - SYNTHESIS → hybrid reasoning + retrieval
+    - FACT_DEPENDENT → request facts only if outcome truly depends on them
     """
     query_lower = query.lower().strip()
     
-    # Doctrinal patterns - should be answered from settled law
-    doctrinal_patterns = [
-        'what is', 'what are', 'define', 'explain', 'how does',
-        'what happens when', 'what is the standard', 'how does the court treat',
-        'what test', 'what framework', 'what factors', 'what elements',
-        'when is', 'why is', 'what constitutes', 'what does it mean'
+    # FACT_DEPENDENT patterns - requires specific facts to answer
+    # Check first as it overrides other types
+    fact_dependent_patterns = [
+        'in my case', 'my client', 'my situation', 'my patent', 'my invention',
+        'would this', 'is this infringing', 'does this qualify', 'would a',
+        'given these facts', 'based on', 'if the defendant', 'if the plaintiff',
+        'would it be infringement if', 'assuming that', 'in a scenario where'
     ]
     
-    # Procedural patterns - standards of review, burdens
-    procedural_patterns = [
-        'standard of review', 'burden of proof', 'burden of persuasion',
-        'de novo', 'abuse of discretion', 'clearly erroneous', 'substantial evidence',
-        'appellate review', 'preserved for appeal', 'waived'
+    for pattern in fact_dependent_patterns:
+        if pattern in query_lower:
+            return QueryType.FACT_DEPENDENT
+    
+    # SYNTHESIS patterns - evolution of doctrine, trends, comparisons
+    synthesis_patterns = [
+        'how has', 'evolution of', 'trend in', 'development of',
+        'compare', 'contrast', 'difference between', 'changed over',
+        'how have courts treated', 'history of', 'trajectory of',
+        'after alice', 'post-alice', 'since mayo', 'before and after',
+        'line of cases', 'series of cases', 'across cases'
     ]
     
-    # Case-specific patterns - requires specific case
-    case_specific_patterns = [
-        'in the case', 'what did the court hold in', 'according to',
-        'the ruling in', 'the decision in', 'analyze the', 'summarize'
-    ]
+    for pattern in synthesis_patterns:
+        if pattern in query_lower:
+            return QueryType.SYNTHESIS
     
     # Check for case name patterns (e.g., "v." or "vs.")
     has_case_citation = ' v. ' in query or ' vs. ' in query or ' v ' in query
     
     # Multi-word proper nouns that look like case names
-    import re
     case_name_pattern = re.search(r'\b[A-Z][a-z]+\s+v\.?\s+[A-Z][a-z]+', query)
     
-    # Classify
+    # CASE_SPECIFIC patterns - requires specific case excerpts
+    case_specific_patterns = [
+        'in the case', 'what did the court hold in', 'according to',
+        'the ruling in', 'the decision in', 'analyze the', 'summarize',
+        'what happened in', 'outcome of', 'result in'
+    ]
+    
     if has_case_citation or case_name_pattern:
         return QueryType.CASE_SPECIFIC
+    
+    for pattern in case_specific_patterns:
+        if pattern in query_lower:
+            return QueryType.CASE_SPECIFIC
+    
+    # DOCTRINAL patterns - black-letter law, standards, tests
+    doctrinal_patterns = [
+        'what is', 'what are', 'define', 'explain', 'how does',
+        'what happens when', 'what is the standard', 'how does the court treat',
+        'what test', 'what framework', 'what factors', 'what elements',
+        'when is', 'why is', 'what constitutes', 'what does it mean',
+        'elements of', 'requirements for', 'meaning of', 'definition of'
+    ]
     
     for pattern in doctrinal_patterns:
         if query_lower.startswith(pattern) or f' {pattern}' in query_lower:
             return QueryType.DOCTRINAL
     
+    # PROCEDURAL patterns - process, appeals, jurisdiction
+    procedural_patterns = [
+        'standard of review', 'burden of proof', 'burden of persuasion',
+        'de novo', 'abuse of discretion', 'clearly erroneous', 'substantial evidence',
+        'appellate review', 'preserved for appeal', 'waived',
+        'how to appeal', 'jurisdiction', 'venue', 'standing', 'procedure',
+        'filing deadline', 'time limit', 'statute of limitations'
+    ]
+    
     for pattern in procedural_patterns:
         if pattern in query_lower:
             return QueryType.PROCEDURAL
-    
-    for pattern in case_specific_patterns:
-        if pattern in query_lower:
-            return QueryType.CASE_SPECIFIC
     
     # Default: treat as doctrinal (prefer answering over refusing)
     return QueryType.DOCTRINAL
@@ -851,6 +884,61 @@ def assess_retrieval_confidence(pages: list, scores: list = None) -> str:
         return RetrievalConfidence.LOW
 
 
+def detect_freshness_sensitivity(query: str) -> dict:
+    """
+    Detect whether a query is freshness-sensitive and should flag potential recency limits.
+    
+    Returns:
+        dict with:
+        - is_sensitive: bool - whether freshness matters for this query
+        - reason: str - why it's freshness-sensitive (or None)
+        - doctrine_area: str - which doctrine area if applicable
+    """
+    query_lower = query.lower().strip()
+    
+    # Temporal keywords that indicate freshness sensitivity
+    temporal_keywords = [
+        'recent', 'latest', 'current', 'new', 'after', 'since',
+        'last year', 'this year', '2024', '2025', '2026',
+        'modern', 'updated', 'now', 'today', 'contemporary'
+    ]
+    
+    # Fast-evolving legal doctrine areas (per spec)
+    fast_evolving_doctrines = {
+        '101': ['101', 'alice', 'mayo', 'eligibility', 'abstract idea', 'inventive concept'],
+        'ptab': ['ptab', 'inter partes', 'ipr', 'cbm', 'aia trial', 'post-grant'],
+        'venue': ['venue', 'tc heartland', 'where to file', 'forum'],
+        'remedies': ['damages', 'reasonable royalty', 'lost profits', 'injunction', 'willful', 'enhanced'],
+        'claim_construction': ['claim construction', 'phillips', 'means-plus-function', '112(f)'],
+        'obviousness': ['obviousness', 'ksr', 'tsm', 'teaching-suggestion-motivation', '103']
+    }
+    
+    # Check for temporal keywords
+    for keyword in temporal_keywords:
+        if keyword in query_lower:
+            return {
+                'is_sensitive': True,
+                'reason': f"Contains temporal keyword: '{keyword}'",
+                'doctrine_area': None
+            }
+    
+    # Check for fast-evolving doctrine areas
+    for area, patterns in fast_evolving_doctrines.items():
+        for pattern in patterns:
+            if pattern in query_lower:
+                return {
+                    'is_sensitive': True,
+                    'reason': f"Fast-evolving doctrine area: {area}",
+                    'doctrine_area': area
+                }
+    
+    return {
+        'is_sensitive': False,
+        'reason': None,
+        'doctrine_area': None
+    }
+
+
 def log_decision_path(
     query: str,
     query_type: str,
@@ -860,11 +948,18 @@ def log_decision_path(
     refusal_detected: bool = False,
     ambiguity_detected: bool = False,
     doctrine_mode: bool = False,
-    web_search_triggered: bool = False
+    web_search_triggered: bool = False,
+    freshness_sensitive: bool = False,
+    final_response_path: str = None
 ):
     """
     Log decision-path signals for monitoring and analysis.
     These signals enable measurement of refusal/ambiguity rates.
+    
+    final_response_path options:
+    - 'doctrine': Answered from LLM training knowledge
+    - 'retrieval': Answered from retrieved excerpts
+    - 'hybrid': Combined doctrine + retrieval
     """
     logging.info(
         f"DECISION_PATH: "
@@ -876,8 +971,102 @@ def log_decision_path(
         f"validator_triggered={validator_triggered}, "
         f"refusal_detected={refusal_detected}, "
         f"ambiguity_detected={ambiguity_detected}, "
+        f"freshness_sensitive={freshness_sensitive}, "
+        f"final_response_path={final_response_path}, "
         f"query_preview=\"{query[:80]}...\""
     )
+
+
+class CaseStatus:
+    """Case reconciliation status for DISCOVER → RECONCILE → SERVE pipeline."""
+    PRESENT = "present"    # Full opinion indexed with retrievable source
+    PARTIAL = "partial"    # Metadata only (mentioned in other opinions)
+    ABSENT = "absent"      # Not in knowledge base
+
+
+def reconcile_case_authority(case_name: str, case_court: str = None, case_year: int = None) -> dict:
+    """
+    RECONCILE step of DISCOVER → RECONCILE → SERVE pipeline.
+    
+    Checks if a discovered case exists in the internal knowledge base
+    and determines how it can be cited.
+    
+    Returns:
+        dict with:
+        - status: PRESENT, PARTIAL, or ABSENT
+        - opinion_id: int if PRESENT, None otherwise
+        - can_cite_as_authority: bool
+        - has_retrievable_source: bool
+        - message: str explanation
+    """
+    from backend.db_postgres import get_db
+    db = get_db()
+    
+    if not case_name:
+        return {
+            'status': CaseStatus.ABSENT,
+            'opinion_id': None,
+            'can_cite_as_authority': False,
+            'has_retrievable_source': False,
+            'message': "No case name provided"
+        }
+    
+    # Try to find the case in our knowledge base
+    try:
+        # First try exact case name search
+        opinions = db.search_opinions_by_name(case_name, limit=3)
+        
+        if opinions:
+            # Found the case
+            best_match = opinions[0]
+            has_pdf = bool(best_match.get('pdf_path') or best_match.get('pdf_url'))
+            has_pages = best_match.get('page_count', 0) > 0
+            
+            if has_pages:
+                return {
+                    'status': CaseStatus.PRESENT,
+                    'opinion_id': best_match.get('id'),
+                    'can_cite_as_authority': True,
+                    'has_retrievable_source': has_pdf,
+                    'message': f"Case found in knowledge base: {best_match.get('case_name')}"
+                }
+            else:
+                return {
+                    'status': CaseStatus.PARTIAL,
+                    'opinion_id': best_match.get('id'),
+                    'can_cite_as_authority': False,
+                    'has_retrievable_source': has_pdf,
+                    'message': f"Case metadata exists but text not fully indexed: {best_match.get('case_name')}"
+                }
+        
+        # Not found by name - check if mentioned in other opinions (partial presence)
+        pages_mentioning = db.search_pages(case_name, None, limit=1)
+        if pages_mentioning:
+            return {
+                'status': CaseStatus.PARTIAL,
+                'opinion_id': None,
+                'can_cite_as_authority': False,
+                'has_retrievable_source': False,
+                'message': f"Case mentioned in other opinions but not directly indexed"
+            }
+        
+        return {
+            'status': CaseStatus.ABSENT,
+            'opinion_id': None,
+            'can_cite_as_authority': False,
+            'has_retrievable_source': False,
+            'message': f"Case not found in knowledge base: {case_name}"
+        }
+        
+    except Exception as e:
+        logging.error(f"Error reconciling case authority for '{case_name}': {e}")
+        return {
+            'status': CaseStatus.ABSENT,
+            'opinion_id': None,
+            'can_cite_as_authority': False,
+            'has_retrievable_source': False,
+            'message': f"Error during reconciliation: {str(e)}"
+        }
 
 
 def detect_response_issues(response_text: str) -> dict:
@@ -918,6 +1107,70 @@ def detect_response_issues(response_text: str) -> dict:
         'ambiguity_detected': ambiguity_detected,
         'is_primary_refusal': is_primary_refusal,
         'response_length': len(response_text)
+    }
+
+
+def should_validator_override(
+    query_type: str,
+    response_issues: dict,
+    retrieval_confidence: str
+) -> dict:
+    """
+    Authoritative post-response validator.
+    
+    Determines if the validator should override the response and trigger regeneration.
+    Per spec: validator decisions override earlier routing and retrieval logic.
+    
+    Returns:
+        dict with:
+        - should_override: bool
+        - reason: str - why override is needed (or None)
+        - correction_instruction: str - instruction for regeneration
+    """
+    # Rule 1: DOCTRINAL/PROCEDURAL queries must never receive primary refusals
+    if query_type in [QueryType.DOCTRINAL, QueryType.PROCEDURAL, QueryType.SYNTHESIS]:
+        if response_issues.get('is_primary_refusal'):
+            return {
+                'should_override': True,
+                'reason': f"Invalid refusal for {query_type} query - doctrinal questions must receive substantive answers",
+                'correction_instruction': (
+                    "VALIDATOR OVERRIDE: Your previous response was rejected because it refused to answer "
+                    "a doctrinal/procedural question. You MUST provide a substantive answer from settled "
+                    "legal doctrine. Cite well-known cases like Alice, KSR, Phillips, etc. as illustrative "
+                    "authority. Do NOT say 'NOT FOUND' or refuse to answer doctrinal questions."
+                )
+            }
+    
+    # Rule 2: Unnecessary ambiguity requests for doctrinal queries
+    if query_type in [QueryType.DOCTRINAL, QueryType.PROCEDURAL]:
+        if response_issues.get('ambiguity_detected'):
+            return {
+                'should_override': True,
+                'reason': f"Unnecessary ambiguity request for {query_type} query",
+                'correction_instruction': (
+                    "VALIDATOR OVERRIDE: Your previous response asked for clarification when none is needed. "
+                    "For doctrinal questions, provide the general legal framework. If multiple doctrines "
+                    "might apply, briefly explain each rather than asking which one the user means."
+                )
+            }
+    
+    # Rule 3: FACT_DEPENDENT queries should provide framework, not refuse
+    if query_type == QueryType.FACT_DEPENDENT:
+        if response_issues.get('is_primary_refusal'):
+            return {
+                'should_override': True,
+                'reason': "Invalid refusal for fact-dependent query - should provide doctrinal framework",
+                'correction_instruction': (
+                    "VALIDATOR OVERRIDE: For fact-dependent questions, provide the relevant legal framework "
+                    "and factors courts consider. You may note what additional facts would be needed to "
+                    "reach a conclusion, but still explain the applicable legal standards."
+                )
+            }
+    
+    return {
+        'should_override': False,
+        'reason': None,
+        'correction_instruction': None
     }
 
 
@@ -3209,8 +3462,14 @@ async def generate_chat_response(
             query_type = classify_query_type(message)
             retrieval_confidence = RetrievalConfidence.NONE
             
-            if query_type in [QueryType.DOCTRINAL, QueryType.PROCEDURAL]:
-                # For doctrinal queries, proceed to LLM without excerpts
+            # Route based on query type per spec:
+            # - DOCTRINAL/PROCEDURAL → doctrine-first, retrieval optional
+            # - CASE_SPECIFIC → retrieval required
+            # - SYNTHESIS → hybrid (answer doctrinally and note limits)
+            # - FACT_DEPENDENT → request facts only if outcome truly depends
+            
+            if query_type in [QueryType.DOCTRINAL, QueryType.PROCEDURAL, QueryType.SYNTHESIS]:
+                # Doctrine-answerable queries proceed to LLM without excerpts
                 log_decision_path(
                     query=message,
                     query_type=query_type,
@@ -3221,8 +3480,20 @@ async def generate_chat_response(
                 )
                 logging.info(f"DOCTRINE_MODE: Empty retrieval for {query_type} query, proceeding to LLM without excerpts")
                 # pages stays empty, but we continue to LLM - it will answer from doctrine
+            elif query_type == QueryType.FACT_DEPENDENT:
+                # Request missing facts rather than refusing
+                log_decision_path(
+                    query=message,
+                    query_type=query_type,
+                    retrieval_confidence=retrieval_confidence,
+                    pages_count=0,
+                    doctrine_mode=True,  # Will answer doctrinally while requesting facts
+                    web_search_triggered=web_search_result.get("web_search_triggered", False)
+                )
+                logging.info(f"FACT_DEPENDENT: Empty retrieval, will provide doctrinal framework and request facts")
+                # Continue to LLM with fact-dependent prompt guidance
             else:
-                # For case-specific queries, return NOT FOUND (they genuinely need excerpts)
+                # CASE_SPECIFIC with no excerpts - this genuinely needs retrieval
                 log_decision_path(
                     query=message,
                     query_type=query_type,
@@ -3396,13 +3667,66 @@ question instead.
         if response_issues['ambiguity_detected']:
             logging.warning(f"POST_RESPONSE_ISSUE: ambiguity_detected=True, query_type={query_type}")
         
+        # ═══════════════════════════════════════════════════════════════════
+        # AUTHORITATIVE POST-RESPONSE VALIDATOR
+        # Per spec: validator decisions override earlier routing/retrieval logic
+        # ═══════════════════════════════════════════════════════════════════
+        validator_result = should_validator_override(query_type, response_issues, retrieval_confidence)
+        validator_triggered = validator_result['should_override']
+        
+        if validator_triggered:
+            logging.warning(f"VALIDATOR_OVERRIDE: {validator_result['reason']}")
+            
+            # Regenerate with correction instruction
+            try:
+                correction_prompt = validator_result['correction_instruction']
+                retry_messages = [
+                    {"role": "system", "content": enhanced_prompt + f"\n\n{correction_prompt}"},
+                    {"role": "user", "content": message}
+                ]
+                
+                retry_response = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        _executor,
+                        lambda: client.chat.completions.create(
+                            model=model_name,
+                            messages=retry_messages,
+                            temperature=0.1,
+                            max_tokens=max_tokens,
+                            timeout=90.0
+                        )
+                    ),
+                    timeout=120.0
+                )
+                
+                raw_answer = retry_response.choices[0].message.content or raw_answer
+                logging.info(f"VALIDATOR_OVERRIDE_SUCCESS: Regenerated response (length={len(raw_answer)})")
+                
+                # Update decision path log with validator trigger
+                log_decision_path(
+                    query=message,
+                    query_type=query_type,
+                    retrieval_confidence=retrieval_confidence,
+                    pages_count=len(pages),
+                    doctrine_mode=doctrine_mode,
+                    validator_triggered=True,
+                    refusal_detected=False,  # Reset since we regenerated
+                    ambiguity_detected=False,
+                    final_response_path='doctrine' if doctrine_mode else 'hybrid'
+                )
+                
+            except Exception as validator_err:
+                logging.error(f"Validator regeneration failed: {validator_err}")
+                # Fall through with original response
+        
         # DEBUG: Reflection Pass logging
-        reflection_status = "Found" if not response_issues['refusal_detected'] else "Not Found"
-        if "Self-Correct" in reasoning_plan.get("reflection_pass", "") or response_issues['refusal_detected']:
+        reflection_status = "Found" if not response_issues['refusal_detected'] or validator_triggered else "Not Found"
+        if "Self-Correct" in reasoning_plan.get("reflection_pass", "") or (response_issues['refusal_detected'] and not validator_triggered):
             reflection_status = "Not Found - Self-Correcting"
         logging.info(f"DEBUG: Reflection Pass: {reflection_status} | Context Quality: {reasoning_plan.get('context_quality', 'unknown')}")
         
         # Only trigger web search fallback if the response is PRIMARILY a "NOT FOUND" response
+        # Skip this if validator already handled the refusal
         # Don't trigger if the AI provided substantive content but also included a NOT FOUND caveat
         is_not_found_response = (
             raw_answer.upper().strip().startswith("NOT FOUND") or
