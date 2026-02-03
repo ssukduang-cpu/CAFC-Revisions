@@ -750,6 +750,177 @@ def _build_agentic_reasoning_plan(query_lower: str, pages: List[Dict]) -> Dict[s
     return plan
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1: Query Classification and Retrieval Confidence (Decision-Path Signals)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class QueryType:
+    """Classification of query types for routing decisions."""
+    DOCTRINAL = "doctrinal"           # Black-letter law, standards, tests
+    PROCEDURAL = "procedural"          # Standards of review, burdens
+    CASE_SPECIFIC = "case_specific"    # Analysis of a named case
+    MULTI_CASE = "multi_case"          # Synthesis across cases
+    FACT_DEPENDENT = "fact_dependent"  # Application to specific facts
+
+
+class RetrievalConfidence:
+    """Graded confidence levels for retrieval results."""
+    STRONG = "strong"      # >5 relevant pages, high FTS scores
+    MODERATE = "moderate"  # 1-5 pages, medium scores
+    LOW = "low"           # 0 pages or very low scores
+    NONE = "none"         # No retrieval attempted or total failure
+
+
+def classify_query_type(query: str) -> str:
+    """
+    Classify the query to determine appropriate response strategy.
+    Doctrinal/procedural queries don't require case excerpts.
+    """
+    query_lower = query.lower().strip()
+    
+    # Doctrinal patterns - should be answered from settled law
+    doctrinal_patterns = [
+        'what is', 'what are', 'define', 'explain', 'how does',
+        'what happens when', 'what is the standard', 'how does the court treat',
+        'what test', 'what framework', 'what factors', 'what elements',
+        'when is', 'why is', 'what constitutes', 'what does it mean'
+    ]
+    
+    # Procedural patterns - standards of review, burdens
+    procedural_patterns = [
+        'standard of review', 'burden of proof', 'burden of persuasion',
+        'de novo', 'abuse of discretion', 'clearly erroneous', 'substantial evidence',
+        'appellate review', 'preserved for appeal', 'waived'
+    ]
+    
+    # Case-specific patterns - requires specific case
+    case_specific_patterns = [
+        'in the case', 'what did the court hold in', 'according to',
+        'the ruling in', 'the decision in', 'analyze the', 'summarize'
+    ]
+    
+    # Check for case name patterns (e.g., "v." or "vs.")
+    has_case_citation = ' v. ' in query or ' vs. ' in query or ' v ' in query
+    
+    # Multi-word proper nouns that look like case names
+    import re
+    case_name_pattern = re.search(r'\b[A-Z][a-z]+\s+v\.?\s+[A-Z][a-z]+', query)
+    
+    # Classify
+    if has_case_citation or case_name_pattern:
+        return QueryType.CASE_SPECIFIC
+    
+    for pattern in doctrinal_patterns:
+        if query_lower.startswith(pattern) or f' {pattern}' in query_lower:
+            return QueryType.DOCTRINAL
+    
+    for pattern in procedural_patterns:
+        if pattern in query_lower:
+            return QueryType.PROCEDURAL
+    
+    for pattern in case_specific_patterns:
+        if pattern in query_lower:
+            return QueryType.CASE_SPECIFIC
+    
+    # Default: treat as doctrinal (prefer answering over refusing)
+    return QueryType.DOCTRINAL
+
+
+def assess_retrieval_confidence(pages: list, scores: list = None) -> str:
+    """
+    Assess retrieval confidence based on pages retrieved and their scores.
+    Returns graded confidence level.
+    """
+    if not pages:
+        return RetrievalConfidence.NONE
+    
+    page_count = len(pages)
+    
+    # Extract scores if available
+    if scores is None:
+        scores = [p.get('rank', 0) or p.get('score', 0) for p in pages]
+    
+    avg_score = sum(scores) / len(scores) if scores else 0
+    
+    # Assess based on count and quality
+    if page_count >= 5 and avg_score > 0.5:
+        return RetrievalConfidence.STRONG
+    elif page_count >= 2 or (page_count >= 1 and avg_score > 0.3):
+        return RetrievalConfidence.MODERATE
+    else:
+        return RetrievalConfidence.LOW
+
+
+def log_decision_path(
+    query: str,
+    query_type: str,
+    retrieval_confidence: str,
+    pages_count: int,
+    validator_triggered: bool = False,
+    refusal_detected: bool = False,
+    ambiguity_detected: bool = False,
+    doctrine_mode: bool = False,
+    web_search_triggered: bool = False
+):
+    """
+    Log decision-path signals for monitoring and analysis.
+    These signals enable measurement of refusal/ambiguity rates.
+    """
+    logging.info(
+        f"DECISION_PATH: "
+        f"query_type={query_type}, "
+        f"retrieval_confidence={retrieval_confidence}, "
+        f"pages_count={pages_count}, "
+        f"doctrine_mode={doctrine_mode}, "
+        f"web_search_triggered={web_search_triggered}, "
+        f"validator_triggered={validator_triggered}, "
+        f"refusal_detected={refusal_detected}, "
+        f"ambiguity_detected={ambiguity_detected}, "
+        f"query_preview=\"{query[:80]}...\""
+    )
+
+
+def detect_response_issues(response_text: str) -> dict:
+    """
+    Detect refusals and ambiguity blocks in LLM response.
+    Returns dict with detection flags and details.
+    """
+    upper = response_text.upper()
+    
+    refusal_patterns = [
+        'NOT FOUND IN PROVIDED OPINIONS',
+        'I CANNOT ANSWER',
+        'I CANNOT PROVIDE',
+        'NO RELEVANT EXCERPTS',
+        'UNABLE TO FIND',
+        'NOT ENOUGH INFORMATION'
+    ]
+    
+    ambiguity_patterns = [
+        'AMBIGUOUS QUERY',
+        'MULTIPLE MATCHES FOUND',
+        'PLEASE SPECIFY WHICH CASE',
+        'PLEASE CLARIFY',
+        'MULTIPLE FEDERAL CIRCUIT DECISIONS'
+    ]
+    
+    refusal_detected = any(p in upper for p in refusal_patterns)
+    ambiguity_detected = any(p in upper for p in ambiguity_patterns)
+    
+    # Check if response is primarily a refusal (vs. substantive with caveat)
+    is_primary_refusal = (
+        refusal_detected and 
+        (upper.strip().startswith('NOT FOUND') or len(response_text.strip()) < 300)
+    )
+    
+    return {
+        'refusal_detected': refusal_detected,
+        'ambiguity_detected': ambiguity_detected,
+        'is_primary_refusal': is_primary_refusal,
+        'response_length': len(response_text)
+    }
+
+
 # Token counting for context safety
 _tiktoken_encoder = None
 
@@ -3031,24 +3202,67 @@ async def generate_chat_response(
                 }
             })
         else:
-            return standardize_response({
-                "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo relevant excerpts were found. Try different search terms or ingest additional opinions.",
-                "sources": [],
-                "debug": {
-                    "claims": [],
-                    "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
-                    "search_query": message,
-                    "search_terms": search_terms,
-                    "pages_count": 0,
-                    "pages_sample": [],
-                    "markers_count": 0,
-                    "markers": [],
-                    "sources_count": 0,
+            # ═══════════════════════════════════════════════════════════════════
+            # PHASE 1 FIX: Don't block on empty retrieval - use doctrine mode
+            # For doctrinal/procedural queries, let LLM answer from training knowledge
+            # ═══════════════════════════════════════════════════════════════════
+            query_type = classify_query_type(message)
+            retrieval_confidence = RetrievalConfidence.NONE
+            
+            if query_type in [QueryType.DOCTRINAL, QueryType.PROCEDURAL]:
+                # For doctrinal queries, proceed to LLM without excerpts
+                log_decision_path(
+                    query=message,
+                    query_type=query_type,
+                    retrieval_confidence=retrieval_confidence,
+                    pages_count=0,
+                    doctrine_mode=True,
+                    web_search_triggered=web_search_result.get("web_search_triggered", False)
+                )
+                logging.info(f"DOCTRINE_MODE: Empty retrieval for {query_type} query, proceeding to LLM without excerpts")
+                # pages stays empty, but we continue to LLM - it will answer from doctrine
+            else:
+                # For case-specific queries, return NOT FOUND (they genuinely need excerpts)
+                log_decision_path(
+                    query=message,
+                    query_type=query_type,
+                    retrieval_confidence=retrieval_confidence,
+                    pages_count=0,
+                    refusal_detected=True,
+                    web_search_triggered=web_search_result.get("web_search_triggered", False)
+                )
+                return standardize_response({
+                    "answer_markdown": "No matching case found in the indexed opinions.\n\nTo analyze a specific case, please ensure it has been ingested, or try searching with different terms.",
                     "sources": [],
-                    "raw_response": None,
-                    "return_branch": "not_found_no_pages"
-                }
-            })
+                    "debug": {
+                        "claims": [],
+                        "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 1},
+                        "search_query": message,
+                        "search_terms": search_terms,
+                        "pages_count": 0,
+                        "pages_sample": [],
+                        "markers_count": 0,
+                        "markers": [],
+                        "sources_count": 0,
+                        "sources": [],
+                        "raw_response": None,
+                        "return_branch": "not_found_case_specific_no_pages",
+                        "query_type": query_type
+                    }
+                })
+    
+    # Assess retrieval confidence for logging
+    retrieval_confidence = assess_retrieval_confidence(pages)
+    query_type = classify_query_type(message)
+    doctrine_mode = len(pages) == 0
+    
+    log_decision_path(
+        query=message,
+        query_type=query_type,
+        retrieval_confidence=retrieval_confidence,
+        pages_count=len(pages),
+        doctrine_mode=doctrine_mode
+    )
     
     client = get_openai_client()
     
@@ -3101,7 +3315,25 @@ async def generate_chat_response(
     if cached_definition:
         enhanced_prompt += f"\n\nREFERENCE FRAMEWORK:\n{cached_definition}"
     
-    enhanced_prompt += "\n\nAVAILABLE OPINION EXCERPTS:\n" + context
+    # Handle doctrine mode (no excerpts available)
+    if doctrine_mode or not context.strip():
+        enhanced_prompt += """
+
+AVAILABLE OPINION EXCERPTS:
+[No opinion excerpts were retrieved for this query.]
+
+DOCTRINE MODE ACTIVE: Answer this question from settled Federal Circuit and Supreme Court 
+patent law doctrine. You have the legal training and knowledge to answer doctrinal and 
+procedural questions accurately. Cite well-known cases as illustrative authority where 
+appropriate (e.g., Alice, KSR, Phillips, Nautilus), but do not fabricate specific quotes 
+or page numbers.
+
+If this query requires analysis of a SPECIFIC case that was not retrieved, inform the user 
+that the specific case is not currently indexed, and offer to answer the general doctrinal 
+question instead.
+"""
+    else:
+        enhanced_prompt += "\n\nAVAILABLE OPINION EXCERPTS:\n" + context
     
     # DEBUG: Agentic Reasoning Plan logging
     query_lower = message.lower()
@@ -3141,9 +3373,32 @@ async def generate_chat_response(
         # DEBUG: Log the raw AI response for troubleshooting
         logging.info(f"DEBUG: AI Raw Response (first 500 chars): {raw_answer[:500]}")
         
+        # ═══════════════════════════════════════════════════════════════════
+        # PHASE 1: Post-response issue detection and logging
+        # ═══════════════════════════════════════════════════════════════════
+        response_issues = detect_response_issues(raw_answer)
+        
+        # Update decision path log with response analysis
+        log_decision_path(
+            query=message,
+            query_type=query_type,
+            retrieval_confidence=retrieval_confidence,
+            pages_count=len(pages),
+            doctrine_mode=doctrine_mode,
+            validator_triggered=False,  # Phase 2 will make this authoritative
+            refusal_detected=response_issues['refusal_detected'],
+            ambiguity_detected=response_issues['ambiguity_detected']
+        )
+        
+        # Log specific issue details for monitoring
+        if response_issues['refusal_detected']:
+            logging.warning(f"POST_RESPONSE_ISSUE: refusal_detected=True, is_primary={response_issues['is_primary_refusal']}, query_type={query_type}")
+        if response_issues['ambiguity_detected']:
+            logging.warning(f"POST_RESPONSE_ISSUE: ambiguity_detected=True, query_type={query_type}")
+        
         # DEBUG: Reflection Pass logging
-        reflection_status = "Found" if "NOT FOUND" not in raw_answer.upper() else "Not Found"
-        if "Self-Correct" in reasoning_plan.get("reflection_pass", "") or reflection_status == "Not Found":
+        reflection_status = "Found" if not response_issues['refusal_detected'] else "Not Found"
+        if "Self-Correct" in reasoning_plan.get("reflection_pass", "") or response_issues['refusal_detected']:
             reflection_status = "Not Found - Self-Correcting"
         logging.info(f"DEBUG: Reflection Pass: {reflection_status} | Context Quality: {reasoning_plan.get('context_quality', 'unknown')}")
         
