@@ -180,7 +180,7 @@ export function OpinionLibrary() {
         author: author && author !== "all" ? author : undefined,
         includeR36: false,
         year: selectedYear || undefined,
-        ingested: true
+        ingested: undefined  // Show ALL cases (both ingested and not ingested)
       });
       setOpinions(data.opinions);
       setTotal(data.total);
