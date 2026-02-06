@@ -13,7 +13,7 @@ import os
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from backend.chat import detect_option_reference
+from backend.chat import detect_option_reference, resolve_candidate_reference, is_probable_disambiguation_followup
 
 
 class TestDetectOptionReference:
@@ -62,6 +62,37 @@ class TestDetectOptionReference:
         """Numbers in sentences should not be detected (except at start)."""
         assert detect_option_reference("I want option 1 please") == 1
         assert detect_option_reference("Give me the second option") == 2
+
+
+class TestResolveCandidateReference:
+    def test_party_name_resolution(self):
+        candidates = [
+            {"id": "1", "label": "Google LLC v. EcoFactor, Inc.", "appeal_no": "23-1101"},
+            {"id": "2", "label": "Apple Inc. v. Vidal", "appeal_no": "22-1450"},
+        ]
+        assert resolve_candidate_reference("the google one", candidates) == 1
+
+    def test_appeal_number_resolution(self):
+        candidates = [
+            {"id": "1", "label": "Case A", "appeal_no": "23-1101"},
+            {"id": "2", "label": "Case B", "appeal_no": "22-1450"},
+        ]
+        assert resolve_candidate_reference("22-1450", candidates) == 2
+
+    def test_last_ordinal_resolution(self):
+        candidates = [
+            {"id": "1", "label": "Case A"},
+            {"id": "2", "label": "Case B"},
+            {"id": "3", "label": "Case C"},
+        ]
+        assert resolve_candidate_reference("the last one", candidates) == 3
+
+
+class TestProbableDisambiguationFollowup:
+    def test_followup_markers(self):
+        assert is_probable_disambiguation_followup("the newer one") is True
+        assert is_probable_disambiguation_followup("google") is True
+        assert is_probable_disambiguation_followup("what is enablement doctrine") is False
 
 
 class TestDisambiguationState:

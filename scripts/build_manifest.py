@@ -110,7 +110,8 @@ async def build_manifest(
                         await asyncio.sleep(random.randint(MIN_DELAY_MS, MAX_DELAY_MS) / 1000)
                         current_page += 1
                         continue
-                except:
+                except Exception as exc:
+                    print(f"[warn] failed to advance pagination on page {current_page}: {exc}")
                     pass
             
             print(f"\n--- Processing page {current_page + 1} ---")

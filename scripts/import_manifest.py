@@ -70,7 +70,8 @@ def get_docket_number(docket_id: int, session: requests.Session) -> str:
                 time.sleep(2 ** attempt)
             else:
                 return ""
-        except:
+        except requests.RequestException as exc:
+            print(f"  Warning: docket lookup failed for {docket_id}: {exc}")
             time.sleep(1)
     
     return ""
@@ -149,7 +150,8 @@ def import_records(manifest_file: str, limit: int = None):
         if release_date and isinstance(release_date, str):
             try:
                 release_date = datetime.strptime(release_date, "%Y-%m-%d").date()
-            except:
+            except ValueError:
+                print(f"  Warning: invalid release date format: {release_date}")
                 release_date = None
         
         # Insert record
