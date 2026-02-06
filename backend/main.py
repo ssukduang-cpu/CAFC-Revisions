@@ -80,6 +80,7 @@ from backend.telemetry import router as telemetry_router
 from backend.eval_runner import router as eval_router
 from backend.external_api import router as external_api_router
 from backend import voyager
+from backend.smart.config import log_effective_flags
 
 app = FastAPI(title="Federal Circuit AI")
 app.include_router(telemetry_router)
@@ -93,6 +94,7 @@ async def startup_voyager():
     try:
         voyager.ensure_query_runs_table()
         logger.info("Voyager query_runs table initialized")
+        log_effective_flags()
     except Exception as e:
         logger.error(f"Error initializing Voyager: {e}")
 
@@ -109,7 +111,7 @@ async def startup_auto_sync():
 async def auto_sync_loop():
     """Background loop that syncs new opinions from Federal Circuit website weekly."""
     from backend.scraper import scrape_opinions
-    from backend.ingestion import ingest_opinion
+    from backend.ingest.run import ingest_document
     from datetime import datetime, timedelta
     
     await asyncio.sleep(120)
@@ -148,8 +150,15 @@ async def auto_sync_loop():
                         })
                         if doc_id:
                             try:
-                                await ingest_opinion(doc_id)
-                                ingested_count += 1
+                                doc = db.get_document(str(doc_id))
+                                if doc:
+                                    result = await ingest_document(doc)
+                                    if result.get('success'):
+                                        ingested_count += 1
+                                    else:
+                                        logger.error(f"Failed to ingest {opinion['case_name']}: {result.get('error', result.get('status'))}")
+                                else:
+                                    logger.error(f"Failed to load document {doc_id} for ingestion")
                             except Exception as e:
                                 logger.error(f"Failed to ingest {opinion['case_name']}: {e}")
                 
@@ -210,11 +219,13 @@ async def sync_opinions():
     Scrapes the Federal Circuit's official opinions page and adds
     any new precedential opinions to the database.
     """
+    from backend.ingest.run import ingest_document
     try:
         opinions = await scrape_opinions()
         logger.info(f"Scraped {len(opinions)} precedential opinions from CAFC website")
         
         new_count = 0
+        ingested_count = 0
         for opinion in opinions:
             result = db.add_opinion({
                 'pdf_url': opinion['pdf_url'],
@@ -227,15 +238,21 @@ async def sync_opinions():
             })
             if result:
                 new_count += 1
-        
-        db.record_cafc_sync(new_count, 0)
+                doc = db.get_document(str(result))
+                if doc:
+                    ingest_result = await ingest_document(doc)
+                    if ingest_result.get('success'):
+                        ingested_count += 1
+                
+        db.record_cafc_sync(new_count, ingested_count)
         
         stats = db.get_ingestion_stats()
         
         return {
             "success": True,
-            "message": f"Synced from CAFC website. Found {len(opinions)} precedential opinions, {new_count} new.",
+            "message": f"Synced from CAFC website. Found {len(opinions)} precedential opinions, {new_count} new, {ingested_count} ingested.",
             "new_opinions": new_count,
+            "ingested_opinions": ingested_count,
             "total_scraped": len(opinions),
             "current_status": {
                 "total_documents": stats["total_documents"],
@@ -1014,7 +1031,7 @@ async def get_sync_status_endpoint():
 PDF_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "pdfs")
 
 @app.get("/pdf/{opinion_id}")
-async def serve_pdf_by_id(opinion_id: str, page: int = 1):
+async def serve_pdf_by_id(opinion_id: str, page: int = 1, redirect: bool = False):
     """
     Serve PDF files by opinion ID.
     Returns custom JSON error if file is missing.
@@ -1053,6 +1070,10 @@ async def serve_pdf_by_id(opinion_id: str, page: int = 1):
             # Prefer CourtListener URL, then original PDF URL
             fallback_url = doc.get('courtlistener_url') or doc.get('pdf_url')
         
+        if redirect and fallback_url:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=fallback_url, status_code=302)
+
         return JSONResponse(
             status_code=404,
             content={

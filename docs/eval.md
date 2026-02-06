@@ -9,14 +9,14 @@ Phase 1 is an experimental query augmentation module that aims to improve retrie
 - **Query Decomposition**: Breaks multi-doctrine queries into subqueries
 - **Embeddings Fallback**: Semantic search when FTS results are thin
 
-**Production Status**: Phase 1 is **OFF by default** and gated by `PHASE1_ENABLED=false`.
+**Production Status**: Phase 1 query decomposition is **ON by default** and can be disabled with `PHASE1_ENABLED=false` if needed.
 
 ## Configuration Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `PHASE1_ENABLED` | `false` | Umbrella flag - must be `true` for any Phase 1 to run |
-| `SMART_QUERY_DECOMPOSE_ENABLED` | `false` | Enable query decomposition |
+| `PHASE1_ENABLED` | `true` | Umbrella flag - must be `true` for any Phase 1 to run |
+| `SMART_QUERY_DECOMPOSE_ENABLED` | `true` | Enable query decomposition |
 | `SMART_EMBED_RECALL_ENABLED` | `false` | Enable embeddings fallback |
 | `EVAL_FORCE_PHASE1` | `false` | Bypass strong baseline gating (eval-only) |
 | `PHASE1_EVAL_MODE` | `false` | Required for `EVAL_FORCE_PHASE1` to take effect |

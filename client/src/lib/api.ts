@@ -60,6 +60,9 @@ export interface Citation {
   releaseDate: string;
   pageNumber: number;
   quote: string;
+  viewerUrl?: string;
+  pdfUrl?: string;
+  courtlistenerUrl?: string;
   verified?: boolean;
   tier?: ConfidenceTier;
   score?: number;
