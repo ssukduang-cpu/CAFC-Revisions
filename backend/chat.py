@@ -3,17 +3,25 @@ import re
 import json
 import asyncio
 import logging
+import importlib.util
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import List, Dict, Any, Optional, Tuple
-from openai import OpenAI
-import tiktoken
+try:
+    import tiktoken
+except Exception:
+    tiktoken = None
 
-from backend import db_postgres as db
+try:
+    from backend import db_postgres as db
+except ModuleNotFoundError:
+    db = None
+
 from backend import web_search
 from backend import ranking_scorer
 from backend import voyager
+from backend.disambiguation import detect_option_reference, resolve_candidate_reference, is_probable_disambiguation_followup
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
@@ -438,13 +446,28 @@ def standardize_response(response: Dict[str, Any], web_search_result: Optional[D
 AI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
 AI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
 
-def get_openai_client() -> Optional[OpenAI]:
+def _get_openai_class():
+    """Return OpenAI class if dependency is installed, else None.
+
+    Keeps module importable in lightweight test environments where `openai`
+    may not be installed.
+    """
+    if importlib.util.find_spec("openai") is None:
+        return None
+    from openai import OpenAI
+    return OpenAI
+
+
+def get_openai_client() -> Optional[Any]:
+    OpenAI = _get_openai_class()
+    if OpenAI is None:
+        return None
     if AI_BASE_URL and AI_API_KEY:
         return OpenAI(base_url=AI_BASE_URL, api_key=AI_API_KEY)
     return None
 
 
-def expand_query_with_legal_terms(query: str, client: Optional[OpenAI] = None) -> List[str]:
+def expand_query_with_legal_terms(query: str, client: Optional[Any] = None) -> List[str]:
     """Use GPT-4o to expand a conceptual query with related legal keywords.
     
     Returns a list of 5 related legal search terms for better FTS matching.
@@ -1181,6 +1204,8 @@ def get_tiktoken_encoder():
     """Lazily initialize tiktoken encoder for GPT-4o."""
     global _tiktoken_encoder
     if _tiktoken_encoder is None:
+        if tiktoken is None:
+            return None
         try:
             _tiktoken_encoder = tiktoken.encoding_for_model("gpt-4o")
         except Exception:
@@ -2576,51 +2601,6 @@ def generate_fallback_response(pages: List[Dict], search_terms: List[str], searc
         }
     })
 
-def detect_option_reference(message: str) -> Optional[int]:
-    """Detect if message is a reference to a previous numbered option.
-    
-    Returns the option number (1-indexed) if detected, None otherwise.
-    """
-    msg_lower = message.lower().strip()
-    
-    # Direct number references: "1", "2", etc.
-    if msg_lower.isdigit() and 1 <= int(msg_lower) <= 10:
-        return int(msg_lower)
-    
-    # Ordinal references using word boundary regex to avoid false positives like "firstly", "seconding"
-    ordinal_patterns = [
-        (r'\bsecond\b', 2), (r'\b2nd\b', 2),
-        (r'\bthird\b', 3), (r'\b3rd\b', 3),
-        (r'\bfourth\b', 4), (r'\b4th\b', 4),
-        (r'\bfifth\b', 5), (r'\b5th\b', 5),
-        (r'\bfirst\b', 1), (r'\b1st\b', 1),
-        # Cardinal numbers with word boundaries
-        (r'\bone\b', 1),
-        (r'\btwo\b', 2),
-        (r'\bthree\b', 3),
-        (r'\bfour\b', 4),
-        (r'\bfive\b', 5),
-    ]
-    
-    # Check for ordinal/cardinal words with word boundaries
-    for pattern, num in ordinal_patterns:
-        if re.search(pattern, msg_lower):
-            return num
-    
-    # Check for "option X", "number X", "case X" patterns
-    patterns = [
-        r'option\s*(\d+)',
-        r'number\s*(\d+)',
-        r'case\s*(\d+)',
-        r'#\s*(\d+)',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, msg_lower)
-        if match:
-            return int(match.group(1))
-    
-    return None
-
 def get_previous_action_items(conversation_id: str) -> List[Dict]:
     """Get action items from the most recent disambiguation response in the conversation."""
     if not conversation_id:
@@ -2704,11 +2684,64 @@ def has_pronoun_reference(message: str) -> bool:
     msg_lower = message.lower()
     return any(re.search(p, msg_lower) for p in pronouns)
 
+def curate_sources_for_mode(sources: List[Dict], attorney_mode: bool) -> List[Dict]:
+    """Filter and prioritize sources by confidence and relevance for response mode."""
+    if not sources:
+        return []
+
+    def _tier_rank(src: Dict[str, Any]) -> int:
+        tier = src.get('citation_verification', {}).get('tier', src.get('tier', 'unverified'))
+        return {'strong': 4, 'moderate': 3, 'weak': 2, 'unverified': 1}.get(tier, 1)
+
+    ranked = sorted(
+        sources,
+        key=lambda s: (
+            _tier_rank(s),
+            s.get('score', 0),
+            s.get('explain', {}).get('composite_score', 0)
+        ),
+        reverse=True,
+    )
+
+    if attorney_mode:
+        verified = [s for s in ranked if _tier_rank(s) >= 3]
+        return (verified or ranked)[:8]
+
+    return ranked[:10]
+
+
+def append_citation_appendix(answer_markdown: str, sources: List[Dict]) -> str:
+    """Append an interactive citation appendix so bottom citations are always clickable."""
+    if not sources:
+        return answer_markdown
+
+    primary = []
+    background = []
+    for s in sources:
+        tier = s.get('citation_verification', {}).get('tier', s.get('tier', 'unverified'))
+        entry = f"- [{s.get('sid')}] **{s.get('case_name', 'Unknown Case')}** ({tier.upper()}, p.{s.get('page_number', '?')})"
+        if tier in ('strong', 'moderate'):
+            primary.append(entry)
+        else:
+            background.append(entry)
+
+    appendix_parts = ["", "---", "### Citation Appendix"]
+    if primary:
+        appendix_parts.append("**Controlling / Highly Reliable**")
+        appendix_parts.extend(primary)
+    if background:
+        appendix_parts.append("**Background / Lower-Confidence (use cautiously)**")
+        appendix_parts.extend(background)
+
+    return answer_markdown.rstrip() + "\n" + "\n".join(appendix_parts)
+
+
 async def generate_chat_response(
     message: str,
     opinion_ids: Optional[List[str]] = None,
     conversation_id: Optional[str] = None,
-    party_only: bool = False
+    party_only: bool = False,
+    attorney_mode: bool = True
 ) -> Dict[str, Any]:
     
     import time as _time
@@ -2740,10 +2773,10 @@ async def generate_chat_response(
         logging.info(f"[DISAMBIGUATION] conversation_id={conversation_id}, pending_state={pending_state is not None}, message='{message}'")
         if pending_state:
             logging.info(f"[DISAMBIGUATION] pending_state contains {len(pending_state.get('candidates', []))} candidates")
-            option_num = detect_option_reference(message)
-            logging.info(f"[DISAMBIGUATION] detect_option_reference returned: {option_num}")
             candidates = pending_state.get('candidates', [])
             original_query = pending_state.get('original_query', '')
+            option_num = resolve_candidate_reference(message, candidates)
+            logging.info(f"[DISAMBIGUATION] resolve_candidate_reference returned: {option_num}")
             
             if option_num:
                 if 1 <= option_num <= len(candidates):
@@ -2818,6 +2851,36 @@ async def generate_chat_response(
                         }
                     })
             else:
+                # Keep pending state for one additional conversational follow-up.
+                if is_probable_disambiguation_followup(message):
+                    options_text = "\n".join([f"{c.get('id')}. {c.get('label')}" for c in candidates])
+                    return standardize_response({
+                        "answer_markdown": (
+                            "I still have multiple possible case matches. "
+                            "Please pick one option by number (or mention party name/appeal number):\n\n"
+                            f"{options_text}"
+                        ),
+                        "sources": [],
+                        "disambiguation": {
+                            "pending": True,
+                            "candidates": candidates
+                        },
+                        "debug": {
+                            "claims": [],
+                            "support_audit": {"total_claims": 0, "supported_claims": 0, "unsupported_claims": 0},
+                            "search_query": message,
+                            "search_terms": [],
+                            "pages_count": 0,
+                            "pages_sample": [],
+                            "markers_count": 0,
+                            "markers": [],
+                            "sources_count": 0,
+                            "sources": [],
+                            "raw_response": "",
+                            "return_branch": "disambiguation_pending_followup"
+                        }
+                    })
+
                 # User sent a new query, not a selection - clear old disambiguation
                 db.clear_pending_disambiguation(conversation_id)
     
@@ -3540,8 +3603,9 @@ async def generate_chat_response(
     if not client:
         return generate_fallback_response(pages, search_terms, message)
     
-    # Expand pages with adjacent context (±3 pages) to improve quote finding
-    expanded_pages = db.fetch_adjacent_pages(pages, window_size=3, max_text_chars=2000)
+    # Expand pages with adaptive adjacent context to reduce latency on routine queries
+    adjacent_window = 1 if len(pages) <= 8 else 2
+    expanded_pages = db.fetch_adjacent_pages(pages, window_size=adjacent_window, max_text_chars=1800)
     
     # Build context and conversation summary in parallel for speed
     loop = asyncio.get_event_loop()
@@ -3611,11 +3675,11 @@ question instead.
     reasoning_plan = _build_agentic_reasoning_plan(query_lower, pages)
     logging.info(f"DEBUG: Agentic Reasoning Plan: {reasoning_plan}")
     
-    # Dynamic max_tokens: scale based on query complexity
-    # Base 1500 + 500 per opinion_id, capped at 4000
-    base_tokens = 1500
-    opinion_bonus = len(opinion_ids or []) * 500
-    max_tokens = min(4000, base_tokens + opinion_bonus)
+    # Dynamic max_tokens tuned for faster first response
+    # Base 1100 + 350 per opinion_id, capped at 2600
+    base_tokens = 1100
+    opinion_bonus = len(opinion_ids or []) * 350
+    max_tokens = min(2600, base_tokens + opinion_bonus)
     logging.info(f"Dynamic max_tokens: {max_tokens} (base={base_tokens}, bonus={opinion_bonus})")
     
     # Configurable model via environment variable
@@ -3906,6 +3970,7 @@ question instead.
         
         markers = extract_cite_markers(raw_answer)
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
+        sources = curate_sources_for_mode(sources, attorney_mode)
         
         # FALLBACK: If AI provided substantive answer but no CITATION_MAP markers,
         # generate sources from the context pages that were used
@@ -3978,14 +4043,17 @@ question instead.
         
         answer_markdown = build_answer_markdown(raw_answer, markers, position_to_sid)
         
-        # P0: Apply per-statement provenance gating
-        # Track unsupported case-attributed statements in metadata for frontend warning display
-        answer_markdown, statement_support = apply_per_statement_provenance_gating(
-            answer_markdown, sources
-        )
-        
+        # P0: Apply per-statement provenance gating in attorney mode.
+        if attorney_mode:
+            answer_markdown, statement_support = apply_per_statement_provenance_gating(
+                answer_markdown, sources
+            )
+        else:
+            _, statement_support = apply_per_statement_provenance_gating(answer_markdown, sources)
+
         # Make [Q#] and [#] citations clickable with PDF links
         answer_markdown = make_citations_clickable(answer_markdown, quote_registry, sources)
+        answer_markdown = append_citation_appendix(answer_markdown, sources)
         
         # Calculate citation metrics for telemetry (P1)
         total_citations = len(sources)
@@ -4136,7 +4204,8 @@ async def generate_chat_response_stream(
     message: str,
     opinion_ids: Optional[List[str]] = None,
     conversation_id: Optional[str] = None,
-    party_only: bool = False
+    party_only: bool = False,
+    attorney_mode: bool = True
 ):
     """
     Streaming version of generate_chat_response that yields SSE events.
@@ -4257,6 +4326,7 @@ async def generate_chat_response_stream(
         # Process the complete response to extract sources
         markers = extract_cite_markers(full_response)
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
+        sources = curate_sources_for_mode(sources, attorney_mode)
         
         # Send sources at the end
         sources_json = json.dumps(sources)

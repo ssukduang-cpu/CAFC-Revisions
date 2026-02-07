@@ -288,15 +288,15 @@ export function Sidebar() {
                     <ShieldOff className="h-4 w-4 text-yellow-500" />
                   )}
                   <span className="text-xs font-medium text-sidebar-foreground/80">
-                    {attorneyMode ? "Attorney Mode" : "Research Mode"}
+                    {attorneyMode ? "Attorney Mode (Strict)" : "Research Mode (Exploratory)"}
                   </span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-[250px]">
                 <p className="text-xs">
                   {attorneyMode 
-                    ? "STRICT PROVENANCE: Citations require verified quotes. Unverified statements are flagged with a warning notice."
-                    : "RELAXED: Provenance checks are less strict. Good for exploratory research."
+                    ? "Strict mode prioritizes strong/moderate citations, applies stricter statement-level provenance checks, and suppresses weaker authorities where possible."
+                    : "Research mode allows broader retrieval and keeps lower-confidence/background authorities visible for exploration."
                   }
                 </p>
               </TooltipContent>

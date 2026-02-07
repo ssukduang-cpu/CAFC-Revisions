@@ -1,12 +1,12 @@
 """
 Phase 1 Smartness Configuration
 
-All feature flags default to OFF for safety.
+Phase 1 defaults are tuned for production recall while still bounded by budgets.
 
 PRODUCTION DEFAULTS:
-- PHASE1_ENABLED=false (umbrella flag - must be true for any Phase1 to run)
+- PHASE1_ENABLED=true (umbrella flag)
 - SMART_EMBED_RECALL_ENABLED=false
-- SMART_QUERY_DECOMPOSE_ENABLED=false
+- SMART_QUERY_DECOMPOSE_ENABLED=true
 - EVAL_FORCE_PHASE1=false (eval-only, never enable in production)
 """
 
@@ -16,11 +16,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Umbrella flag - MUST be true for any Phase1 augmentation to run
-PHASE1_ENABLED = os.environ.get("PHASE1_ENABLED", "false").lower() == "true"
+PHASE1_ENABLED = os.environ.get("PHASE1_ENABLED", "true").lower() == "true"
 
 # Individual feature flags (only apply if PHASE1_ENABLED is true)
 SMART_EMBED_RECALL_ENABLED = PHASE1_ENABLED and os.environ.get("SMART_EMBED_RECALL_ENABLED", "false").lower() == "true"
-SMART_QUERY_DECOMPOSE_ENABLED = PHASE1_ENABLED and os.environ.get("SMART_QUERY_DECOMPOSE_ENABLED", "false").lower() == "true"
+SMART_QUERY_DECOMPOSE_ENABLED = PHASE1_ENABLED and os.environ.get("SMART_QUERY_DECOMPOSE_ENABLED", "true").lower() == "true"
 
 # Eval-only flag: bypass strong baseline gating to force Phase 1 to run
 # WARNING: Never enable in production - only for eval harness
@@ -28,7 +28,7 @@ _EVAL_MODE = os.environ.get("PHASE1_EVAL_MODE", "false").lower() == "true"
 EVAL_FORCE_PHASE1 = _EVAL_MODE and os.environ.get("EVAL_FORCE_PHASE1", "false").lower() == "true"
 
 PHASE1_BUDGET_MS = int(os.environ.get("PHASE1_BUDGET_MS", "500"))
-MAX_AUGMENT_CANDIDATES = int(os.environ.get("MAX_AUGMENT_CANDIDATES", "1"))
+MAX_AUGMENT_CANDIDATES = int(os.environ.get("MAX_AUGMENT_CANDIDATES", "6"))
 MIN_FTS_RESULTS = int(os.environ.get("MIN_FTS_RESULTS", "8"))
 MIN_TOP_SCORE = float(os.environ.get("MIN_TOP_SCORE", "0.15"))
 MAX_SUBQUERIES = int(os.environ.get("MAX_SUBQUERIES", "2"))

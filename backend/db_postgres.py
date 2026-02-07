@@ -27,6 +27,19 @@ LEGAL_STOP_WORDS = {
 }
 
 # High-value legal terms to prioritize in search
+
+LEGAL_PHRASE_EXPANSIONS = {
+    # Frequently vague legalese / causes of action phrasing
+    'cause of action': ['claim', 'counts', 'pleading', 'elements'],
+    'certificate of correction': ['certificate', 'correction', '252', '35usc252', 'reissue'],
+    'filed': ['complaint', 'petition', 'appeal', 'filed', 'procedural'],
+    'standard of review': ['review', 'de', 'novo', 'clear', 'error', 'substantial', 'evidence'],
+    'motion to dismiss': ['dismiss', '12b6', 'plausibility', 'pleading'],
+    'summary judgment': ['summary', 'judgment', 'genuine', 'dispute', 'material', 'fact'],
+    'inequitable conduct': ['inequitable', 'intent', 'materiality', 'therasense'],
+    'means plus function': ['means', 'function', '112', 'f', 'structure'],
+}
+
 LEGAL_KEY_TERMS = {
     # Patent doctrines
     'enablement', 'obviousness', 'anticipation', 'infringement', 'claim', 'claims',
@@ -48,7 +61,7 @@ LEGAL_KEY_TERMS = {
 }
 
 
-def extract_search_terms(query: str, max_terms: int = 8) -> List[str]:
+def extract_search_terms(query: str, max_terms: int = 12) -> List[str]:
     """Extract key legal terms from a complex query.
     
     For long queries (>100 chars), extracts the most relevant legal terms.
@@ -60,17 +73,46 @@ def extract_search_terms(query: str, max_terms: int = 8) -> List[str]:
     Returns:
         List of extracted key terms
     """
-    # Tokenize and clean
-    words = re.findall(r'[a-zA-Z]+', query.lower())
+    query_lower = query.lower()
+
+    # Tokenize and clean (include numeric section references like 101/112)
+    words = re.findall(r'[a-zA-Z0-9]+', query_lower)
+
+    # Expand multi-word legal phrases (for vague legalese questions)
+    phrase_expanded_words: List[str] = []
+    for phrase, expansions in LEGAL_PHRASE_EXPANSIONS.items():
+        if phrase in query_lower:
+            phrase_expanded_words.extend(expansions)
+
+    # Expand high-value section references to doctrinal terms used in opinions
+    section_expansions = {
+        '101': ['eligibility', 'abstract', 'alice', 'mayo'],
+        '102': ['anticipation', 'novelty'],
+        '103': ['obviousness', 'motivation', 'combine'],
+        '112': ['enablement', 'written', 'description', 'indefiniteness'],
+        '271': ['infringement', 'induced', 'contributory'],
+        '285': ['fees', 'exceptional', 'litigation'],
+    }
+
+    expanded_words: List[str] = list(phrase_expanded_words)
+    for word in words:
+        expanded_words.append(word)
+        expanded_words.extend(section_expansions.get(word, []))
+
+    # Deduplicate while preserving order
+    deduped_words = list(dict.fromkeys(expanded_words))
     
     if len(query) < 100:
         # For short queries, just filter stop words
-        terms = [w for w in words if w not in LEGAL_STOP_WORDS and len(w) > 2]
+        terms = [w for w in deduped_words if w not in LEGAL_STOP_WORDS and len(w) > 2]
         return terms[:max_terms]
     
     # Prioritize legal key terms for long queries
-    key_matches = [w for w in words if w in LEGAL_KEY_TERMS]
-    other_words = [w for w in words if w not in LEGAL_STOP_WORDS and w not in LEGAL_KEY_TERMS and len(w) > 2]
+    key_matches = [w for w in deduped_words if w in LEGAL_KEY_TERMS]
+    other_words = [
+        w for w in deduped_words
+        if w not in LEGAL_STOP_WORDS and w not in LEGAL_KEY_TERMS and len(w) > 2
+    ]
     
     # Combine: key terms first, then other significant words
     terms = key_matches[:max_terms]
@@ -1134,7 +1176,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         else:
             # For long queries (>100 chars), extract key legal terms and use OR-based
             # matching to avoid over-restrictive AND queries that return 0 results
-            terms = extract_search_terms(query, max_terms=8)
+            terms = extract_search_terms(query)
             or_query = build_or_tsquery(terms)
             logging.info(f"[FTS] Search: {len(query)} chars -> OR query: '{or_query}'")
             
@@ -1261,7 +1303,7 @@ def search_pages_two_pass(
         if not query.strip():
             return []
         
-        terms = extract_search_terms(query, max_terms=8)
+        terms = extract_search_terms(query)
         or_query = build_or_tsquery(terms)
         
         if not or_query:

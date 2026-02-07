@@ -95,6 +95,15 @@ export function SourcesPanel() {
       console.error("Failed to copy:", error);
     }
   };
+  const handleOpenSource = (citation: any) => {
+    let url = citation.viewerUrl || citation.courtlistenerUrl || citation.pdfUrl;
+    if (url && typeof url === 'string' && url.startsWith('/pdf/') && !url.includes('redirect=')) {
+      url += (url.includes('?') ? '&' : '?') + 'redirect=1';
+    }
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -132,6 +141,7 @@ export function SourcesPanel() {
               <div>
                 <h3 className="font-semibold text-xs text-foreground">Cited Sources</h3>
                 <p className="text-[9px] text-muted-foreground">Referenced in the answer with verification</p>
+                <p className="text-[9px] text-muted-foreground">Tier guide: STRONG/MODERATE = safer authority; WEAK/UNVERIFIED = background only.</p>
               </div>
             </div>
           )}
@@ -177,7 +187,20 @@ export function SourcesPanel() {
                       </div>
                     )}
                   </div>
-                  <Button 
+                  <div className="flex items-center gap-1">
+                    {(citation.viewerUrl || citation.courtlistenerUrl || citation.pdfUrl) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                        onClick={() => handleOpenSource(citation)}
+                        data-testid={`button-open-citation-${index}`}
+                        title="Open source document"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    )}
+                    <Button 
                     variant="ghost" 
                     size="icon" 
                     className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
@@ -190,6 +213,7 @@ export function SourcesPanel() {
                       <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                     )}
                   </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-3 pt-2 space-y-2">

@@ -65,6 +65,10 @@ DOCTRINE_SIGNALS = {
     "obviousness_type_double_patenting": [
         "double patenting", "terminal disclaimer", "otdp"
     ],
+    "certificate_correction": [
+        "certificate of correction", "certificates of correction", "reissue",
+        "retroactive effect", "252", "254", "255"
+    ],
 }
 
 CONJUNCTION_PATTERNS = [
@@ -81,6 +85,19 @@ CONJUNCTION_PATTERNS = [
 
 SECTION_PATTERN = re.compile(r'§?\s*(\d{3})', re.IGNORECASE)
 
+def canonicalize_legal_query(query: str) -> str:
+    """Expand common ambiguous legal phrasing into doctrine-oriented terms."""
+    q = query
+    replacements = [
+        (r"\bfunctional and broad\b", "functional claiming under 112(f) written description enablement"),
+        (r"\bfew examples\b", "few representative species written description enablement"),
+        (r"\bcabin scope\b", "prosecution disclaimer claim construction"),
+        (r"\bcorrected after issuance\b", "certificate of correction retroactive effect 252 254 255"),
+    ]
+    for pattern, repl in replacements:
+        q = re.sub(pattern, repl, q, flags=re.IGNORECASE)
+    return q
+
 
 def detect_doctrine_signals(query: str) -> Tuple[List[str], Dict[str, List[str]]]:
     """
@@ -89,7 +106,8 @@ def detect_doctrine_signals(query: str) -> Tuple[List[str], Dict[str, List[str]]
     Returns:
         (list of doctrine names, dict of doctrine -> matched signals)
     """
-    query_lower = query.lower()
+    canonical_query = canonicalize_legal_query(query)
+    query_lower = canonical_query.lower()
     detected = []
     evidence = {}
     
@@ -104,12 +122,13 @@ def detect_doctrine_signals(query: str) -> Tuple[List[str], Dict[str, List[str]]
                 detected.append(doctrine)
             evidence[doctrine] = matched_signals
     
-    section_matches = SECTION_PATTERN.findall(query)
+    section_matches = SECTION_PATTERN.findall(canonical_query)
     for section in section_matches:
-        if section in ["101", "102", "103", "112"]:
-            if section not in detected:
-                detected.append(section)
-                evidence[section] = evidence.get(section, []) + [f"§{section}"]
+        if section in ["101", "102", "103", "112", "252", "254", "255"]:
+            mapped = "certificate_correction" if section in ["252", "254", "255"] else section
+            if mapped not in detected:
+                detected.append(mapped)
+            evidence[mapped] = evidence.get(mapped, []) + [f"§{section}"]
     
     return detected, evidence
 

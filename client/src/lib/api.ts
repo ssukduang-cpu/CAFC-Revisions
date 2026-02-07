@@ -60,6 +60,9 @@ export interface Citation {
   releaseDate: string;
   pageNumber: number;
   quote: string;
+  viewerUrl?: string;
+  pdfUrl?: string;
+  courtlistenerUrl?: string;
   verified?: boolean;
   tier?: ConfidenceTier;
   score?: number;
@@ -237,8 +240,8 @@ export async function clearAllConversations(): Promise<void> {
   await apiRequest("DELETE", "/api/conversations");
 }
 
-export async function sendMessage(conversationId: string, content: string, searchMode: string = "all"): Promise<ChatResult> {
-  const res = await apiRequest("POST", `/api/conversations/${conversationId}/messages`, { content, searchMode });
+export async function sendMessage(conversationId: string, content: string, searchMode: string = "all", attorneyMode: boolean = true): Promise<ChatResult> {
+  const res = await apiRequest("POST", `/api/conversations/${conversationId}/messages`, { content, searchMode, attorneyMode });
   const data = await res.json();
   
   // Parse citations from the assistant message

@@ -76,7 +76,7 @@ export function ChatInterface() {
         setCurrentConversationId(convId);
       }
       
-      const result = await sendMessage.mutateAsync({ conversationId: convId, content: messageContent, searchMode });
+      const result = await sendMessage.mutateAsync({ conversationId: convId, content: messageContent, searchMode, attorneyMode });
       
       // Show web search cases if any were ingested
       if (result.webSearchCases && result.webSearchCases.length > 0) {
@@ -118,6 +118,9 @@ export function ChatInterface() {
       releaseDate: source.releaseDate,
       pageNumber: source.pageNumber,
       quote: source.quote,
+      viewerUrl: source.viewerUrl,
+      pdfUrl: source.pdfUrl,
+      courtlistenerUrl: source.courtlistenerUrl,
       verified: source.tier === 'strong' || source.tier === 'moderate',
       tier: source.tier,
       score: source.score,
@@ -143,7 +146,8 @@ export function ChatInterface() {
         await sendMessage.mutateAsync({
           conversationId: currentConversationId,
           content: action,
-          searchMode
+          searchMode,
+          attorneyMode
         });
       } catch (error) {
         console.error('Failed to send action:', error);
@@ -198,8 +202,22 @@ export function ChatInterface() {
 
   const renderMarkdownWithSources = (markdown: string, sources: Source[]) => {
     // Split by citations [1], [2], bold **text**, and italics *text*
-    const parts = markdown.split(/(\[\d+\]|\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    const parts = markdown.split(/(\[[^\]]+\]\([^\)]+\)|\[\d+\]|\*\*[^*]+\*\*|\*[^*]+\*)/g);
     return parts.map((part, idx) => {
+      const linkMatch = part.match(/^\[([^\]]+)\]\(([^\)]+)\)$/);
+      if (linkMatch) {
+        return (
+          <a
+            key={idx}
+            href={linkMatch[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline inline-flex items-center gap-1"
+          >
+            {linkMatch[1]} <ExternalLink className="h-3 w-3" />
+          </a>
+        );
+      }
       // Handle citation markers
       const citationMatch = part.match(/\[(\d+)\]/);
       if (citationMatch) {

@@ -57,7 +57,8 @@ def main():
                         time.sleep(2 ** attempt)
                     else:
                         break
-                except:
+                except requests.RequestException as exc:
+                    print(f"[warn] docket lookup failed for {docket_id}: {exc}")
                     time.sleep(1)
         
         if not appeal_number:

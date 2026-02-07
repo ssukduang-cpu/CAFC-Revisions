@@ -13,7 +13,7 @@ import os
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from backend.chat import detect_option_reference
+from backend.disambiguation import detect_option_reference, resolve_candidate_reference, is_probable_disambiguation_followup
 
 
 class TestDetectOptionReference:
@@ -64,13 +64,44 @@ class TestDetectOptionReference:
         assert detect_option_reference("Give me the second option") == 2
 
 
+class TestResolveCandidateReference:
+    def test_party_name_resolution(self):
+        candidates = [
+            {"id": "1", "label": "Google LLC v. EcoFactor, Inc.", "appeal_no": "23-1101"},
+            {"id": "2", "label": "Apple Inc. v. Vidal", "appeal_no": "22-1450"},
+        ]
+        assert resolve_candidate_reference("the google one", candidates) == 1
+
+    def test_appeal_number_resolution(self):
+        candidates = [
+            {"id": "1", "label": "Case A", "appeal_no": "23-1101"},
+            {"id": "2", "label": "Case B", "appeal_no": "22-1450"},
+        ]
+        assert resolve_candidate_reference("22-1450", candidates) == 2
+
+    def test_last_ordinal_resolution(self):
+        candidates = [
+            {"id": "1", "label": "Case A"},
+            {"id": "2", "label": "Case B"},
+            {"id": "3", "label": "Case C"},
+        ]
+        assert resolve_candidate_reference("the last one", candidates) == 3
+
+
+class TestProbableDisambiguationFollowup:
+    def test_followup_markers(self):
+        assert is_probable_disambiguation_followup("the newer one") is True
+        assert is_probable_disambiguation_followup("google") is True
+        assert is_probable_disambiguation_followup("what is enablement doctrine") is False
+
+
 class TestDisambiguationState:
     """Test disambiguation state management (requires DB)."""
     
     @pytest.fixture
     def db_connection(self):
         """Create a database connection."""
-        import psycopg2
+        psycopg2 = pytest.importorskip("psycopg2")
         conn = psycopg2.connect(os.environ.get('DATABASE_URL', ''))
         yield conn
         conn.close()
@@ -142,7 +173,10 @@ class TestResponseSchema:
     
     def test_standardize_response_promotes_fields(self):
         """Test that standardize_response promotes debug fields to top level."""
-        from backend.chat import standardize_response
+        try:
+            from backend.chat import standardize_response
+        except ModuleNotFoundError as exc:
+            pytest.skip(f"backend.chat import skipped: {exc}")
         
         response = {
             "answer_markdown": "Test answer",
@@ -164,7 +198,10 @@ class TestResponseSchema:
     
     def test_standardize_response_defaults(self):
         """Test that standardize_response uses defaults when fields missing."""
-        from backend.chat import standardize_response
+        try:
+            from backend.chat import standardize_response
+        except ModuleNotFoundError as exc:
+            pytest.skip(f"backend.chat import skipped: {exc}")
         
         response = {
             "answer_markdown": "Test answer",
