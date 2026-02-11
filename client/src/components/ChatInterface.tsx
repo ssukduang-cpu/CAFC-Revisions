@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Users, FileText, Globe, Copy, Check, AlertTriangle } from "lucide-react";
+import { Send, Scale, Sparkles, Loader2, CheckCircle, ExternalLink, Library, Globe, Copy, Check, AlertTriangle, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export function ChatInterface() {
   const [inputValue, setInputValue] = useState("");
-  const [searchMode, setSearchMode] = useState<"all" | "parties">("all");
+  const searchMode = "all";
   const [webSearchCases, setWebSearchCases] = useState<string[]>([]);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -88,6 +88,29 @@ export function ChatInterface() {
         setControllingAuthorities(result.controllingAuthorities);
       } else {
         setControllingAuthorities([]);
+      }
+      
+      // Auto-populate sources panel with all citations from this response
+      const responseSources = parseSources(result.assistantMessage);
+      if (responseSources.length > 0) {
+        const citations: Citation[] = responseSources.map((s: Source) => ({
+          opinionId: s.opinionId,
+          caseName: s.caseName,
+          appealNo: s.appealNo,
+          releaseDate: s.releaseDate,
+          pageNumber: s.pageNumber,
+          quote: s.quote,
+          viewerUrl: s.viewerUrl,
+          pdfUrl: s.pdfUrl,
+          courtlistenerUrl: s.courtlistenerUrl,
+          verified: s.tier === 'strong' || s.tier === 'moderate',
+          tier: s.tier,
+          score: s.score,
+          signals: s.signals,
+          bindingMethod: s.bindingMethod
+        }));
+        setSelectedCitations(citations);
+        setSourcePanelOpen(true);
       }
     } catch (error: any) {
       console.error("Failed to send message:", error);
@@ -239,12 +262,12 @@ export function ChatInterface() {
             <button
               key={idx}
               onClick={() => handleSourceClick(source)}
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 text-[10px] font-medium rounded transition-colors ${tierBgColor} ${tierTextColor}`}
-              title={`${source.caseName}, p.${source.pageNumber}${tier !== 'strong' ? ` (${tier})` : ''}`}
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 text-[10px] font-medium rounded border transition-colors ${tierBgColor} ${tierTextColor} ${tier === 'strong' ? 'border-green-500/30' : tier === 'moderate' ? 'border-yellow-500/30' : tier === 'weak' ? 'border-orange-500/30' : 'border-red-500/30'}`}
+              title={`${source.caseName}, p.${source.pageNumber} — Confidence: ${tier}`}
               data-testid={`source-marker-${source.sid}`}
             >
               [{source.sid}]
-              {tier !== 'strong' && <ConfidenceBadge tier={tier} signals={signals} size="sm" />}
+              <ConfidenceBadge tier={tier} signals={signals} size="sm" />
             </button>
           );
         }
@@ -453,31 +476,6 @@ export function ChatInterface() {
 
         <div className="p-3 sm:p-4 border-t border-border/30 shrink-0 bg-background pb-safe">
           <div className="max-w-2xl mx-auto space-y-2">
-            <div className="flex items-center gap-2 text-xs flex-wrap">
-              <span className="text-muted-foreground">Search:</span>
-              <Button
-                variant={searchMode === "all" ? "default" : "outline"}
-                size="sm"
-                className="h-7 text-xs px-2 gap-1"
-                onClick={() => setSearchMode("all")}
-                title="Search all opinion text and case names"
-                data-testid="button-search-all"
-              >
-                <FileText className="h-3 w-3" />
-                All Text
-              </Button>
-              <Button
-                variant={searchMode === "parties" ? "default" : "outline"}
-                size="sm"
-                className="h-7 text-xs px-2 gap-1"
-                onClick={() => setSearchMode("parties")}
-                title="Search only case names (party names)"
-                data-testid="button-search-parties"
-              >
-                <Users className="h-3 w-3" />
-                Parties Only
-              </Button>
-            </div>
             <div className="relative rounded-xl bg-muted/40 border border-border/50 focus-within:border-primary/50 transition-colors">
               <Textarea 
                 value={inputValue}
@@ -488,7 +486,7 @@ export function ChatInterface() {
                     handleSend();
                   }
                 }}
-                placeholder={searchMode === "parties" ? "Enter a party name (e.g., Google, Apple, Samsung)..." : "Ask about CAFC precedent..."} 
+                placeholder="Ask about CAFC precedent..." 
                 className="min-h-[52px] max-h-[120px] w-full resize-none border-0 bg-transparent py-3 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
                 rows={1}
                 data-testid="input-chat-message"
@@ -687,36 +685,42 @@ export function ChatInterface() {
                               Sources
                             </div>
                             <div className="space-y-1.5">
-                              {sources.map((source) => (
+                              {sources.map((source) => {
+                                const sourceTier = (source.tier || 'unverified') as ConfidenceTier;
+                                const sourceSignals = (source.signals || []) as CitationSignal[];
+                                const tierBorderClass = sourceTier === 'strong' ? 'border-l-green-500' 
+                                  : sourceTier === 'moderate' ? 'border-l-yellow-500'
+                                  : sourceTier === 'weak' ? 'border-l-orange-500'
+                                  : 'border-l-red-500';
+                                return (
                                 <div 
                                   key={source.sid}
-                                  className="bg-muted/30 border border-border/50 rounded-lg p-2.5"
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => handleSourceClick(source)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSourceClick(source); } }}
+                                  className={`w-full text-left bg-muted/40 hover:bg-primary/5 border border-border/60 hover:border-primary/30 border-l-[3px] ${tierBorderClass} rounded-lg p-3 transition-all cursor-pointer group`}
                                   data-testid={`source-panel-${source.sid}`}
                                 >
-                                  <div className="flex items-start gap-2">
-                                    <div className="flex items-center justify-center h-5 w-5 rounded bg-primary/10 text-primary text-[10px] font-medium shrink-0">
+                                  <div className="flex items-start gap-2.5">
+                                    <div className="flex items-center justify-center h-6 w-6 rounded-md bg-primary/15 text-primary text-xs font-semibold shrink-0 group-hover:bg-primary/25 transition-colors">
                                       {source.sid}
                                     </div>
                                     <div className="min-w-0 space-y-1 flex-1">
-                                      <div className="flex items-center gap-1">
-                                        <span className="text-xs font-medium text-foreground truncate">
+                                      <div className="flex items-center gap-1.5">
+                                        <BookOpen className="h-3 w-3 text-primary/70 shrink-0" />
+                                        <span className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                                           {source.caseName}
                                         </span>
+                                        <ConfidenceBadge tier={sourceTier} signals={sourceSignals} showLabel size="sm" />
                                       </div>
-                                      <div className="text-[11px] text-muted-foreground line-clamp-2 italic">
+                                      <div className="text-[11px] text-muted-foreground line-clamp-2 italic leading-relaxed">
                                         "{source.quote}"
                                       </div>
-                                      <div className="text-[10px] font-mono text-muted-foreground/60">
-                                        {source.appealNo} {source.releaseDate && `• ${source.releaseDate}`} • p.{source.pageNumber}
-                                      </div>
-                                      <div className="flex items-center gap-2 mt-1">
-                                        <button
-                                          onClick={() => handleSourceClick(source)}
-                                          className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
-                                          data-testid={`source-view-${source.sid}`}
-                                        >
-                                          View in app
-                                        </button>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[10px] font-mono text-muted-foreground/70">
+                                          {source.appealNo} {source.releaseDate && `• ${source.releaseDate}`} • p.{source.pageNumber}
+                                        </span>
                                         {(source.pdfUrl || source.courtlistenerUrl) && (
                                           <a
                                             href={
@@ -726,17 +730,19 @@ export function ChatInterface() {
                                             }
                                             target="_blank"
                                             rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
                                             className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5"
                                             data-testid={`source-cafc-${source.sid}`}
                                           >
-                                            {source.pdfUrl?.includes('cafc.uscourts.gov') ? 'Open on CAFC' : 'View on CourtListener'} <ExternalLink className="h-2.5 w-2.5" />
+                                            <ExternalLink className="h-2.5 w-2.5" />
                                           </a>
                                         )}
                                       </div>
                                     </div>
                                   </div>
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -810,31 +816,6 @@ export function ChatInterface() {
 
       <div className="p-4 border-t border-border/30">
         <div className="max-w-2xl mx-auto space-y-2">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Search:</span>
-            <Button
-              variant={searchMode === "all" ? "default" : "outline"}
-              size="sm"
-              className="h-6 text-xs px-2 gap-1"
-              onClick={() => setSearchMode("all")}
-              title="Search all opinion text and case names"
-              data-testid="button-search-all"
-            >
-              <FileText className="h-3 w-3" />
-              All Text
-            </Button>
-            <Button
-              variant={searchMode === "parties" ? "default" : "outline"}
-              size="sm"
-              className="h-6 text-xs px-2 gap-1"
-              onClick={() => setSearchMode("parties")}
-              title="Search only case names (party names)"
-              data-testid="button-search-parties"
-            >
-              <Users className="h-3 w-3" />
-              Parties Only
-            </Button>
-          </div>
           <div className="relative rounded-xl bg-muted/40 border border-border/50 focus-within:border-primary/50 transition-colors">
             <Textarea 
               value={inputValue}
@@ -845,7 +826,7 @@ export function ChatInterface() {
                   handleSend();
                 }
               }}
-              placeholder={searchMode === "parties" ? "Enter a party name (e.g., Google, Apple, Samsung)..." : "Ask a follow-up question..."} 
+              placeholder="Ask a follow-up question..." 
               className="min-h-[52px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3.5 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
               rows={1}
               data-testid="input-chat-message"

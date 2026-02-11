@@ -1,0 +1,145 @@
+Patent Expert Deployment Readiness Audit
+Timestamp: 2026-02-11T18:40:42+00:00
+Repo: /home/runner/workspace
+
+============================================================
+CHECK: Merge-resolution integrity
+CMD:   python scripts/verify_merge_resolutions.py
+------------------------------------------------------------
+Merge Resolution Integrity Check
+==================================
+[PASS] Disambiguation module exposes core helpers
+[PASS] Chat pipeline imports disambiguation helpers
+[PASS] Chat response includes disambiguation return branch
+[PASS] Query decomposition keeps legal canonicalization
+[PASS] Release gate still validates guarded suite
+[PASS] Attorney-mode defaults are opt-in (False)
+[PASS] Citation-guide route removed from router
+[PASS] Legacy citation guide page removed
+==================================
+Result: all 8 checks passed
+------------------------------------------------------------
+EXIT_CODE: 0
+RESULT: PASS
+
+============================================================
+CHECK: TypeScript static check
+CMD:   npm run check
+------------------------------------------------------------
+
+> rest-express@1.0.0 check
+> tsc --pretty false
+
+------------------------------------------------------------
+EXIT_CODE: 0
+RESULT: PASS
+
+============================================================
+CHECK: Production build
+CMD:   npm run build
+------------------------------------------------------------
+
+> rest-express@1.0.0 build
+> tsx script/build.ts
+
+building client...
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 1859 modules transformed.
+rendering chunks...
+[meta-images] using dev domain: https://650168ab-ab63-4784-bdec-74acb30694c8-00-34anr8rcpj8xt.kirk.replit.dev
+[meta-images] updating meta image tags to: https://650168ab-ab63-4784-bdec-74acb30694c8-00-34anr8rcpj8xt.kirk.replit.dev/opengraph.jpg
+computing gzip size...
+../dist/public/index.html                   1.79 kB │ gzip:   0.74 kB
+../dist/public/assets/index-CA9dtl2m.css  123.71 kB │ gzip:  19.68 kB
+../dist/public/assets/index-3UldB7-R.js   555.20 kB │ gzip: 165.68 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 7.96s
+building server...
+
+  dist/index.cjs  1.0mb ⚠️
+
+⚡ Done in 344ms
+------------------------------------------------------------
+EXIT_CODE: 0
+RESULT: PASS
+
+============================================================
+CHECK: Targeted reliability tests
+CMD:   pytest -q backend/tests/test_query_canonicalization.py backend/tests/test_ranking_scorer.py tests/test_disambiguation.py
+------------------------------------------------------------
+........................................................................ [ 98%]
+.                                                                        [100%]
+73 passed in 0.52s
+------------------------------------------------------------
+EXIT_CODE: 0
+RESULT: PASS
+
+============================================================
+CHECK: Full Python test collection/run
+CMD:   pytest -q
+------------------------------------------------------------
+........................................................................ [ 36%]
+........................................................................ [ 72%]
+.......................................................                  [100%]
+=============================== warnings summary ===============================
+tests/test_advanced_search.py::TestRateLimiter::test_leaky_bucket_allows_burst
+  /home/runner/workspace/backend/eval_runner.py:678: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @router.on_event("startup")
+
+tests/test_advanced_search.py::TestRateLimiter::test_leaky_bucket_allows_burst
+  /home/runner/workspace/backend/main.py:91: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_advanced_search.py::TestRateLimiter::test_leaky_bucket_allows_burst
+tests/test_advanced_search.py::TestRateLimiter::test_leaky_bucket_allows_burst
+  /home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/fastapi/applications.py:4576: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_advanced_search.py::TestRateLimiter::test_leaky_bucket_allows_burst
+  /home/runner/workspace/backend/main.py:101: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+199 passed, 5 warnings in 10.13s
+------------------------------------------------------------
+EXIT_CODE: 0
+RESULT: PASS
+
+============================================================
+CHECK: Release gate
+CMD:   bash scripts/ci_release_gate.sh
+------------------------------------------------------------
+[release-gate] running guarded suite: pytest -q -rs backend/tests/test_ranking_scorer.py backend/tests/test_query_canonicalization.py tests/test_disambiguation.py
+........................................................................ [ 98%]
+.                                                                        [100%]
+73 passed in 0.55s
+[release-gate] PASS: guarded suite ran with zero skipped tests.
+------------------------------------------------------------
+EXIT_CODE: 0
+RESULT: PASS
+
