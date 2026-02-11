@@ -11,8 +11,8 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db_postgres import db
-from chat import generate_response
+import db_postgres
+from chat import generate_chat_response
 
 TEST_QUESTIONS = [
     # Category 1: Doctrinal / Section 101 (Patent Eligibility)
@@ -244,28 +244,47 @@ async def run_evaluation():
     print("20 Patent Law Expert Questions")
     print("=" * 80)
 
-    test_user_id = "eval-test-user"
-    conv_id = db.create_conversation(user_id=test_user_id)
+    ts = str(int(time.time()))
+    test_user_id = "eval-test-user-" + ts
+    from db_postgres import get_db
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO users (id, email, first_name, last_name, approval_status, is_admin, created_at, updated_at) 
+               VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW()) 
+               ON CONFLICT (id) DO NOTHING""",
+            (test_user_id, f"eval-{ts}@test.local", "Eval", "Tester", "approved", False)
+        )
+        conn.commit()
+    
+    start_from = int(os.environ.get("EVAL_START", "1"))
+    end_at = int(os.environ.get("EVAL_END", "20"))
+    
+    conv_id = db_postgres.create_conversation(user_id=test_user_id)
     print(f"\nTest conversation: {conv_id}")
 
     results = []
     category_scores = {}
     total_time = 0
 
-    for q in TEST_QUESTIONS:
+    filtered_questions = [q for q in TEST_QUESTIONS if start_from <= q["id"] <= end_at]
+    print(f"Running questions {start_from}-{end_at} ({len(filtered_questions)} questions)")
+    
+    for q in filtered_questions:
         qid = q["id"]
         print(f"\n{'—' * 60}")
         print(f"Q{qid:02d} [{q['category']}] ({q['difficulty']})")
         print(f"  {q['question'][:100]}...")
 
-        db.add_message(conv_id, "user", q["question"])
+        db_postgres.add_message(conv_id, "user", q["question"])
 
         start = time.time()
         try:
-            response = await generate_response(
+            response = await generate_chat_response(
+                message=q["question"],
+                opinion_ids=None,
                 conversation_id=conv_id,
-                user_message=q["question"],
-                search_mode="all",
+                party_only=False,
                 attorney_mode=False
             )
             elapsed = time.time() - start
@@ -283,7 +302,7 @@ async def run_evaluation():
         answer = response.get("answer", "")
         sources = response.get("sources", [])
 
-        db.add_message(conv_id, "assistant", answer, citations=json.dumps({"sources": sources}) if sources else None)
+        db_postgres.add_message(conv_id, "assistant", answer, citations=json.dumps({"sources": sources}) if sources else None)
 
         scores = score_response(q, answer, sources, elapsed)
         total_time += elapsed
