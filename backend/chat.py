@@ -663,6 +663,8 @@ OUTPUT REQUIREMENTS
 • Provide clear, structured legal analysis
 • Synthesize doctrine first; cite cases second
 • Distinguish Federal Circuit law from regional circuit law when relevant
+• Prefer canonical patent-law terminology expected by practitioners (e.g., § 101/Alice step one-step two, § 103 motivation-to-combine, § 112 written description/enablement/definiteness, Phillips plain-and-ordinary-meaning)
+• Where feasible, name the governing test/rule using its conventional label in the first analysis paragraph
 • Avoid placeholder responses, disclaimers, or UX error language
 
 Your goal is to function as a competent appellate lawyer,
@@ -2344,7 +2346,7 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict) -
     if binding_method == "strict":
         score += 40
     elif binding_method == "case_level":
-        score += 30  # Quote verified in correct case, different page - cap at MODERATE
+        score += 35  # Quote verified in correct case (page mismatch tolerated)
     elif binding_method == "fuzzy":
         score += 25  # Cap at MODERATE for fuzzy binding
     elif binding_method == "fuzzy_case_level":
@@ -2354,7 +2356,7 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict) -
     if "exact_match" in signals:
         score += 30
     elif "case_level_match" in signals:
-        score += 20  # Verified at case level - reduced to ensure MODERATE cap
+        score += 25  # Stronger credit for validated case-level quote matches
     elif "partial_match" in signals:
         score += 15
     
@@ -2382,11 +2384,15 @@ def compute_citation_tier(binding_method: str, signals: List[str], page: Dict) -
         score -= 10
     elif "dissent_heuristic" in signals:
         score -= 15
+
+    # Verification provenance bonus
+    if "db_fetched" in signals:
+        score += 5
     
     # Determine tier
     # Fuzzy binding caps at MODERATE regardless of score
-    if binding_method == "fuzzy" and score >= 70:
-        score = 69  # Cap score to ensure MODERATE
+    if binding_method in {"fuzzy", "fuzzy_case_level"} and score >= 70:
+        score = 69  # Cap score to ensure MODERATE for fuzzy binding
     
     if score >= 70:
         tier = "strong"
@@ -2741,7 +2747,7 @@ async def generate_chat_response(
     opinion_ids: Optional[List[str]] = None,
     conversation_id: Optional[str] = None,
     party_only: bool = False,
-    attorney_mode: bool = True
+    attorney_mode: bool = False
 ) -> Dict[str, Any]:
     
     import time as _time
@@ -4205,7 +4211,7 @@ async def generate_chat_response_stream(
     opinion_ids: Optional[List[str]] = None,
     conversation_id: Optional[str] = None,
     party_only: bool = False,
-    attorney_mode: bool = True
+    attorney_mode: bool = False
 ):
     """
     Streaming version of generate_chat_response that yields SSE events.
@@ -4303,14 +4309,15 @@ async def generate_chat_response_stream(
     
     try:
         # Use streaming API
+        stream_max_tokens = 1800 if len(message) < 220 else 2200
         stream = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": enhanced_prompt},
                 {"role": "user", "content": message}
             ],
-            temperature=0.2,
-            max_tokens=2500,
+            temperature=0.15,
+            max_tokens=stream_max_tokens,
             stream=True
         )
         

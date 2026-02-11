@@ -240,7 +240,7 @@ export async function clearAllConversations(): Promise<void> {
   await apiRequest("DELETE", "/api/conversations");
 }
 
-export async function sendMessage(conversationId: string, content: string, searchMode: string = "all", attorneyMode: boolean = true): Promise<ChatResult> {
+export async function sendMessage(conversationId: string, content: string, searchMode: string = "all", attorneyMode: boolean = false): Promise<ChatResult> {
   const res = await apiRequest("POST", `/api/conversations/${conversationId}/messages`, { content, searchMode, attorneyMode });
   const data = await res.json();
   
