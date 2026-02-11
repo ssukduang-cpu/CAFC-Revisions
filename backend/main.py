@@ -206,10 +206,15 @@ class ChatRequest(BaseModel):
     selected_opinion_ids: Optional[List[str]] = None
     conversation_id: Optional[str] = None
     search_mode: str = "all"  # "all" = full text + case names, "parties" = case names only
+    attorney_mode: bool = True
 
 @app.get("/api/status")
 async def get_status():
     return db.get_status()
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True, "service": "python"}
 
 @app.post("/api/opinions/sync")
 async def sync_opinions():
@@ -1170,6 +1175,7 @@ async def get_messages(conversation_id: str, request: Request):
 class MessageRequest(BaseModel):
     content: str
     searchMode: str = "all"  # "all" = full text + case names, "parties" = case names only
+    attorneyMode: bool = True
 
 @app.post("/api/conversations/{conversation_id}/messages")
 async def send_message(conversation_id: str, message: MessageRequest, http_request: Request):
@@ -1185,7 +1191,8 @@ async def send_message(conversation_id: str, message: MessageRequest, http_reque
         message=message.content,
         opinion_ids=None,
         conversation_id=conversation_id,
-        party_only=party_only
+        party_only=party_only,
+        attorney_mode=message.attorneyMode
     )
     
     citation_data = {
@@ -1245,7 +1252,8 @@ async def chat_stream(request: ChatRequest):
             message=request.message,
             opinion_ids=request.selected_opinion_ids,
             conversation_id=conv_id,
-            party_only=party_only
+            party_only=party_only,
+            attorney_mode=request.attorney_mode
         ):
             # Accumulate full response for saving
             if '"type": "token"' in chunk:
@@ -1329,7 +1337,8 @@ async def chat(request: ChatRequest):
         message=request.message,
         opinion_ids=request.selected_opinion_ids,
         conversation_id=conv_id,
-        party_only=party_only
+        party_only=party_only,
+        attorney_mode=request.attorney_mode
     )
     
     citation_data = {

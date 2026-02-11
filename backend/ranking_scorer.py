@@ -32,8 +32,11 @@ FRAMEWORK_TERMS = [
     # Remedies
     "eBay", "Halo", "Octane", "Stryker",
     # DOE/estoppel
-    "Festo", "Warner-Jenkinson", "Graver Tank"
+    "Festo", "Warner-Jenkinson", "Graver Tank",
+    # Certificates of correction / reissue
+    "certificate of correction", "reissue"
 ]
+
 
 # Framework boost mapping: query doctrine tag -> controlling frameworks to boost
 DOCTRINE_FRAMEWORKS = {
@@ -43,7 +46,8 @@ DOCTRINE_FRAMEWORKS = {
     "claim_construction": ["Markman", "Teva", "Phillips", "Vitronics"],
     "ptab": ["Cuozzo", "Thryv", "SAS"],
     "remedies": ["eBay", "Halo", "Octane", "Stryker"],
-    "doe": ["Festo", "Warner-Jenkinson", "Graver Tank"]
+    "doe": ["Festo", "Warner-Jenkinson", "Graver Tank"],
+    "certificate_correction": ["certificate of correction", "reissue", "35 U.S.C. §§ 252, 254, 255"]
 }
 
 # Controlling SCOTUS cases by doctrine for direct injection
@@ -57,7 +61,8 @@ CONTROLLING_SCOTUS_CASES = {
              "SAS Institute Inc. v. Iancu"],
     "remedies": ["eBay Inc. v. MercExchange, L.L.C.", "Halo Electronics, Inc. v. Pulse Electronics, Inc.",
                  "Octane Fitness, LLC v. ICON Health & Fitness, Inc."],
-    "doe": ["Festo Corporation v. Shoketsu Kinzoku Kogyo Kabushiki Co.", "Warner-Jenkinson Company, Inc. v. Hilton Davis Chemical Co."]
+    "doe": ["Festo Corporation v. Shoketsu Kinzoku Kogyo Kabushiki Co.", "Warner-Jenkinson Company, Inc. v. Hilton Davis Chemical Co."],
+    "certificate_correction": ["Southwest Software, Inc. v. Harlequin Inc.", "H-W Tech., L.C. v. Overstock.com, Inc."]
 }
 
 # Case name patterns for SCOTUS detection (fallback only when origin is missing)
@@ -128,49 +133,56 @@ def normalize_origin(origin: str, case_name: str = "") -> str:
     return court
 
 
+def _contains_token(text: str, token: str) -> bool:
+    """Word-boundary token match to avoid false positives like 'doe' in 'does'."""
+    import re
+    return re.search(rf"\b{re.escape(token)}\b", text) is not None
+
+
+def _contains_any_token(text: str, tokens: List[str]) -> bool:
+    return any(_contains_token(text, t) for t in tokens)
+
+
 def classify_doctrine_tag(query: str) -> Optional[str]:
     """Classify a query into a doctrine tag for framework injection.
-    
-    Returns one of: '101', '103', '112', 'claim_construction', 'ptab', 'remedies', 'doe', or None
+
+    Returns one of: '101', '103', '112', 'claim_construction', 'ptab',
+    'remedies', 'doe', 'certificate_correction', or None
     """
     query_lower = query.lower()
-    
+
     # §101 eligibility
-    if any(t in query_lower for t in ['101', 'alice', 'mayo', 'abstract idea', 'patent eligible', 
-                                       'inventive concept', 'law of nature', 'natural phenomena']):
+    if any(t in query_lower for t in ['abstract idea', 'patent eligible', 'inventive concept', 'law of nature', 'natural phenomena'])        or _contains_any_token(query_lower, ['101', 'alice', 'mayo']):
         return "101"
-    
+
     # §103 obviousness
-    if any(t in query_lower for t in ['103', 'obvious', 'ksr', 'graham', 'motivation to combine', 
-                                       'tsm', 'teaching suggestion']):
+    if any(t in query_lower for t in ['obvious', 'motivation to combine', 'teaching suggestion'])        or _contains_any_token(query_lower, ['103', 'ksr', 'graham', 'tsm']):
         return "103"
-    
+
     # §112 disclosure
-    if any(t in query_lower for t in ['112', 'enablement', 'written description', 'amgen', 
-                                       'nautilus', 'indefinite', 'ariad']):
+    if any(t in query_lower for t in ['enablement', 'written description', 'indefinite'])        or _contains_any_token(query_lower, ['112', 'amgen', 'nautilus', 'ariad']):
         return "112"
-    
+
+    # Certificates of correction / reissue
+    if any(t in query_lower for t in ['certificate of correction', 'certificates of correction', 'retroactive effect'])        or _contains_any_token(query_lower, ['252', '254', '255', 'reissue']):
+        return "certificate_correction"
+
     # Claim construction
-    if any(t in query_lower for t in ['claim construction', 'markman', 'teva', 'phillips', 
-                                       'intrinsic evidence', 'specification']):
+    if any(t in query_lower for t in ['claim construction', 'markman', 'teva', 'phillips', 'intrinsic evidence', 'specification']):
         return "claim_construction"
-    
+
     # PTAB reviewability
-    if any(t in query_lower for t in ['ptab', 'ipr', 'inter partes', 'cuozzo', 'thryv', 'sas', 
-                                       'institution', 'reviewability']):
+    if any(t in query_lower for t in ['ptab', 'ipr', 'inter partes', 'cuozzo', 'thryv', 'sas', 'institution', 'reviewability']):
         return "ptab"
-    
-    # Remedies (injunctions, damages, fees)
-    if any(t in query_lower for t in ['injunction', 'ebay', 'halo', 'willful', 'enhanced damage',
-                                       'octane', 'exceptional', 'fee', 'damages', 'royalty', 
-                                       'apportionment', 'reasonable royalty']):
+
+    # Remedies
+    if any(t in query_lower for t in ['injunction', 'ebay', 'halo', 'willful', 'enhanced damage', 'octane', 'exceptional', 'fee', 'damages', 'royalty', 'apportionment', 'reasonable royalty']):
         return "remedies"
-    
-    # DOE/estoppel
-    if any(t in query_lower for t in ['doctrine of equivalents', 'doe', 'estoppel', 'festo', 
-                                       'warner-jenkinson', 'prosecution history']):
+
+    # DOE/estoppel (word-boundary guarded)
+    if any(t in query_lower for t in ['doctrine of equivalents', 'prosecution history'])        or _contains_any_token(query_lower, ['doe', 'estoppel', 'festo', 'warner-jenkinson']):
         return "doe"
-    
+
     return None
 
 

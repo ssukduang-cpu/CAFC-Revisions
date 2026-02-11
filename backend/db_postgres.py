@@ -27,6 +27,19 @@ LEGAL_STOP_WORDS = {
 }
 
 # High-value legal terms to prioritize in search
+
+LEGAL_PHRASE_EXPANSIONS = {
+    # Frequently vague legalese / causes of action phrasing
+    'cause of action': ['claim', 'counts', 'pleading', 'elements'],
+    'certificate of correction': ['certificate', 'correction', '252', '35usc252', 'reissue'],
+    'filed': ['complaint', 'petition', 'appeal', 'filed', 'procedural'],
+    'standard of review': ['review', 'de', 'novo', 'clear', 'error', 'substantial', 'evidence'],
+    'motion to dismiss': ['dismiss', '12b6', 'plausibility', 'pleading'],
+    'summary judgment': ['summary', 'judgment', 'genuine', 'dispute', 'material', 'fact'],
+    'inequitable conduct': ['inequitable', 'intent', 'materiality', 'therasense'],
+    'means plus function': ['means', 'function', '112', 'f', 'structure'],
+}
+
 LEGAL_KEY_TERMS = {
     # Patent doctrines
     'enablement', 'obviousness', 'anticipation', 'infringement', 'claim', 'claims',
@@ -60,8 +73,16 @@ def extract_search_terms(query: str, max_terms: int = 12) -> List[str]:
     Returns:
         List of extracted key terms
     """
+    query_lower = query.lower()
+
     # Tokenize and clean (include numeric section references like 101/112)
-    words = re.findall(r'[a-zA-Z0-9]+', query.lower())
+    words = re.findall(r'[a-zA-Z0-9]+', query_lower)
+
+    # Expand multi-word legal phrases (for vague legalese questions)
+    phrase_expanded_words: List[str] = []
+    for phrase, expansions in LEGAL_PHRASE_EXPANSIONS.items():
+        if phrase in query_lower:
+            phrase_expanded_words.extend(expansions)
 
     # Expand high-value section references to doctrinal terms used in opinions
     section_expansions = {
@@ -73,7 +94,7 @@ def extract_search_terms(query: str, max_terms: int = 12) -> List[str]:
         '285': ['fees', 'exceptional', 'litigation'],
     }
 
-    expanded_words: List[str] = []
+    expanded_words: List[str] = list(phrase_expanded_words)
     for word in words:
         expanded_words.append(word)
         expanded_words.extend(section_expansions.get(word, []))

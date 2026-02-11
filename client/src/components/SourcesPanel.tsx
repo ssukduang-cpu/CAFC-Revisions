@@ -141,6 +141,7 @@ export function SourcesPanel() {
               <div>
                 <h3 className="font-semibold text-xs text-foreground">Cited Sources</h3>
                 <p className="text-[9px] text-muted-foreground">Referenced in the answer with verification</p>
+                <p className="text-[9px] text-muted-foreground">Tier guide: STRONG/MODERATE = safer authority; WEAK/UNVERIFIED = background only.</p>
               </div>
             </div>
           )}

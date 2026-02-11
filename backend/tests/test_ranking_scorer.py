@@ -458,6 +458,21 @@ class TestConsistency:
         assert boost == 1.3, f"CAFC precedential should have 1.3 boost, got {boost}"
 
 
+
+class TestDoctrineTagClassification:
+    """Regression tests for doctrine tag routing and false positives."""
+
+    def test_doe_not_triggered_by_does(self):
+        query = "If they corrected the patent after issuance, does that cure the problem retroactively?"
+        tag = classify_doctrine_tag(query)
+        assert tag != "doe", f"'does' should not trigger DOE tag, got: {tag}"
+
+    def test_certificate_of_correction_tag(self):
+        query = "Under 35 U.S.C. §§254–255, what is the retroactive effect of a certificate of correction?"
+        tag = classify_doctrine_tag(query)
+        assert tag == "certificate_correction", f"Expected certificate_correction, got: {tag}"
+
+
 def run_all_tests():
     """Run all tests and report results."""
     print("=" * 60)

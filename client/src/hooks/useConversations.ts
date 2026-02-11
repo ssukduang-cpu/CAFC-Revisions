@@ -69,9 +69,9 @@ export function useSendMessage() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ conversationId, content, searchMode = "all" }: { conversationId: string; content: string; searchMode?: string }) => {
+    mutationFn: ({ conversationId, content, searchMode = "all", attorneyMode = true }: { conversationId: string; content: string; searchMode?: string; attorneyMode?: boolean }) => {
       if (!conversationId) throw new Error("No conversation selected");
-      return sendMessage(conversationId, content, searchMode);
+      return sendMessage(conversationId, content, searchMode, attorneyMode);
     },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
@@ -80,22 +80,29 @@ export function useSendMessage() {
       // Snapshot the previous value
       const previousConversation = queryClient.getQueryData<ConversationWithMessages>(["conversation", variables.conversationId]);
       
-      // Optimistically add the user's message immediately
-      if (previousConversation) {
-        const optimisticMessage: Message = {
-          id: `temp-${Date.now()}`,
-          conversationId: variables.conversationId,
-          role: "user",
-          content: variables.content,
-          citations: null,
-          createdAt: new Date(),
-        };
-        
-        queryClient.setQueryData<ConversationWithMessages>(["conversation", variables.conversationId], {
-          ...previousConversation,
-          messages: [...previousConversation.messages, optimisticMessage],
-        });
-      }
+      // Optimistically add the user's message immediately (including first message in a new conversation)
+      const optimisticMessage: Message = {
+        id: `temp-${Date.now()}`,
+        conversationId: variables.conversationId,
+        role: "user",
+        content: variables.content,
+        citations: null,
+        createdAt: new Date(),
+      };
+
+      const baseConversation: ConversationWithMessages = previousConversation || {
+        id: variables.conversationId,
+        title: variables.content.slice(0, 60),
+        userId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        messages: [],
+      };
+
+      queryClient.setQueryData<ConversationWithMessages>(["conversation", variables.conversationId], {
+        ...baseConversation,
+        messages: [...(baseConversation.messages || []), optimisticMessage],
+      });
       
       return { previousConversation };
     },
