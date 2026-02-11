@@ -69,7 +69,7 @@ export function useSendMessage() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ conversationId, content, searchMode = "all", attorneyMode = true }: { conversationId: string; content: string; searchMode?: string; attorneyMode?: boolean }) => {
+    mutationFn: ({ conversationId, content, searchMode = "all", attorneyMode = false }: { conversationId: string; content: string; searchMode?: string; attorneyMode?: boolean }) => {
       if (!conversationId) throw new Error("No conversation selected");
       return sendMessage(conversationId, content, searchMode, attorneyMode);
     },

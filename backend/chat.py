@@ -2741,7 +2741,7 @@ async def generate_chat_response(
     opinion_ids: Optional[List[str]] = None,
     conversation_id: Optional[str] = None,
     party_only: bool = False,
-    attorney_mode: bool = True
+    attorney_mode: bool = False
 ) -> Dict[str, Any]:
     
     import time as _time
@@ -4205,7 +4205,7 @@ async def generate_chat_response_stream(
     opinion_ids: Optional[List[str]] = None,
     conversation_id: Optional[str] = None,
     party_only: bool = False,
-    attorney_mode: bool = True
+    attorney_mode: bool = False
 ):
     """
     Streaming version of generate_chat_response that yields SSE events.

@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { HelpCircle, Shield, AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
+import { HelpCircle, AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
 
 export function HelpModal() {
   return (
@@ -70,7 +70,7 @@ export function HelpModal() {
                 <div>
                   <span className="font-medium text-red-700 dark:text-red-400">UNVERIFIED</span>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Quote could not be verified in the source text. Do not rely on this citation without manual verification.
+                    Quote could not be verified in the source text. Treat it as low-confidence background context.
                   </p>
                 </div>
               </div>
@@ -78,15 +78,11 @@ export function HelpModal() {
           </div>
           
           <div className="space-y-2">
-            <h4 className="font-semibold flex items-center gap-2">
-              <Shield className="h-4 w-4 text-green-600" />
-              Attorney Mode
-            </h4>
+            <h4 className="font-semibold">Verification Filter</h4>
             <p className="text-muted-foreground text-xs">
-              When enabled (default), statements that cannot be verified against source text 
-              are flagged with a warning notice below the response. 
-              This ensures you can identify which claims require additional verification 
-              before use in legal proceedings.
+              You can optionally enable stricter filtering in the sidebar. In strict mode,
+              unsupported statements are highlighted more aggressively and weaker matches are
+              deprioritized.
             </p>
           </div>
           

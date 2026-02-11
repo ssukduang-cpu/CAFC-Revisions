@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings, HelpCircle, Shield, ShieldOff, BarChart3, LogOut, Users } from "lucide-react";
+import { MessageSquare, Plus, Search, Library, Scale, ExternalLink, FileText, Trash2, Moon, Sun, Monitor, Settings, Shield, ShieldOff, BarChart3, LogOut, Users } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/context/ThemeContext";
@@ -234,19 +234,6 @@ export function Sidebar() {
               <ExternalLink className="h-3.5 w-3.5 opacity-40" />
             </Button>
           </a>
-          <a href="/citation-guide">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full justify-start h-9 px-3 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
-              data-testid="link-citation-guide-sidebar"
-            >
-              <div className="flex items-center gap-2.5">
-                <HelpCircle className="h-4 w-4" />
-                <span className="text-xs font-medium">Citation Guide</span>
-              </div>
-            </Button>
-          </a>
           <a href="/admin">
             <Button 
               variant="ghost" 
@@ -288,15 +275,15 @@ export function Sidebar() {
                     <ShieldOff className="h-4 w-4 text-yellow-500" />
                   )}
                   <span className="text-xs font-medium text-sidebar-foreground/80">
-                    {attorneyMode ? "Attorney Mode (Strict)" : "Research Mode (Exploratory)"}
+                    {attorneyMode ? "Verification Filter (Strict)" : "Verification Filter (Balanced)"}
                   </span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-[250px]">
                 <p className="text-xs">
                   {attorneyMode 
-                    ? "Strict mode prioritizes strong/moderate citations, applies stricter statement-level provenance checks, and suppresses weaker authorities where possible."
-                    : "Research mode allows broader retrieval and keeps lower-confidence/background authorities visible for exploration."
+                    ? "Strict filtering emphasizes stronger citation matches and flags unsupported statements more aggressively."
+                    : "Balanced filtering keeps broader context visible while still surfacing verification signals."
                   }
                 </p>
               </TooltipContent>
