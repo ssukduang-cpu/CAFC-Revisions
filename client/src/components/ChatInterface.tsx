@@ -262,12 +262,12 @@ export function ChatInterface() {
             <button
               key={idx}
               onClick={() => handleSourceClick(source)}
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 text-[10px] font-medium rounded transition-colors ${tierBgColor} ${tierTextColor}`}
-              title={`${source.caseName}, p.${source.pageNumber}${tier !== 'strong' ? ` (${tier})` : ''}`}
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 text-[10px] font-medium rounded border transition-colors ${tierBgColor} ${tierTextColor} ${tier === 'strong' ? 'border-green-500/30' : tier === 'moderate' ? 'border-yellow-500/30' : tier === 'weak' ? 'border-orange-500/30' : 'border-red-500/30'}`}
+              title={`${source.caseName}, p.${source.pageNumber} — Confidence: ${tier}`}
               data-testid={`source-marker-${source.sid}`}
             >
               [{source.sid}]
-              {tier !== 'strong' && <ConfidenceBadge tier={tier} signals={signals} size="sm" />}
+              <ConfidenceBadge tier={tier} signals={signals} size="sm" />
             </button>
           );
         }
@@ -685,14 +685,21 @@ export function ChatInterface() {
                               Sources
                             </div>
                             <div className="space-y-1.5">
-                              {sources.map((source) => (
+                              {sources.map((source) => {
+                                const sourceTier = (source.tier || 'unverified') as ConfidenceTier;
+                                const sourceSignals = (source.signals || []) as CitationSignal[];
+                                const tierBorderClass = sourceTier === 'strong' ? 'border-l-green-500' 
+                                  : sourceTier === 'moderate' ? 'border-l-yellow-500'
+                                  : sourceTier === 'weak' ? 'border-l-orange-500'
+                                  : 'border-l-red-500';
+                                return (
                                 <div 
                                   key={source.sid}
                                   role="button"
                                   tabIndex={0}
                                   onClick={() => handleSourceClick(source)}
                                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSourceClick(source); } }}
-                                  className="w-full text-left bg-muted/40 hover:bg-primary/5 border border-border/60 hover:border-primary/30 rounded-lg p-3 transition-all cursor-pointer group"
+                                  className={`w-full text-left bg-muted/40 hover:bg-primary/5 border border-border/60 hover:border-primary/30 border-l-[3px] ${tierBorderClass} rounded-lg p-3 transition-all cursor-pointer group`}
                                   data-testid={`source-panel-${source.sid}`}
                                 >
                                   <div className="flex items-start gap-2.5">
@@ -705,6 +712,7 @@ export function ChatInterface() {
                                         <span className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                                           {source.caseName}
                                         </span>
+                                        <ConfidenceBadge tier={sourceTier} signals={sourceSignals} showLabel size="sm" />
                                       </div>
                                       <div className="text-[11px] text-muted-foreground line-clamp-2 italic leading-relaxed">
                                         "{source.quote}"
@@ -733,7 +741,8 @@ export function ChatInterface() {
                                     </div>
                                   </div>
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}

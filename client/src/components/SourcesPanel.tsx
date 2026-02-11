@@ -141,10 +141,16 @@ export function SourcesPanel() {
             </div>
           )}
           
-          {selectedCitations.length > 0 ? selectedCitations.map((citation, index) => (
+          {selectedCitations.length > 0 ? selectedCitations.map((citation, index) => {
+            const cardTier = (citation.tier || 'unverified') as string;
+            const cardBorderClass = cardTier === 'strong' ? 'border-l-green-500' 
+              : cardTier === 'moderate' ? 'border-l-yellow-500'
+              : cardTier === 'weak' ? 'border-l-orange-500'
+              : 'border-l-red-500';
+            return (
             <Card 
               key={index} 
-              className="shadow-sm border border-border hover:border-primary/30 hover:shadow-md transition-all group overflow-hidden"
+              className={`shadow-sm border border-border hover:border-primary/30 hover:shadow-md transition-all group overflow-hidden border-l-[3px] ${cardBorderClass}`}
               data-testid={`source-card-${index}`}
             >
               <CardHeader className="p-4 pb-3 space-y-0 bg-muted/30">
@@ -278,7 +284,8 @@ export function SourcesPanel() {
                 )}
               </CardContent>
             </Card>
-          )) : (
+            );
+          }) : (
             <div className="text-center py-10 text-muted-foreground">
               <BookOpen className="h-8 w-8 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No citations selected.</p>
