@@ -115,3 +115,9 @@ Start **EX-01** and **EX-02** first to maximize visible UX impact with low legal
   - Require no dependency-skipped tests for DB/web-search dependent disambiguation checks.
 - **Owner:** QA + Platform
 - **Severity:** Release-blocking for production launch.
+
+
+### Enforcement Commands
+
+- Release gate: `scripts/ci_release_gate.sh`
+- Replit smoke test: `scripts/replit_smoke_test.sh`

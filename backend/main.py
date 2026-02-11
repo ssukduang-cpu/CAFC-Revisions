@@ -212,6 +212,10 @@ class ChatRequest(BaseModel):
 async def get_status():
     return db.get_status()
 
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True, "service": "python"}
+
 @app.post("/api/opinions/sync")
 async def sync_opinions():
     """

@@ -87,6 +87,10 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+app.get("/healthz", (_req, res) => {
+  res.status(200).json({ ok: true, service: "web", pythonReady });
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",

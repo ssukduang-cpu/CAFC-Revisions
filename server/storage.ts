@@ -167,7 +167,7 @@ export class DatabaseStorage implements IStorage {
       .from(chunks)
       .innerJoin(opinions, eq(chunks.opinionId, opinions.id))
       .where(
-        sql`${opinions.is_ingested} = true AND (
+        sql`${opinions.isIngested} = true AND (
           ${chunks.chunkText} ILIKE ${searchPattern} OR
           ${opinions.caseName} ILIKE ${searchPattern}
         )`

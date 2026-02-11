@@ -22,11 +22,16 @@ class AuthStorage implements IAuthStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    const userId = userData.id;
+    if (!userId) {
+      throw new Error("Missing user id in upsert payload");
+    }
+
     // Check if this is the admin email - auto-approve and set admin flag
     const isAdmin = userData.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     
     // First check if a user with this ID already exists
-    const existingById = await this.getUser(userData.id);
+    const existingById = await this.getUser(userId);
     
     if (existingById) {
       // Update existing user by ID
@@ -38,7 +43,7 @@ class AuthStorage implements IAuthStorage {
           // If it's the admin, ensure they stay admin and approved
           ...(isAdmin ? { isAdmin: true, approvalStatus: "approved" } : {}),
         })
-        .where(eq(users.id, userData.id))
+        .where(eq(users.id, userId))
         .returning();
       return user;
     }
@@ -51,7 +56,7 @@ class AuthStorage implements IAuthStorage {
         const [user] = await db
           .update(users)
           .set({
-            id: userData.id,
+            id: userId,
             firstName: userData.firstName,
             lastName: userData.lastName,
             profileImageUrl: userData.profileImageUrl,

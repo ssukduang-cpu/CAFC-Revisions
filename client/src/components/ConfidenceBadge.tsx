@@ -61,6 +61,7 @@ const signalLabels: Record<CitationSignal, string> = {
   dissent_heuristic: "From dissent",
   ellipsis_in_quote: "Quote contains ellipsis",
   db_fetched: "Fetched from database",
+  fallback_source: "Fallback source used",
   no_case_name: "Missing case name"
 };
 
