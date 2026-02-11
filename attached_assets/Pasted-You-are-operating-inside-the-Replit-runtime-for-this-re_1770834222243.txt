@@ -1,0 +1,114 @@
+You are operating inside the Replit runtime for this repository.
+
+Your task is to confirm environment parity, resolve any missing runtime dependencies, run all release checks, and produce a final GO / NO-GO deployment verdict.
+
+Follow these steps exactly and produce structured output.
+
+-------------------------------------------------------
+STEP 1 — ENVIRONMENT PARITY CHECK
+-------------------------------------------------------
+
+1. Identify the Python dependency manager in use:
+   - requirements.txt
+   - pyproject.toml (Poetry)
+   - Pipfile
+   - other
+
+2. Ensure the following runtime dependencies are installed and resolvable:
+   - httpx
+   - requests
+   - psycopg2 (or psycopg2-binary)
+
+3. If missing:
+   - Add them to the appropriate dependency file
+   - Install them properly
+   - Prefer psycopg2-binary over psycopg2 if compilation issues arise
+
+4. Verify imports succeed:
+   python -c "import httpx, requests, psycopg2"
+
+Report PASS or FAIL.
+
+-------------------------------------------------------
+STEP 2 — FRONTEND VERIFICATION
+-------------------------------------------------------
+
+Run:
+- npm ci (or npm install if needed)
+- npm run check
+- npm run build
+
+Report PASS or FAIL for each.
+
+-------------------------------------------------------
+STEP 3 — FULL TEST SUITE
+-------------------------------------------------------
+
+Run:
+pytest -q
+
+If tests fail:
+- Identify failing tests
+- Determine whether failure is:
+  (A) missing dependency
+  (B) environment mismatch
+  (C) actual logic failure
+
+If environment-related, fix and re-run.
+If logic-related, summarize root cause clearly (do not refactor code unless necessary).
+
+Report:
+- Total tests run
+- Failures
+- Final PASS or FAIL
+
+-------------------------------------------------------
+STEP 4 — RELEASE GATE
+-------------------------------------------------------
+
+Run:
+bash scripts/ci_release_gate.sh
+
+If it fails:
+- Identify exact failing condition
+- Fix environment issues if applicable
+- Re-run once
+
+Report PASS or FAIL.
+
+-------------------------------------------------------
+STEP 5 — DEPLOYMENT READINESS AUDIT
+-------------------------------------------------------
+
+Run:
+bash scripts/patent_expert_readiness_audit.sh
+
+Extract:
+- PASS_COUNT
+- FAIL_COUNT
+- RECOMMENDED_GRADE
+- DEPLOYMENT_READINESS
+
+-------------------------------------------------------
+STEP 6 — FINAL VERDICT
+-------------------------------------------------------
+
+Provide a structured summary:
+
+ENVIRONMENT PARITY: PASS / FAIL
+FRONTEND BUILD: PASS / FAIL
+FULL TEST SUITE: PASS / FAIL
+RELEASE GATE: PASS / FAIL
+AUDIT GRADE: <grade>
+DEPLOYMENT READINESS: GO / NO-GO
+
+If NO-GO:
+List exact blockers remaining.
+
+If GO:
+State clearly:
+"Repository is cleared for deployment in current Replit environment."
+
+Do not speculate.
+Do not provide theory.
+Only report observed results.
