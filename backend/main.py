@@ -206,7 +206,7 @@ class ChatRequest(BaseModel):
     selected_opinion_ids: Optional[List[str]] = None
     conversation_id: Optional[str] = None
     search_mode: str = "all"  # "all" = full text + case names, "parties" = case names only
-    attorney_mode: bool = True
+    attorney_mode: bool = False
 
 @app.get("/api/status")
 async def get_status():
@@ -1175,7 +1175,7 @@ async def get_messages(conversation_id: str, request: Request):
 class MessageRequest(BaseModel):
     content: str
     searchMode: str = "all"  # "all" = full text + case names, "parties" = case names only
-    attorneyMode: bool = True
+    attorneyMode: bool = False
 
 @app.post("/api/conversations/{conversation_id}/messages")
 async def send_message(conversation_id: str, message: MessageRequest, http_request: Request):

@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Shield, ShieldAlert, ShieldCheck, ShieldQuestion, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Link } from "wouter";
 import type { ConfidenceTier, CitationSignal } from "@/lib/api";
 
 interface ConfidenceBadgeProps {
@@ -118,9 +117,9 @@ export function ConfidenceBadge({
               Signals: {signals.map(s => signalLabels[s] || s).join(', ')}
             </p>
           )}
-          <Link href="/citation-guide" className="text-xs text-primary hover:underline block mt-1" data-testid="link-badge-guide">
-            Learn more about confidence scoring
-          </Link>
+          <p className="text-xs text-muted-foreground mt-1">
+            Confidence reflects source-to-quote match strength.
+          </p>
         </div>
       </TooltipContent>
     </Tooltip>

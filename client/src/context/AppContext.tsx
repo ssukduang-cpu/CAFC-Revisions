@@ -27,7 +27,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [showOpinionLibrary, setShowOpinionLibrary] = useState(false);
   const [sourcePanelOpen, setSourcePanelOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [attorneyMode, setAttorneyMode] = useState(true); // Default ON for strict provenance
+  const [attorneyMode, setAttorneyMode] = useState(false); // Default OFF; optional stricter verification filtering
 
   return (
     <AppContext.Provider 

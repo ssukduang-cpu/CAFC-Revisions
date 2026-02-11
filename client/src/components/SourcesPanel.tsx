@@ -2,7 +2,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp, HelpCircle, Scale, Gavel, Search, AlertTriangle } from "lucide-react";
+import { ExternalLink, BookOpen, Quote, Copy, Check, ChevronDown, ChevronUp, Scale, Gavel, Search, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApp } from "@/context/AppContext";
@@ -118,11 +118,6 @@ export function SourcesPanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/citation-guide">
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="How confidence scoring works" data-testid="link-citation-guide">
-              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </Link>
           <Badge variant="secondary" className="font-mono text-[10px] font-semibold">
             {selectedCitations.length}
           </Badge>
