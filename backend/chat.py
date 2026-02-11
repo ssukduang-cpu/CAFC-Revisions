@@ -671,45 +671,319 @@ Your goal is to function as a competent appellate lawyer,
 not a document-search interface.
 """
 
-# 2025 Hot Topics Reference for Agentic Reasoning
-HOT_TOPICS_2025 = {
+DOCTRINE_KNOWLEDGE_BASE = {
     "obviousness": {
         "doctrine": "§ 103 Obviousness",
-        "landmark": "KSR v. Teleflex (2007)",
+        "landmark": "KSR Int'l Co. v. Teleflex Inc., 550 U.S. 398 (2007)",
+        "framework": "KSR rejected the rigid teaching-suggestion-motivation (TSM) test, holding that obviousness analysis must use an expansive, flexible approach. A combination of prior art is obvious if a person of ordinary skill (POSITA) would have had a reason to combine known elements with a reasonable expectation of success. Courts consider: (1) scope and content of prior art, (2) differences between prior art and claims, (3) level of ordinary skill, and (4) secondary considerations (Graham v. John Deere factors).",
         "recent_developments": [
             "Honeywell v. 3G Licensing (2025): 'Desirable vs. Best' distinction - modification need not be optimal",
             "USAA v. PNC Bank (2025): 'Design choice' standard - known alternatives are predictable variations"
         ],
-        "key_terms": ["motivation to combine", "teaching-suggestion-motivation", "TSM", "obvious to try", 
-                      "predictable results", "design choice", "desirable modification", "POSITA", "KSR"]
+        "key_terms": ["motivation to combine", "teaching-suggestion-motivation", "TSM", "obvious to try",
+                      "predictable results", "design choice", "POSITA", "KSR", "Graham factors",
+                      "reasonable expectation of success", "prima facie obviousness"]
+    },
+    "secondary_considerations": {
+        "doctrine": "Secondary Considerations of Nonobviousness",
+        "landmark": "Graham v. John Deere Co., 383 U.S. 1 (1966)",
+        "framework": "Secondary considerations (objective indicia) include: commercial success, long-felt but unsolved need, failure of others, unexpected results, copying by competitors, licensing activity, and industry praise. The Federal Circuit requires a nexus between the evidence and the merits of the claimed invention (not just the product). These factors serve as a check against hindsight bias in the obviousness analysis.",
+        "recent_developments": [
+            "Nexus requirement continues to be central — presumption of nexus when product is coextensive with claim",
+            "Blocking patents and industry skepticism as strong indicators"
+        ],
+        "key_terms": ["secondary considerations", "objective indicia", "commercial success", "long-felt need",
+                      "failure of others", "unexpected results", "nexus", "copying", "licensing",
+                      "industry praise", "hindsight bias", "Graham factors"]
     },
     "eligibility": {
-        "doctrine": "§ 101 Patent Eligibility", 
-        "landmark": "Alice Corp. v. CLS Bank (2014)",
+        "doctrine": "§ 101 Patent Eligibility",
+        "landmark": "Alice Corp. v. CLS Bank Int'l, 573 U.S. 208 (2014)",
+        "framework": "The Alice/Mayo two-step framework: Step 1 — determine whether the claims are directed to a patent-ineligible concept (abstract idea, law of nature, natural phenomenon). Step 2 — if so, examine whether the claim elements, individually or as an ordered combination, contain an 'inventive concept' sufficient to transform the nature of the claim into a patent-eligible application ('significantly more'). Mayo Collaborative Servs. v. Prometheus Labs., 566 U.S. 66 (2012) established the framework; Alice applied it to software/business methods.",
         "recent_developments": [
             "Continuing refinements to abstract idea categories",
             "Software patent eligibility analysis under Alice Step 2"
         ],
-        "key_terms": ["abstract idea", "laws of nature", "natural phenomena", "Alice step one", 
-                      "Alice step two", "inventive concept", "significantly more", "preemption"]
+        "key_terms": ["abstract idea", "laws of nature", "natural phenomena", "Alice step one",
+                      "Alice step two", "inventive concept", "significantly more", "preemption",
+                      "Mayo", "directed to", "patent-ineligible concept", "well-understood routine conventional"]
+    },
+    "software_eligibility": {
+        "doctrine": "Software Patent Eligibility Post-Alice",
+        "landmark": "Enfish, LLC v. Microsoft Corp., 822 F.3d 1327 (Fed. Cir. 2016)",
+        "framework": "The Federal Circuit has found software claims patent-eligible when directed to a specific technological improvement rather than an abstract idea. Key favorable precedents: Enfish (self-referential database improving computer functionality), DDR Holdings (Internet-specific solution preventing web traffic diversion), Finjan (behavior-based virus scanning), and McRO (rules-based lip synchronization). Claims survive Alice Step 1 when they improve computer functionality itself or solve a technology-specific problem, not merely automate a conventional process.",
+        "recent_developments": [
+            "Continuing evolution of the 'improvement to computer functionality' standard",
+            "Distinction between technological improvement and mere automation"
+        ],
+        "key_terms": ["Enfish", "DDR Holdings", "patent-eligible", "abstract idea", "improvement to computer functionality",
+                      "specific technological improvement", "unconventional technological solution",
+                      "Finjan", "McRO", "Aatrix", "Berkheimer"]
     },
     "claim_construction": {
         "doctrine": "Claim Construction",
-        "landmark": "Phillips v. AWH Corp. (2005)",
+        "landmark": "Phillips v. AWH Corp., 415 F.3d 1303 (Fed. Cir. 2005) (en banc)",
+        "framework": "Phillips established the primacy of intrinsic evidence for claim construction. The inquiry begins with claim language in its ordinary meaning to a POSITA, informed by: (1) other claims, (2) the specification (most significant), and (3) prosecution history. Extrinsic evidence (dictionaries, expert testimony) is secondary. This differs from the 'broadest reasonable interpretation' (BRI) standard used by the USPTO during prosecution. Markman v. Westview (1996) held claim construction is a question of law for the court. Teva Pharmaceuticals (2015) added a clear error standard for underlying factual findings.",
         "recent_developments": [
-            "Intrinsic vs. extrinsic evidence hierarchy",
-            "Plain and ordinary meaning analysis"
+            "Intrinsic vs. extrinsic evidence hierarchy remains paramount",
+            "BRI vs. Phillips distinction continues in PTAB vs. district court proceedings"
         ],
         "key_terms": ["claim construction", "intrinsic evidence", "extrinsic evidence", "specification",
-                      "prosecution history", "plain meaning", "Markman hearing", "Phillips"]
+                      "prosecution history", "plain and ordinary meaning", "Markman hearing", "Phillips",
+                      "broadest reasonable interpretation", "BRI", "POSITA", "Teva"]
     },
     "definiteness": {
         "doctrine": "§ 112 Definiteness",
-        "landmark": "Nautilus v. Biosig (2014)",
-        "recent_developments": ["Reasonable certainty standard application"],
-        "key_terms": ["definiteness", "reasonable certainty", "indefinite", "functional language", "means-plus-function"]
+        "landmark": "Nautilus, Inc. v. Biosig Instruments, Inc., 572 U.S. 898 (2014)",
+        "framework": "Nautilus held that a patent claim is indefinite if it fails to inform those skilled in the art about the scope of the invention with 'reasonable certainty.' This replaced the Federal Circuit's older 'insolubly ambiguous' standard. The inquiry is objective, from the perspective of a POSITA reading the claim in light of the specification and prosecution history.",
+        "recent_developments": ["Reasonable certainty standard application continues to evolve"],
+        "key_terms": ["definiteness", "reasonable certainty", "indefinite", "functional language",
+                      "means-plus-function", "Nautilus", "insolubly ambiguous", "POSITA"]
+    },
+    "means_plus_function": {
+        "doctrine": "Means-Plus-Function Claim Limitations (§ 112(f))",
+        "landmark": "Williamson v. Citrix Online, LLC, 792 F.3d 1339 (Fed. Cir. 2015) (en banc)",
+        "framework": "Williamson eliminated the strong presumption that claim terms lacking 'means' are not means-plus-function limitations. The test is whether the claim term fails to recite sufficiently definite structure or instead uses a 'nonce word' (e.g., 'module,' 'mechanism,' 'unit') as a substitute for 'means.' Under § 112(f), such limitations are construed to cover the corresponding structure disclosed in the specification and equivalents thereof. If no algorithm or structure is disclosed for a computer-implemented function, the claim is indefinite.",
+        "recent_developments": [
+            "Post-Williamson focus on whether 'nonce words' connote structure to a POSITA",
+            "Algorithm disclosure requirement for computer-implemented functions"
+        ],
+        "key_terms": ["means-plus-function", "Williamson", "nonce word", "112(f)", "module",
+                      "corresponding structure", "algorithm disclosure", "equivalents thereof",
+                      "sufficiently definite structure", "generic placeholder"]
+    },
+    "enablement": {
+        "doctrine": "§ 112 Enablement Requirement",
+        "landmark": "Amgen Inc. v. Sanofi, 598 U.S. 594 (2023)",
+        "framework": "The Supreme Court in Amgen unanimously held that broad functional genus claims to antibodies defined by function (binding to PCSK9 and blocking ligand binding) were not enabled because the specification did not teach how to make and use the full scope of claimed antibodies without undue experimentation. The Court applied the Wands factors: (1) quantity of experimentation, (2) amount of direction/guidance, (3) presence of working examples, (4) nature of invention, (5) state of prior art, (6) relative skill, (7) predictability, (8) breadth of claims. The 'roadmap' and 'conservative substitution' methods described in the patent were insufficient for the full genus.",
+        "recent_developments": [
+            "Amgen significantly tightened enablement for genus claims in biotechnology/antibody patents",
+            "Increased scrutiny of functional claiming for antibody and biologic patents"
+        ],
+        "key_terms": ["enablement", "Amgen", "Sanofi", "undue experimentation", "Wands factors",
+                      "genus claims", "antibody", "functional genus", "full scope", "working examples",
+                      "roadmap", "conservative substitution", "breadth of claims", "PCSK9"]
+    },
+    "written_description": {
+        "doctrine": "§ 112 Written Description Requirement",
+        "landmark": "Ariad Pharmaceuticals v. Eli Lilly & Co., 598 F.3d 1336 (Fed. Cir. 2010) (en banc)",
+        "framework": "Ariad confirmed that written description is a separate requirement from enablement under § 112. The applicant must demonstrate 'possession' of the claimed invention as of the filing date. For genus claims, this requires showing representative species or common structural features. In biotechnology, functional descriptions alone without correlation to known structure are generally insufficient. The test is whether the disclosure 'reasonably conveys to those skilled in the art that the inventor had possession of the claimed subject matter.'",
+        "recent_developments": [
+            "Post-Ariad cases continue to require structural disclosure for genus claims",
+            "Heightened scrutiny in biotechnology and pharmaceutical patents"
+        ],
+        "key_terms": ["written description", "Ariad", "possession", "genus claims",
+                      "representative species", "common structural features", "filing date",
+                      "biotechnology", "structural disclosure", "functional description"]
+    },
+    "doctrine_of_equivalents": {
+        "doctrine": "Doctrine of Equivalents & Prosecution History Estoppel",
+        "landmark": "Festo Corp. v. Shoketsu Kinzoku Kogyo Kabushiki Co., 535 U.S. 722 (2002)",
+        "framework": "The doctrine of equivalents (DOE) allows infringement when an accused element performs substantially the same function, in substantially the same way, to achieve substantially the same result (function-way-result test). Alternatively, under the insubstantial differences test, infringement exists if differences are insubstantial. Festo established that narrowing claim amendments create a rebuttable presumption of prosecution history estoppel, barring DOE for the surrendered territory. The patentee can overcome estoppel by showing the amendment was: (1) tangential to the equivalent, (2) unforeseeable, or (3) for a reason with only a tangential relation to the equivalent. Warner-Jenkinson (1997) applied DOE element-by-element.",
+        "recent_developments": [
+            "Continued application of Festo presumption for narrowing amendments",
+            "All-limitations rule prevents DOE from vitiating a claim limitation"
+        ],
+        "key_terms": ["doctrine of equivalents", "prosecution history estoppel", "Festo",
+                      "function-way-result test", "insubstantial differences", "narrowing amendment",
+                      "surrendered territory", "Warner-Jenkinson", "all-limitations rule",
+                      "tangential relation", "vitiation", "element-by-element"]
+    },
+    "design_patents": {
+        "doctrine": "Design Patent Infringement & Damages",
+        "landmark": "Samsung Electronics Co. v. Apple Inc., 580 U.S. 53 (2016)",
+        "framework": "The Supreme Court held that 'article of manufacture' for design patent damages under § 289 can be a component of a multicomponent product, not necessarily the entire product sold. This reversed the Federal Circuit's interpretation requiring total profits of the entire product. The ordinary observer test from Egyptian Goddess v. Swisa (Fed. Cir. 2008) (en banc) governs infringement: whether an ordinary observer, giving such attention as a purchaser usually gives, would be deceived into purchasing the accused product thinking it was the patented design.",
+        "recent_developments": [
+            "Post-Samsung remand: four-factor test for identifying the relevant article of manufacture",
+            "Ongoing litigation over proper apportionment of design patent damages"
+        ],
+        "key_terms": ["design patent", "Samsung", "Apple", "article of manufacture", "total profit",
+                      "§ 289", "ordinary observer test", "Egyptian Goddess", "Swisa",
+                      "multicomponent product", "apportionment", "visual impression"]
+    },
+    "on_sale_bar": {
+        "doctrine": "On-Sale Bar (§ 102)",
+        "landmark": "Pfaff v. Wells Electronics, Inc., 525 U.S. 55 (1998)",
+        "framework": "Under Pfaff, an invention is 'on sale' barring patentability when, before the critical date: (1) the product was the subject of a commercial offer for sale, and (2) the invention was ready for patenting (either by reduction to practice or sufficiently detailed enabling descriptions). The AIA modified the critical date to before the effective filing date. In re Rudy (Fed. Cir.) addressed the application of the on-sale bar in specific contexts. Helsinn Healthcare v. Teva (2019) held that even confidential sales can trigger the bar under the AIA.",
+        "recent_developments": [
+            "Helsinn extended on-sale bar to confidential/secret sales under AIA",
+            "Experimental use exception remains narrow"
+        ],
+        "key_terms": ["on-sale bar", "Pfaff", "commercial offer for sale", "ready for patenting",
+                      "critical date", "reduction to practice", "experimental use",
+                      "Helsinn", "AIA", "§ 102", "In re Rudy"]
+    },
+    "preliminary_injunction": {
+        "doctrine": "Preliminary Injunctions in Patent Cases",
+        "landmark": "eBay Inc. v. MercExchange, L.L.C., 547 U.S. 388 (2006)",
+        "framework": "eBay established that patent holders are not entitled to automatic injunctive relief; they must satisfy the traditional four-factor equitable test: (1) irreparable harm, (2) inadequacy of legal remedies (money damages), (3) balance of hardships between parties, and (4) public interest. For preliminary injunctions, the movant must also show likelihood of success on the merits. The Federal Circuit applies an abuse of discretion standard to preliminary injunction decisions. Post-eBay, non-practicing entities (NPEs) generally have difficulty obtaining injunctions.",
+        "recent_developments": [
+            "Continued reluctance to grant injunctions to NPEs post-eBay",
+            "Causal nexus between infringement and irreparable harm increasingly scrutinized"
+        ],
+        "key_terms": ["preliminary injunction", "eBay", "MercExchange", "irreparable harm",
+                      "balance of hardships", "public interest", "likelihood of success on the merits",
+                      "four-factor test", "equitable relief", "permanent injunction", "NPE",
+                      "causal nexus", "inadequacy of legal remedies"]
+    },
+    "ptab_review": {
+        "doctrine": "PTAB Inter Partes Review & Standard of Review",
+        "landmark": "United States v. Arthrex, Inc., 594 U.S. 1 (2021)",
+        "framework": "The Federal Circuit reviews PTAB final written decisions in IPR under the substantial evidence standard for factual findings (including claim construction under BRI when applicable) and de novo for questions of law. Arthrex held that Administrative Patent Judges (APJs) were principal officers not properly appointed under the Appointments Clause, but the remedy was to allow Director review of PTAB decisions rather than invalidating the entire system. SAS Institute v. Iancu (2018) requires PTAB to address all challenged claims in a final written decision.",
+        "recent_developments": [
+            "Post-Arthrex: Director review process for PTAB decisions",
+            "Fintiv factors for discretionary denial of IPR petitions",
+            "Ongoing debate over PTAB institution decisions and discretion"
+        ],
+        "key_terms": ["PTAB", "inter partes review", "IPR", "Arthrex", "Appointments Clause",
+                      "administrative patent judge", "APJ", "substantial evidence", "de novo",
+                      "final written decision", "SAS Institute", "Fintiv", "Director review",
+                      "institution decision", "preponderance of the evidence"]
+    },
+    "divided_infringement": {
+        "doctrine": "Divided (Joint) Infringement",
+        "landmark": "Akamai Technologies, Inc. v. Limelight Networks, Inc., 797 F.3d 1020 (Fed. Cir. 2015) (en banc)",
+        "framework": "Akamai established that direct infringement under § 271(a) can exist when multiple parties collectively perform all steps of a method claim, if one entity 'directs or controls' the others' performance (attribution theory). Attribution exists when: (1) there is an agency relationship, (2) one party is contractually obligated to perform, or (3) there is a joint enterprise. The Supreme Court in Limelight Networks v. Akamai (2014) held there can be no induced infringement under § 271(b) without direct infringement. The en banc Federal Circuit then expanded the single-entity rule to cover direction-or-control scenarios.",
+        "recent_developments": [
+            "Continued evolution of direction-or-control standard",
+            "Application to cloud computing and distributed systems"
+        ],
+        "key_terms": ["divided infringement", "joint infringement", "Akamai", "Limelight",
+                      "direction or control", "attribution", "§ 271(a)", "§ 271(b)",
+                      "single-entity rule", "agency", "contractual obligation", "joint enterprise",
+                      "method claims", "induced infringement"]
+    },
+    "venue": {
+        "doctrine": "Patent Venue",
+        "landmark": "TC Heartland LLC v. Kraft Foods Group Brands LLC, 581 U.S. 258 (2017)",
+        "framework": "TC Heartland held that for domestic corporations, patent venue under 28 U.S.C. § 1400(b) is proper only where the defendant: (1) is incorporated, or (2) has committed acts of infringement and has a regular and established place of business. The Supreme Court rejected the broader general venue statute § 1391(c) as supplementing § 1400(b). In re Cray Inc. (Fed. Cir. 2017) established a three-part test for 'regular and established place of business': there must be (a) a physical place, (b) that is regular and established, (c) that is of the defendant.",
+        "recent_developments": [
+            "Post-TC Heartland: significant reduction in Eastern District of Texas filings",
+            "In re Cray factors continue to be refined for virtual offices and employee homes"
+        ],
+        "key_terms": ["TC Heartland", "venue", "regular and established place of business",
+                      "§ 1400(b)", "In re Cray", "state of incorporation", "acts of infringement",
+                      "physical place", "Eastern District of Texas", "§ 1391(c)"]
+    },
+    "patent_exhaustion": {
+        "doctrine": "Patent Exhaustion",
+        "landmark": "Impression Products, Inc. v. Lexmark Int'l, Inc., 581 U.S. 360 (2017)",
+        "framework": "The Supreme Court in Lexmark/Impression Products held that an authorized sale of a patented item, whether domestic or international, exhausts the patent holder's rights. Post-sale restrictions (such as single-use or no-resale conditions) may be enforceable as contract terms but cannot be enforced through patent infringement claims. This overruled the Federal Circuit's prior rule allowing post-sale patent enforcement for conditional sales (Mallinckrodt) and barring international exhaustion (Jazz Photo). The first sale doctrine terminates patent rights upon authorized sale.",
+        "recent_developments": [
+            "Application of exhaustion to licensed vs. sold products",
+            "Interaction with method claims and self-replicating technologies"
+        ],
+        "key_terms": ["patent exhaustion", "first sale doctrine", "Lexmark", "Impression Products",
+                      "authorized sale", "post-sale restrictions", "conditional licensing",
+                      "Mallinckrodt", "Jazz Photo", "international exhaustion",
+                      "domestic exhaustion", "method claims"]
+    },
+    "ai_inventorship": {
+        "doctrine": "AI Inventorship & Patent Eligibility of AI Inventions",
+        "landmark": "Thaler v. Vidal, 43 F.4th 1207 (Fed. Cir. 2022)",
+        "framework": "The Federal Circuit held in Thaler v. Vidal that an artificial intelligence system cannot be listed as an inventor on a patent application. The Patent Act defines 'inventor' as an 'individual,' which under statutory construction refers to a natural person. This means AI-generated inventions cannot be patented unless a natural person qualifies as the inventor. The decision does not address patent eligibility of AI-related inventions under § 101, which remains governed by Alice/Mayo. Computer-implemented inventions using AI/ML may be patent-eligible if they recite a specific technological improvement.",
+        "recent_developments": [
+            "Global divergence on AI inventorship (DABUS applications worldwide)",
+            "USPTO guidance on AI-assisted inventions and human contribution requirement"
+        ],
+        "key_terms": ["artificial intelligence", "AI", "inventor", "natural person", "Thaler",
+                      "Vidal", "DABUS", "individual", "Patent Act", "inventorship",
+                      "AI-generated", "machine learning", "computer-implemented"]
+    },
+    "damages": {
+        "doctrine": "Patent Damages & Reasonable Royalty",
+        "landmark": "Georgia-Pacific Corp. v. U.S. Plywood Corp., 318 F. Supp. 1116 (S.D.N.Y. 1970)",
+        "framework": "Patent damages under § 284 include lost profits and/or a reasonable royalty. The Georgia-Pacific framework provides 15 factors for hypothetical negotiation analysis. Lost profits require the Panduit four-factor test: (1) demand for the patented product, (2) absence of non-infringing substitutes, (3) manufacturing/marketing capability, and (4) amount of profit. The entire market value rule allows damages on the entire product only when the patented feature drives demand. Apportionment is generally required for multicomponent products.",
+        "recent_developments": [
+            "Increased focus on apportionment and smallest salable patent-practicing unit",
+            "FRAND licensing disputes and reasonable royalty calculations for SEPs"
+        ],
+        "key_terms": ["damages", "reasonable royalty", "Georgia-Pacific", "lost profits",
+                      "Panduit", "entire market value rule", "apportionment",
+                      "hypothetical negotiation", "§ 284", "smallest salable patent-practicing unit",
+                      "FRAND", "standard essential patents"]
+    },
+    "willful_infringement": {
+        "doctrine": "Willful Infringement & Enhanced Damages",
+        "landmark": "Halo Electronics, Inc. v. Pulse Electronics, Inc., 579 U.S. 93 (2016)",
+        "framework": "Halo replaced the Federal Circuit's rigid Seagate two-part test for enhanced damages, holding that § 284 gives district courts discretion to award up to treble damages for egregious infringement behavior. Enhanced damages are reserved for 'egregious cases of culpable behavior' — not merely for cases where the infringer knew of the patent. The standard is reviewed for abuse of discretion. Read Corp. v. Portec (1992) factors guide the enhancement analysis.",
+        "recent_developments": [
+            "Post-Halo: lower threshold for enhanced damages awards",
+            "Knowledge of patent plus continued infringement can support willfulness"
+        ],
+        "key_terms": ["willful infringement", "enhanced damages", "treble damages", "Halo",
+                      "Seagate", "egregious", "culpable behavior", "§ 284",
+                      "abuse of discretion", "Read factors", "objective recklessness"]
+    },
+    "inequitable_conduct": {
+        "doctrine": "Inequitable Conduct & Duty of Candor",
+        "landmark": "Therasense, Inc. v. Becton, Dickinson & Co., 649 F.3d 1276 (Fed. Cir. 2011) (en banc)",
+        "framework": "Therasense raised the standard for inequitable conduct, requiring clear and convincing evidence of both: (1) but-for materiality — the withheld reference would have rendered a claim unpatentable (except for affirmative egregious misconduct), and (2) specific intent to deceive the USPTO. The duty of candor under Rule 56 requires disclosure of material information. A finding of inequitable conduct renders the entire patent unenforceable.",
+        "recent_developments": [
+            "Post-Therasense: fewer inequitable conduct defenses succeed",
+            "Standard remains high for proving specific intent to deceive"
+        ],
+        "key_terms": ["inequitable conduct", "duty of candor", "Therasense", "but-for materiality",
+                      "specific intent to deceive", "Rule 56", "unenforceable",
+                      "clear and convincing evidence", "duty of disclosure", "PTO"]
     }
 }
+
+HOT_TOPICS_2025 = DOCTRINE_KNOWLEDGE_BASE
+
+
+def _build_doctrine_context_for_prompt(query_lower: str) -> str:
+    """
+    Match query against doctrine triggers and build a context block for prompt injection.
+    Returns a formatted string with framework summaries and mandatory terms-of-art.
+    """
+    DOCTRINE_TRIGGERS = {
+        "obviousness": ['obvious', '103', 'motivation to combine', 'ksr', 'tsm', 'teaching suggestion', 'prima facie'],
+        "secondary_considerations": ['secondary considerations', 'commercial success', 'long-felt need', 'failure of others', 'objective indicia', 'nexus', 'hindsight'],
+        "eligibility": ['101', 'eligible', 'abstract idea', 'alice', 'mayo', 'preemption', 'inventive concept', 'significantly more'],
+        "software_eligibility": ['enfish', 'ddr holdings', 'software eligible', 'software patent', 'computer functionality', 'finjan', 'mcro'],
+        "claim_construction": ['claim construction', 'phillips', 'markman', 'intrinsic evidence', 'extrinsic evidence', 'plain meaning', 'broadest reasonable interpretation', 'bri'],
+        "definiteness": ['definite', 'indefinite', 'nautilus', 'reasonable certainty', 'insolubly ambiguous'],
+        "means_plus_function": ['means-plus-function', 'means plus function', 'williamson', 'nonce word', '112(f)', 'module for', 'mechanism for', 'corresponding structure'],
+        "enablement": ['enablement', 'amgen', 'sanofi', 'wands factors', 'undue experimentation', 'genus claim', 'full scope'],
+        "written_description": ['written description', 'ariad', 'possession', 'representative species', 'structural feature'],
+        "doctrine_of_equivalents": ['doctrine of equivalents', 'equivalents', 'festo', 'prosecution history estoppel', 'function-way-result', 'insubstantial difference', 'warner-jenkinson', 'vitiation'],
+        "design_patents": ['design patent', 'samsung', 'egyptian goddess', 'ordinary observer', 'article of manufacture', '§ 289'],
+        "on_sale_bar": ['on-sale', 'on sale bar', 'pfaff', 'ready for patenting', 'commercial offer', 'helsinn', 'in re rudy'],
+        "preliminary_injunction": ['preliminary injunction', 'ebay', 'mercexchange', 'irreparable harm', 'balance of hardships', 'permanent injunction', 'injunctive relief'],
+        "ptab_review": ['ptab', 'inter partes review', 'ipr', 'arthrex', 'appointments clause', 'apj', 'administrative patent judge', 'final written decision', 'fintiv', 'sas institute'],
+        "divided_infringement": ['divided infringement', 'joint infringement', 'akamai', 'limelight', 'direction or control', 'single-entity', 'attribution'],
+        "venue": ['venue', 'tc heartland', 'heartland', '1400(b)', 'in re cray', 'regular and established', 'place of business'],
+        "patent_exhaustion": ['exhaustion', 'lexmark', 'impression products', 'first sale', 'post-sale', 'mallinckrodt', 'jazz photo', 'conditional licens'],
+        "ai_inventorship": ['ai inventor', 'artificial intelligence inventor', 'thaler', 'dabus', 'ai-generated', 'natural person inventor', 'computer-generated'],
+        "damages": ['damages', 'reasonable royalty', 'georgia-pacific', 'lost profits', 'panduit', 'entire market value', 'apportionment', 'frand'],
+        "willful_infringement": ['willful', 'enhanced damages', 'treble damages', 'halo', 'seagate', 'egregious'],
+        "inequitable_conduct": ['inequitable conduct', 'therasense', 'duty of candor', 'rule 56', 'intent to deceive', 'but-for materiality'],
+    }
+    
+    matched = []
+    for doctrine_key, triggers in DOCTRINE_TRIGGERS.items():
+        if any(t in query_lower for t in triggers):
+            matched.append(doctrine_key)
+    
+    if not matched:
+        return ""
+    
+    parts = ["\n\nDOCTRINE KNOWLEDGE (use this framework and terminology in your response):"]
+    for key in matched[:3]:
+        kb = DOCTRINE_KNOWLEDGE_BASE.get(key, {})
+        if not kb:
+            continue
+        parts.append(f"\n--- {kb['doctrine']} ---")
+        parts.append(f"Landmark: {kb['landmark']}")
+        parts.append(f"Framework: {kb['framework']}")
+        if kb.get('recent_developments'):
+            parts.append(f"Recent: {'; '.join(kb['recent_developments'][:2])}")
+        terms = kb.get('key_terms', [])
+        if terms:
+            parts.append(f"MANDATORY TERMS (use these exact terms-of-art in your analysis): {', '.join(terms)}")
+    
+    return "\n".join(parts)
 
 
 def _build_agentic_reasoning_plan(query_lower: str, pages: List[Dict]) -> Dict[str, Any]:
@@ -727,31 +1001,45 @@ def _build_agentic_reasoning_plan(query_lower: str, pages: List[Dict]) -> Dict[s
         "reflection_pass": "pending"
     }
     
-    # Step 1: Classify the query
-    if any(t in query_lower for t in ['obvious', '103', 'motivation to combine', 'ksr', 'tsm', 'teaching suggestion']):
-        plan["query_classification"] = "§ 103 Obviousness"
-        plan["doctrine"] = HOT_TOPICS_2025["obviousness"]["doctrine"]
-        plan["landmark_case"] = HOT_TOPICS_2025["obviousness"]["landmark"]
-        plan["hot_topics"] = HOT_TOPICS_2025["obviousness"]["recent_developments"]
-        plan["search_terms_suggested"] = HOT_TOPICS_2025["obviousness"]["key_terms"]
-    elif any(t in query_lower for t in ['101', 'eligible', 'abstract', 'alice', 'mayo', 'preemption']):
-        plan["query_classification"] = "§ 101 Patent Eligibility"
-        plan["doctrine"] = HOT_TOPICS_2025["eligibility"]["doctrine"]
-        plan["landmark_case"] = HOT_TOPICS_2025["eligibility"]["landmark"]
-        plan["hot_topics"] = HOT_TOPICS_2025["eligibility"]["recent_developments"]
-        plan["search_terms_suggested"] = HOT_TOPICS_2025["eligibility"]["key_terms"]
-    elif any(t in query_lower for t in ['claim construction', 'constru', 'phillips', 'markman', 'intrinsic', 'specification']):
-        plan["query_classification"] = "Claim Construction"
-        plan["doctrine"] = HOT_TOPICS_2025["claim_construction"]["doctrine"]
-        plan["landmark_case"] = HOT_TOPICS_2025["claim_construction"]["landmark"]
-        plan["hot_topics"] = HOT_TOPICS_2025["claim_construction"]["recent_developments"]
-        plan["search_terms_suggested"] = HOT_TOPICS_2025["claim_construction"]["key_terms"]
-    elif any(t in query_lower for t in ['112', 'definite', 'indefinite', 'nautilus', 'reasonable certainty']):
-        plan["query_classification"] = "§ 112 Definiteness"
-        plan["doctrine"] = HOT_TOPICS_2025["definiteness"]["doctrine"]
-        plan["landmark_case"] = HOT_TOPICS_2025["definiteness"]["landmark"]
-        plan["hot_topics"] = HOT_TOPICS_2025["definiteness"]["recent_developments"]
-        plan["search_terms_suggested"] = HOT_TOPICS_2025["definiteness"]["key_terms"]
+    DOCTRINE_TRIGGERS = {
+        "obviousness": ['obvious', '103', 'motivation to combine', 'ksr', 'tsm', 'teaching suggestion', 'prima facie'],
+        "secondary_considerations": ['secondary considerations', 'commercial success', 'long-felt need', 'failure of others', 'objective indicia', 'nexus', 'hindsight'],
+        "eligibility": ['101', 'eligible', 'abstract idea', 'alice', 'mayo', 'preemption', 'inventive concept', 'significantly more'],
+        "software_eligibility": ['enfish', 'ddr holdings', 'software eligible', 'software patent', 'computer functionality', 'finjan', 'mcro'],
+        "claim_construction": ['claim construction', 'phillips', 'markman', 'intrinsic evidence', 'extrinsic evidence', 'plain meaning', 'broadest reasonable interpretation', 'bri'],
+        "definiteness": ['definite', 'indefinite', 'nautilus', 'reasonable certainty', 'insolubly ambiguous'],
+        "means_plus_function": ['means-plus-function', 'means plus function', 'williamson', 'nonce word', '112(f)', 'module for', 'mechanism for', 'corresponding structure'],
+        "enablement": ['enablement', 'amgen', 'sanofi', 'wands factors', 'undue experimentation', 'genus claim', 'full scope'],
+        "written_description": ['written description', 'ariad', 'possession', 'representative species', 'structural feature'],
+        "doctrine_of_equivalents": ['doctrine of equivalents', 'equivalents', 'festo', 'prosecution history estoppel', 'function-way-result', 'insubstantial difference', 'warner-jenkinson', 'vitiation'],
+        "design_patents": ['design patent', 'samsung', 'egyptian goddess', 'ordinary observer', 'article of manufacture', '§ 289'],
+        "on_sale_bar": ['on-sale', 'on sale bar', 'pfaff', 'ready for patenting', 'commercial offer', 'helsinn', 'in re rudy'],
+        "preliminary_injunction": ['preliminary injunction', 'ebay', 'mercexchange', 'irreparable harm', 'balance of hardships', 'permanent injunction', 'injunctive relief'],
+        "ptab_review": ['ptab', 'inter partes review', 'ipr', 'arthrex', 'appointments clause', 'apj', 'administrative patent judge', 'final written decision', 'fintiv', 'sas institute'],
+        "divided_infringement": ['divided infringement', 'joint infringement', 'akamai', 'limelight', 'direction or control', 'single-entity', 'attribution'],
+        "venue": ['venue', 'tc heartland', 'heartland', '1400(b)', 'in re cray', 'regular and established', 'place of business'],
+        "patent_exhaustion": ['exhaustion', 'lexmark', 'impression products', 'first sale', 'post-sale', 'mallinckrodt', 'jazz photo', 'conditional licens'],
+        "ai_inventorship": ['ai inventor', 'artificial intelligence inventor', 'thaler', 'dabus', 'ai-generated', 'natural person inventor', 'computer-generated'],
+        "damages": ['damages', 'reasonable royalty', 'georgia-pacific', 'lost profits', 'panduit', 'entire market value', 'apportionment', 'frand'],
+        "willful_infringement": ['willful', 'enhanced damages', 'treble damages', 'halo', 'seagate', 'egregious'],
+        "inequitable_conduct": ['inequitable conduct', 'therasense', 'duty of candor', 'rule 56', 'intent to deceive', 'but-for materiality'],
+    }
+    
+    matched_doctrines = []
+    for doctrine_key, triggers in DOCTRINE_TRIGGERS.items():
+        if any(t in query_lower for t in triggers):
+            matched_doctrines.append(doctrine_key)
+    
+    if matched_doctrines:
+        primary = matched_doctrines[0]
+        kb = DOCTRINE_KNOWLEDGE_BASE[primary]
+        plan["query_classification"] = kb["doctrine"]
+        plan["doctrine"] = kb["doctrine"]
+        plan["landmark_case"] = kb["landmark"]
+        plan["hot_topics"] = kb.get("recent_developments", [])
+        plan["search_terms_suggested"] = kb.get("key_terms", [])
+        plan["matched_doctrines"] = matched_doctrines
+        plan["all_doctrine_keys"] = matched_doctrines
     
     # Step 2: Context quality assessment (Reflection Pass)
     if pages:
@@ -3655,6 +3943,11 @@ async def generate_chat_response(
     
     if cached_definition:
         enhanced_prompt += f"\n\nREFERENCE FRAMEWORK:\n{cached_definition}"
+    
+    doctrine_context = _build_doctrine_context_for_prompt(message.lower())
+    if doctrine_context:
+        enhanced_prompt += doctrine_context
+        logging.info(f"Doctrine context injected for query ({len(doctrine_context)} chars)")
     
     # Handle doctrine mode (no excerpts available)
     if doctrine_mode or not context.strip():
