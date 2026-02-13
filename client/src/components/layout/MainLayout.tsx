@@ -66,8 +66,8 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
 
           {sourcePanelOpen && (
             <>
-              <ResizableHandle className="w-px bg-border/30 hover:bg-primary/50 transition-colors" />
-              <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+              <ResizableHandle className="hidden md:flex w-px bg-border/30 hover:bg-primary/50 transition-colors" />
+              <ResizablePanel defaultSize={25} minSize={20} maxSize={35} className="hidden md:block">
                 <div className="h-full bg-card border-l border-border/30">
                   {sources}
                 </div>
@@ -99,7 +99,31 @@ export function MainLayout({ sidebar, chat, sources }: MainLayoutProps) {
         </div>
       )}
 
-      <header className="h-14 border-t border-sidebar-border bg-sidebar flex md:hidden items-center justify-between px-4 shrink-0">
+      {sourcePanelOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div 
+            className="absolute inset-0 bg-black/50" 
+            onClick={() => setSourcePanelOpen(false)}
+          />
+          <div className="absolute right-0 top-0 bottom-0 w-[85%] max-w-sm bg-card shadow-xl animate-in slide-in-from-right duration-200">
+            <div className="absolute top-3 left-3 z-10">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setSourcePanelOpen(false)}
+                className="h-8 w-8 text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="h-full pt-12">
+              {sources}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <header className="border-t border-sidebar-border bg-sidebar flex md:hidden items-center justify-between px-4 shrink-0 pb-safe" style={{ minHeight: '3.5rem' }}>
         <div className="flex items-center gap-2.5">
           <div className="bg-sidebar-primary p-1.5 rounded-lg">
             <Scale className="h-4 w-4 text-sidebar-primary-foreground" />

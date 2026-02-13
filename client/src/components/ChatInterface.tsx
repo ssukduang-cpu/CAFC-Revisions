@@ -568,8 +568,8 @@ export function ChatInterface() {
                   )}
                   
                   <div className={cn(
-                    "flex flex-col max-w-[85%]",
-                    msg.role === "user" ? "items-end" : "items-start"
+                    "flex flex-col",
+                    msg.role === "user" ? "items-end max-w-[80%] sm:max-w-[85%]" : "items-start max-w-[95%] sm:max-w-[85%]"
                   )}>
                     {msg.role === "user" ? (
                       <div className="group relative bg-primary text-primary-foreground py-2.5 px-4 rounded-2xl rounded-tr-md text-sm leading-relaxed">
@@ -755,11 +755,6 @@ export function ChatInterface() {
                     )}
                   </div>
 
-                  {msg.role === "user" && (
-                    <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5 text-xs font-medium text-muted-foreground">
-                      U
-                    </div>
-                  )}
                 </div>
               );
             })
@@ -814,7 +809,7 @@ export function ChatInterface() {
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t border-border/30">
+      <div className="p-3 sm:p-4 border-t border-border/30">
         <div className="max-w-2xl mx-auto space-y-2">
           <div className="relative rounded-xl bg-muted/40 border border-border/50 focus-within:border-primary/50 transition-colors">
             <Textarea 
@@ -827,7 +822,7 @@ export function ChatInterface() {
                 }
               }}
               placeholder="Ask a follow-up question..." 
-              className="min-h-[52px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3.5 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
+              className="min-h-[48px] max-h-[150px] w-full resize-none border-0 bg-transparent py-3 pl-4 pr-12 placeholder:text-muted-foreground/60 focus-visible:ring-0 text-sm"
               rows={1}
               data-testid="input-chat-message"
             />
