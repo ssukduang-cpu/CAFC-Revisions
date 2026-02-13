@@ -25,9 +25,13 @@ Preferred communication style: Simple, everyday language.
 
 ### Citation Confidence System
 - **Case-Quote Binding:** Strict `opinion_id` binding for citations with fuzzy case-name fallback.
-- **Confidence Tiers:** Four-tier scoring system (STRONG, MODERATE, WEAK, UNVERIFIED).
-- **Scoring Formula:** Combines binding type, match type, section type, and recency.
-- **Heuristic Detection:** Detects holding/dicta/concurrence/dissent with `*_heuristic` signals.
+- **Confidence Tiers:** Four-tier scoring system (STRONG ≥70, MODERATE 50-69, WEAK 30-49, UNVERIFIED <30).
+- **STRONG Tier Requirements:** Requires verified quote binding (strict or verbatim extraction); fallback/context sources capped at MODERATE.
+- **Scoring Formula:** Combines binding type (strict=40, case_level=35, fuzzy=25), match type (exact=30, case_level=25, partial=15), section type (+15 holding, -5 dicta), and recency (2020+=10).
+- **Heuristic Detection:** ~30 dispositive holding patterns, dicta/concurrence/dissent detection with `*_heuristic` signals.
+- **Verbatim Extraction:** `_extract_verbatim_from_source` recovers exact source text when AI paraphrases, upgrading case_level to strict binding.
+- **Multi-Strategy Binding:** Strategy 1 (strict) → 1.5 (verbatim extraction) → 2 (fuzzy case-name) → 3 (normalized variants) → 3.5 (nearby DB page search).
+- **Fallback Source Scoring:** Dynamic scoring with holding detection and recency bonuses (base 50, max 69), replacing flat score=50.
 - **No Silent Substitution:** UNVERIFIED citations display `binding_failed` signal.
 
 ### Quote-First Generation & Verification
