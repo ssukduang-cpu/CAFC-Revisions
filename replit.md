@@ -14,6 +14,7 @@ Preferred communication style: Simple, everyday language.
 - **Layout:** Three-panel resizable interface (sidebar, chat, sources panel) with mobile-friendly design.
 - **Chat Enhancements:** Server-Sent Events (SSE) for real-time token streaming, conversation context summarization, suggested next steps, LRU cache for legal definitions, and parallel processing.
 - **Named Case Priority:** Multi-stage search for specific case names with regex extraction, normalization, flexible matching, and context merge persistence.
+- **Single-Party Name Search:** Detects party names without "X v. Y" pattern (e.g., "latest Apple case") using known party list + DB verification fallback, with recency-aware sorting.
 
 ### Backend
 - **Framework:** Python FastAPI with RESTful endpoints.

@@ -3497,6 +3497,69 @@ async def generate_chat_response(
                     # Continue to next case pattern instead of breaking
                     continue
     
+    # SINGLE-PARTY NAME SEARCH: Detect party names without "v." pattern
+    # Handles queries like "latest Apple case", "recent Samsung decision", "Google patent case"
+    if not all_named_case_pages and not resolved_opinion_id and not opinion_ids:
+        msg_lower = message.lower()
+        recency_keywords = {'latest', 'recent', 'newest', 'most recent', 'last', 'new'}
+        wants_recency = any(kw in msg_lower for kw in recency_keywords)
+        
+        known_party_names = [
+            'apple', 'google', 'samsung', 'qualcomm', 'intel', 'microsoft', 'amazon',
+            'cisco', 'oracle', 'ibm', 'motorola', 'nokia', 'huawei', 'lg', 'sony',
+            'hp', 'dell', 'broadcom', 'texas instruments', 'medtronic', 'abbott',
+            'pfizer', 'amgen', 'gilead', 'merck', 'johnson', 'procter', 'unilever',
+            'verizon', 'comcast', 'facebook', 'meta', 'netflix', 'uber', 'tesla',
+            'nvidia', 'amd', 'arm', 'snap', 'twitter', 'spotify', 'adobe', 'salesforce',
+            'virnetx', 'wi-lan', 'interdigital', 'ericsson', 'honeywell', 'ge',
+            'dupont', 'basf', 'roche', 'bayer', 'sanofi', 'astrazeneca', 'novo nordisk',
+            'eli lilly', 'bristol-myers', 'abbvie', 'regeneron', 'moderna', 'illumina',
+        ]
+        
+        detected_party = None
+        for party in known_party_names:
+            if party in msg_lower:
+                detected_party = party
+                break
+        
+        if not detected_party:
+            words = message.split()
+            for word in words:
+                if (len(word) >= 3 and word[0].isupper() and 
+                    word.lower() not in {'the', 'what', 'how', 'why', 'who', 'when', 'where',
+                                          'does', 'did', 'was', 'has', 'had', 'are', 'were',
+                                          'case', 'cases', 'holding', 'decision', 'opinion',
+                                          'latest', 'recent', 'newest', 'patent', 'court',
+                                          'federal', 'circuit', 'cafc', 'explain', 'describe',
+                                          'analyze', 'summary', 'rule', 'standard', 'test'}):
+                    test_ids = db.find_documents_by_name(word)
+                    if test_ids:
+                        detected_party = word
+                        break
+        
+        if detected_party:
+            logging.info(f"[PARTY SEARCH] Detected single-party name: '{detected_party}' (wants_recency={wants_recency})")
+            party_doc_ids = db.find_documents_by_name(detected_party)
+            
+            if party_doc_ids and wants_recency:
+                most_recent_ids = db.find_most_recent_documents_by_name(detected_party, limit=2)
+                if most_recent_ids:
+                    party_doc_ids = most_recent_ids
+                    logging.info(f"[PARTY SEARCH] Recency filter: narrowed to {len(most_recent_ids)} most recent '{detected_party}' documents")
+            
+            if party_doc_ids:
+                logging.info(f"[PARTY SEARCH] Found {len(party_doc_ids)} documents for party '{detected_party}'")
+                party_pages = db.search_pages('court patent holding', party_doc_ids, limit=10, party_only=False)
+                if not party_pages:
+                    party_pages = db.search_pages('', party_doc_ids, limit=8, party_only=True)
+                if party_pages:
+                    for page in party_pages:
+                        key = (page.get('opinion_id'), page.get('page_number'))
+                        if key not in processed_case_names:
+                            processed_case_names.add(key)
+                            all_named_case_pages.append(page)
+                    logging.info(f"[PARTY SEARCH] Added {len(party_pages)} pages from '{detected_party}' cases to context")
+    
     pages = db.search_pages(message, opinion_ids, limit=15, party_only=party_only)
     
     # P0: Doctrine-triggered authoritative candidate injection
@@ -4120,6 +4183,21 @@ question instead.
     else:
         enhanced_prompt += "\n\nAVAILABLE OPINION EXCERPTS:\n" + context
     
+    # PARTY-NAME INSTRUCTION: When we found cases via party name search, tell the AI
+    if all_named_case_pages and not case_patterns:
+        party_case_names = list(set(
+            p.get('case_name', '').replace('\n', ' ').replace('\r', ' ')[:100]
+            for p in all_named_case_pages if p.get('case_name')
+        ))
+        if party_case_names:
+            enhanced_prompt += f"""
+
+IMPORTANT: The user asked about cases involving a specific party. Your retrieved excerpts include 
+these matching cases: {'; '.join(party_case_names[:5])}.
+Analyze and describe the holdings of these cases based on the excerpts above. 
+Do NOT ask the user to specify which case — summarize each relevant case you have excerpts for.
+If the user asked for the "latest" or "most recent" case, focus primarily on the first/most recent case listed."""
+    
     # DEBUG: Agentic Reasoning Plan logging
     query_lower = message.lower()
     reasoning_plan = _build_agentic_reasoning_plan(query_lower, pages)
@@ -4129,6 +4207,8 @@ question instead.
     # Base 1100 + 350 per opinion_id, capped at 2600
     base_tokens = 1100
     opinion_bonus = len(opinion_ids or []) * 350
+    if all_named_case_pages and not case_patterns:
+        opinion_bonus = max(opinion_bonus, 700)
     max_tokens = min(2600, base_tokens + opinion_bonus)
     logging.info(f"Dynamic max_tokens: {max_tokens} (base={base_tokens}, bonus={opinion_bonus})")
     

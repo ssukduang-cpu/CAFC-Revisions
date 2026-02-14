@@ -1038,6 +1038,30 @@ def normalize_case_name_query(query: str) -> str:
     return q
 
 
+def find_most_recent_documents_by_name(party_name: str, limit: int = 2) -> List[str]:
+    """Find the most recent document IDs matching a party name, sorted by date.
+    
+    Used for recency-aware queries like "latest Apple case".
+    Prioritizes release_date, falls back to created_at.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id::text, case_name, release_date, created_at
+            FROM documents
+            WHERE ingested = TRUE
+              AND status NOT IN ('failed', 'duplicate')
+              AND case_name ILIKE '%%' || %s || '%%'
+            ORDER BY COALESCE(release_date, created_at::date) DESC, created_at DESC
+            LIMIT %s
+        """, (party_name, limit))
+        results = cursor.fetchall()
+        if results:
+            for r in results:
+                logging.info(f"[RECENCY] Found: {r['case_name']} (date={r.get('release_date')}, created={str(r.get('created_at'))[:10]})")
+        return [row['id'] for row in results]
+
+
 def find_documents_by_name(case_name: str, limit: int = 5) -> List[str]:
     """Find document IDs that match a case name.
     
