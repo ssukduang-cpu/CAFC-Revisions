@@ -680,7 +680,7 @@ export function ChatInterface() {
                         )}
                         
                         {hasSources && (
-                          <div className="mt-4 pt-3 border-t border-border/30">
+                          <div className="mt-4 pt-3 border-t border-border/30" data-testid="sources-section">
                             <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
                               Sources
                             </div>

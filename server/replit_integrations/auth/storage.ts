@@ -52,11 +52,11 @@ class AuthStorage implements IAuthStorage {
     if (userData.email) {
       const [existingByEmail] = await db.select().from(users).where(eq(users.email, userData.email));
       if (existingByEmail) {
-        // Update the existing user's ID to the new one (Replit Auth may regenerate sub IDs)
+        // Keep existing user ID to avoid breaking foreign key references (conversations, etc.)
+        // Just update profile fields
         const [user] = await db
           .update(users)
           .set({
-            id: userId,
             firstName: userData.firstName,
             lastName: userData.lastName,
             profileImageUrl: userData.profileImageUrl,
