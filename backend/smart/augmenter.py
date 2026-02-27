@@ -192,6 +192,9 @@ def augment_retrieval(
     
     try:
         baseline_ids = {r.get("id") for r in baseline_results if r.get("id")}
+        # P2-2: Tag baseline (FTS) results with their retrieval source
+        for r in baseline_results:
+            r.setdefault("retrieval_source", "fts")
         augmented = list(baseline_results)
         candidates_added = 0
         
@@ -253,6 +256,7 @@ def augment_retrieval(
                     
                     for r in embed_results:
                         if candidates_added < smart_config.MAX_AUGMENT_CANDIDATES:
+                            r["retrieval_source"] = "semantic"  # P2-2: tag for debug
                             augmented.append(r)
                             candidates_added += 1
                             telemetry["embed_candidates_added"] += 1

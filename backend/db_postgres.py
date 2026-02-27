@@ -1122,7 +1122,7 @@ def find_documents_by_name(case_name: str, limit: int = 5) -> List[str]:
         
         return []
 
-def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20, party_only: bool = False, max_text_chars: int = 2000) -> List[Dict]:
+def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int = 20, party_only: bool = False, max_text_chars: int = 4000) -> List[Dict]:
     """Search pages with case name boosting or party-only mode.
     
     Args:
@@ -1137,10 +1137,13 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         
         if not query.strip():
             return []
-        
+
         # Normalize query for case name matching
         normalized_query = normalize_case_name_query(query) if party_only else query
-        
+
+        # Track whether to apply post-fetch noise filter (OR-query path only)
+        _apply_noise_filter = False
+
         if opinion_ids and party_only:
             # Party-only search within specific opinions
             cursor.execute("""
@@ -1206,6 +1209,7 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
             
             if or_query:
                 # Use OR-based to_tsquery for flexible matching (ANY term matches)
+                _apply_noise_filter = True
                 cursor.execute("""
                     SELECT 
                         p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
@@ -1244,14 +1248,23 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
                     ORDER BY d.release_date DESC
                     LIMIT %s
                 """, (max_text_chars, query, limit))
-        
-        return [dict(row) for row in cursor.fetchall()]
+
+        rows = [dict(row) for row in cursor.fetchall()]
+        # P1-4: Noise filter for OR-query path — remove near-zero relevance matches
+        # when we have enough high-quality results. Keeps context focused.
+        # Only applied when _apply_noise_filter is set (OR-query path), never on
+        # party-name or opinion-id scoped queries.
+        if _apply_noise_filter and len(rows) > 5:
+            high_quality = [r for r in rows if (r.get('rank') or 0) >= 0.05]
+            if len(high_quality) >= 5:
+                return high_quality
+        return rows
 
 
 def fetch_adjacent_pages(
     pages: List[Dict],
     window_size: int = 3,
-    max_text_chars: int = 2000
+    max_text_chars: int = 4000
 ) -> List[Dict]:
     """Fetch adjacent pages (±window_size) for each given page.
     
@@ -1310,7 +1323,7 @@ def fetch_adjacent_pages(
 def search_pages_two_pass(
     query: str,
     limit: int = 20,
-    max_text_chars: int = 2000
+    max_text_chars: int = 4000
 ) -> List[Dict]:
     """Two-pass search: authoritative sources first, then all precedential.
     

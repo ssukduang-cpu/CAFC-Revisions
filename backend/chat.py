@@ -542,28 +542,35 @@ If the query is (4) or (5):
 ────────────────────────────────────────────────────
 LEGAL-REASONING PRIORITY RULE
 ────────────────────────────────────────────────────
-Legal reasoning always supersedes document matching.
+When retrieved excerpts are available, they are your PRIMARY source — build your analysis on them.
 
 Apply this hierarchy:
-1. Statutory text and black-letter doctrine
-2. Binding Supreme Court and Federal Circuit precedent
-3. Representative cases (illustrative, non-exclusive)
-4. Retrieved excerpts (if available)
+1. Retrieved excerpts (MANDATORY starting point when present — quote and cite these first)
+2. Statutory text and black-letter doctrine (to frame the legal standard)
+3. Binding Supreme Court and Federal Circuit precedent (to situate the holding)
+4. Your legal training (only to fill gaps not covered by retrieved excerpts)
+
+When excerpts are provided, you MUST build your analysis on them. Do not substitute
+your parametric knowledge for an excerpt that addresses the question.
 
 Do NOT treat case selection or retrieval confidence as a gating requirement unless the user explicitly requests case-specific analysis.
 
 ────────────────────────────────────────────────────
-RETRIEVAL-FAILURE OVERRIDE (CRITICAL)
+RETRIEVAL-FAILURE OVERRIDE (doctrine mode only)
 ────────────────────────────────────────────────────
-You must NEVER refuse to answer a legal question solely because:
+When NO excerpts are provided in this session (doctrine mode), you must NEVER refuse
+to answer a legal question solely because:
 • Multiple cases are relevant
 • No single excerpt is found
 • Retrieval confidence is low or zero
 
-If retrieval fails or is incomplete:
+If no excerpts were retrieved:
 • Answer from settled doctrine
 • Identify supporting cases as illustrative where appropriate
 • Never output system errors, UX messages, or "NOT FOUND" in response to doctrinal or procedural questions
+
+IMPORTANT: This override does NOT apply when excerpts ARE provided. When excerpts
+are present, always prioritize them over your training knowledge.
 
 ────────────────────────────────────────────────────
 AMBIGUITY HANDLING (STRICT LIMITS)
@@ -4113,7 +4120,7 @@ async def generate_chat_response(
     
     # Expand pages with adaptive adjacent context to reduce latency on routine queries
     adjacent_window = 1 if len(pages) <= 8 else 2
-    expanded_pages = db.fetch_adjacent_pages(pages, window_size=adjacent_window, max_text_chars=1800)
+    expanded_pages = db.fetch_adjacent_pages(pages, window_size=adjacent_window, max_text_chars=4000)
     
     # Build context and conversation summary in parallel for speed
     loop = asyncio.get_event_loop()
@@ -4203,13 +4210,14 @@ If the user asked for the "latest" or "most recent" case, focus primarily on the
     reasoning_plan = _build_agentic_reasoning_plan(query_lower, pages)
     logging.info(f"DEBUG: Agentic Reasoning Plan: {reasoning_plan}")
     
-    # Dynamic max_tokens tuned for faster first response
-    # Base 1100 + 350 per opinion_id, capped at 2600
-    base_tokens = 1100
+    # Dynamic max_tokens — must accommodate full answer + CITATION_MAP block.
+    # A minimal response (answer + 3 citations in CITATION_MAP + Next Steps) needs ~2000 tokens.
+    # CITATION_MAP is written last, so it is the first thing truncated when budget is too low.
+    base_tokens = 2200   # Raised from 1100
     opinion_bonus = len(opinion_ids or []) * 350
     if all_named_case_pages and not case_patterns:
         opinion_bonus = max(opinion_bonus, 700)
-    max_tokens = min(2600, base_tokens + opinion_bonus)
+    max_tokens = min(3500, base_tokens + opinion_bonus)  # Cap raised from 2600
     logging.info(f"Dynamic max_tokens: {max_tokens} (base={base_tokens}, bonus={opinion_bonus})")
     
     # Configurable model via environment variable
@@ -4234,7 +4242,20 @@ If the user asked for the "latest" or "most recent" case, focus primarily on the
         )
         
         raw_answer = response.choices[0].message.content or "No response generated."
-        
+
+        # P0-3: Detect token-limit truncation — CITATION_MAP is written last and is first to be cut
+        finish_reason = response.choices[0].finish_reason
+        if finish_reason == "length":
+            logging.warning(
+                f"RESPONSE_TRUNCATED: finish_reason=length, max_tokens={max_tokens}, "
+                f"response_length={len(raw_answer)}, citation_map_present={'CITATION_MAP' in raw_answer}"
+            )
+            if "CITATION_MAP" not in raw_answer:
+                logging.error(
+                    "CITATION_MAP_TRUNCATED: Response cut off before CITATION_MAP was written. "
+                    "Increase max_tokens further."
+                )
+
         # DEBUG: Log the raw AI response for troubleshooting
         logging.info(f"DEBUG: AI Raw Response (first 500 chars): {raw_answer[:500]}")
         
@@ -4499,99 +4520,38 @@ If the user asked for the "latest" or "most recent" case, focus primarily on the
             })
         
         markers = extract_cite_markers(raw_answer)
+
+        # P2-1 Telemetry: track CITATION_MAP success rate across requests
+        logging.info(
+            f"CITATION_TELEMETRY_V2: "
+            f"citation_map_present={len(markers) > 0}, "
+            f"markers_count={len(markers)}, "
+            f"doctrine_mode={doctrine_mode}, "
+            f"pages_count={len(pages)}, "
+            f"max_tokens_used={max_tokens}, "
+            f"response_length={len(raw_answer)}, "
+            f"retrieval_confidence={retrieval_confidence}"
+        )
+
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
         sources = curate_sources_for_mode(sources, attorney_mode)
         
-        # FALLBACK: If AI provided substantive answer but no CITATION_MAP markers,
-        # generate sources from the context pages that were used
+        # CITATION_MAP was absent from the LLM response.
+        # This means either: (a) the LLM answered from parametric knowledge (doctrine mode),
+        # or (b) the token budget was still too low and CITATION_MAP was truncated.
+        # Do NOT fabricate citations from retrieval pages — this creates false correlation
+        # between the answer text and unrelated cases.
         if not sources and pages and len(raw_answer) > 200 and "NOT FOUND" not in raw_answer.upper()[:100]:
-            logging.info(f"No citation markers found in AI response, generating sources from {len(pages)} context pages")
-            # Create sources from the top context pages
-            seen_cases = set()
-            for idx, p in enumerate(pages[:10]):
-                case_name = p.get('case_name', 'Unknown')
-                # Only include unique cases
-                case_key = (p.get('opinion_id'), case_name)
-                if case_key in seen_cases:
-                    continue
-                seen_cases.add(case_key)
-                
-                # Extract a relevant quote from the page
-                page_text = p.get('text', '')[:300].strip()
-                logging.info(f"DEBUG Fallback source {idx}: case={case_name}, origin={p.get('origin')}, text_len={len(page_text)}, injected={p.get('injected_as_controlling', False)}")
-                if page_text:
-                    full_page_text = p.get('text', '')
-                    fb_signals = ["fallback_source", "context_page"]
-                    fb_score = 50  # Base: context binding (source page verified in corpus)
-                    
-                    # Apply holding detection to fallback sources
-                    if full_page_text:
-                        section_type, section_signals = detect_section_type_heuristic(full_page_text, page_text)
-                        fb_signals.extend(section_signals)
-                        if "holding_heuristic" in section_signals:
-                            fb_score += 15
-                        elif "dicta_heuristic" in section_signals:
-                            fb_score -= 5
-                        elif "concurrence_heuristic" in section_signals:
-                            fb_score -= 10
-                        elif "dissent_heuristic" in section_signals:
-                            fb_score -= 15
-                    
-                    # Recency bonus
-                    release_date = p.get('release_date', '')
-                    if release_date:
-                        try:
-                            year = int(str(release_date)[:4])
-                            if year >= 2020:
-                                fb_score += 10
-                                fb_signals.append("recent")
-                        except (ValueError, AttributeError):
-                            pass
-                    
-                    # DB provenance bonus
-                    fb_score += 5
-                    fb_signals.append("db_fetched")
-                    
-                    # Determine tier - fallback sources cap at MODERATE
-                    # STRONG requires verified quote binding (strict/verbatim)
-                    fb_score = min(fb_score, 69)
-                    if fb_score >= 50:
-                        fb_tier = "moderate"
-                    elif fb_score >= 30:
-                        fb_tier = "weak"
-                    else:
-                        fb_tier = "unverified"
-                    
-                    source_entry = {
-                        "sid": str(idx + 1),
-                        "opinion_id": p.get('opinion_id'),
-                        "case_name": case_name,
-                        "appeal_no": p.get('appeal_no', ''),
-                        "release_date": p.get('release_date', ''),
-                        "page_number": p.get('page_number', 1),
-                        "quote": page_text,
-                        "verified": True,
-                        "pdf_url": f"/pdf/{p.get('opinion_id')}?page={p.get('page_number', 1)}",
-                        "courtlistener_url": p.get('courtlistener_url', ''),
-                        "court": p.get('origin', 'CAFC'),
-                        "tier": fb_tier,
-                        "score": fb_score,
-                        "signals": fb_signals,
-                        "binding_method": "context",
-                        "injected_as_controlling": p.get('injected_as_controlling', False)
-                    }
-                    explain = ranking_scorer.compute_composite_score(0.5, p, page_text)
-                    source_entry["explain"] = explain
-                    source_entry["application_reason"] = ranking_scorer.generate_application_reason(explain, p)
-                    sources.append(normalize_source(source_entry))
-                    
-            # Sort fallback sources by composite score, then limit to 5
-            sources.sort(key=lambda x: x.get("explain", {}).get("composite_score", 0), reverse=True)
-            sources = sources[:5]  # Limit to 5 after sorting by score
-            logging.info(f"DEBUG Fallback generated {len(sources)} sources")
-        
+            logging.warning(
+                f"CITATION_MAP_MISSING: LLM returned substantive answer ({len(raw_answer)} chars) "
+                f"with {len(pages)} context pages but no CITATION_MAP markers. "
+                f"Passing through without fabricated citations. doctrine_mode={doctrine_mode}"
+            )
+            # sources stays empty — handled transparently below
+
         # Strict grounding enforcement: require sources OR substantive content
-        if not sources and not (len(raw_answer) > 300 and pages):
+        # doctrine_mode answers are valid without citations (they answer from settled law)
+        if not sources and not doctrine_mode and not (len(raw_answer) > 300 and pages):
             # Strict grounding enforcement: never return uncited raw model text without context
             return standardize_response({
                 "answer_markdown": "NOT FOUND IN PROVIDED OPINIONS.\n\nNo verifiable excerpts were found in the ingested opinions that support an answer to your query. Try refining your question or ingesting additional opinions.",
@@ -4613,7 +4573,16 @@ If the user asked for the "latest" or "most recent" case, focus primarily on the
             })
         
         answer_markdown = build_answer_markdown(raw_answer, markers, position_to_sid)
-        
+
+        # P0-4: When doctrine mode answered from parametric knowledge with no citations,
+        # prepend a brief honest disclosure so the user understands the source.
+        if doctrine_mode and not sources:
+            doctrine_notice = (
+                "_Note: This answer is based on established Federal Circuit doctrine. "
+                "No case excerpts were retrieved from the indexed corpus for this query._\n\n"
+            )
+            answer_markdown = doctrine_notice + answer_markdown
+
         # P0: Apply per-statement provenance gating in attorney mode.
         if attorney_mode:
             answer_markdown, statement_support = apply_per_statement_provenance_gating(
@@ -4737,6 +4706,9 @@ If the user asked for the "latest" or "most recent" case, focus primarily on the
                 "raw_response": raw_answer,
                 "return_branch": "ok",
                 "doctrine_tag": doctrine_tag,
+                "doctrine_mode": doctrine_mode,
+                "retrieval_confidence": retrieval_confidence,
+                "citation_map_found": len(markers) > 0,
                 "controlling_authorities_count": len(controlling_authorities),
                 "run_id": _run_id,
                 "phase1_telemetry": _phase1_telemetry
@@ -4874,7 +4846,7 @@ async def generate_chat_response_stream(
     
     try:
         # Use streaming API
-        stream_max_tokens = 1800 if len(message) < 220 else 2200
+        stream_max_tokens = 2800 if len(message) < 220 else 3200  # Raised from 1800/2200
         stream = client.chat.completions.create(
             model="gpt-4o",
             messages=[
