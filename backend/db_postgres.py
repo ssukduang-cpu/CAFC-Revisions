@@ -126,7 +126,7 @@ def extract_search_terms(query: str, max_terms: int = 12) -> List[str]:
 
 def build_or_tsquery(terms: List[str]) -> str:
     """Build an OR-based tsquery string from a list of terms.
-    
+
     Creates a query like: enablement | obviousness | amgen
     This matches pages containing ANY of the terms, not ALL.
     """
@@ -135,6 +135,29 @@ def build_or_tsquery(terms: List[str]) -> str:
     # Escape any special characters and join with OR
     clean_terms = [re.sub(r'[^\w]', '', t) for t in terms if t.strip()]
     return ' | '.join(clean_terms)
+
+
+def build_precision_query(query: str) -> Optional[str]:
+    """Build a high-precision AND tsquery for short queries that match a known legal phrase.
+
+    When a query contains a multi-word legal concept (e.g. "certificate of correction"),
+    returns an AND query of the two most specific terms from that expansion
+    (e.g. "certificate & correction").  This ensures that pages specifically about
+    the concept rank above pages that merely share one common term ("filed", "appeal").
+
+    Returns None if no phrase expansion applies (caller falls back to OR query).
+    """
+    query_lower = query.lower()
+    for phrase, expansions in LEGAL_PHRASE_EXPANSIONS.items():
+        # Only match true multi-word phrases — single-word keys like 'filed' are
+        # too broad and produce the wrong AND terms.
+        if ' ' in phrase and phrase in query_lower:
+            alpha_terms = [t for t in expansions if t.isalpha() and len(t) > 2]
+            if len(alpha_terms) >= 2:
+                return f"{alpha_terms[0]} & {alpha_terms[1]}"
+            elif len(alpha_terms) == 1:
+                return alpha_terms[0]
+    return None
 
 # Global connection pool (initialize once, reuse connections)
 _pool = None
@@ -1206,7 +1229,39 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
             terms = extract_search_terms(query)
             or_query = build_or_tsquery(terms)
             logging.info(f"[FTS] Search: {len(query)} chars -> OR query: '{or_query}'")
-            
+
+            # Precision pass for short queries: when the query contains a known multi-word
+            # legal phrase (e.g. "certificate of correction"), run an AND query first.
+            # This surfaces Novo Industries, Honeywell, etc. instead of MSPB employment
+            # cases that merely share "filed" or "appeal" with the query.
+            if len(query) < 100:
+                precision_q = build_precision_query(query)
+                if precision_q:
+                    logging.info(f"[FTS] Precision AND pass: '{precision_q}'")
+                    try:
+                        cursor.execute("""
+                            SELECT
+                                p.document_id as opinion_id, p.page_number, LEFT(p.text, %s) as text,
+                                d.case_name, d.appeal_number as appeal_no,
+                                to_char(d.release_date, 'YYYY-MM-DD') as release_date, d.pdf_url,
+                                d.courtlistener_url, d.origin,
+                                ts_rank(p.text_search_vector, to_tsquery('english', %s)) as rank
+                            FROM document_pages p
+                            JOIN documents d ON p.document_id = d.id
+                            WHERE d.ingested = TRUE
+                              AND d.status = 'completed'
+                              AND p.text_search_vector @@ to_tsquery('english', %s)
+                            ORDER BY rank DESC
+                            LIMIT %s
+                        """, (max_text_chars, precision_q, precision_q, limit))
+                        precision_rows = cursor.fetchall()
+                        if len(precision_rows) >= 3:
+                            logging.info(f"[FTS] Precision pass returned {len(precision_rows)} results — skipping OR fallback")
+                            return [dict(row) for row in precision_rows]
+                        logging.info(f"[FTS] Precision pass returned only {len(precision_rows)} results — falling back to OR")
+                    except Exception as _pe:
+                        logging.warning(f"[FTS] Precision AND query failed ({_pe}), falling back to OR")
+
             if or_query:
                 # Use OR-based to_tsquery for flexible matching (ANY term matches)
                 _apply_noise_filter = True
