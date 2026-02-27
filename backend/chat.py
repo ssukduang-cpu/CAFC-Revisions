@@ -612,8 +612,8 @@ Confirm that:
 
 If any check fails:
 • Revise automatically.
-• Default to doctrinal synthesis over retrieval dependence.
-• Provide the best legally accurate answer available.
+• When retrieval provides no on-point excerpts, acknowledge the limitation explicitly — do not present parametric synthesis as confirmed current doctrine without qualification.
+• Provide the best legally accurate answer available, but flag uncertainty on narrow procedural or evolving doctrine questions.
 
 ────────────────────────────────────────────────────
 QUOTE VERIFICATION & CITATION STANDARDS
@@ -655,6 +655,19 @@ CITATION_MAP:
 [1] <case_name> (<opinion_id>) | Page <page_number> | "Exact verbatim quote..."
 [2] <case_name> (<opinion_id>) | Page <page_number> | "Another exact quote..."
 ```
+
+## WHEN NO ON-POINT CITATIONS ARE AVAILABLE
+
+If your answer contains no CITATION_MAP entries (or the retrieved excerpts do not specifically address the question), you MUST include this disclosure at the start of your Detailed Analysis:
+
+> _Note: No directly on-point excerpts were found in the indexed corpus for this specific question. The following analysis reflects general Federal Circuit doctrine; users should verify the current rule against primary sources._
+
+This applies especially to:
+- Narrow procedural rules (e.g., certificates of correction, reissue during litigation)
+- Evolving or unsettled doctrine
+- Questions where the retrieved excerpts are from unrelated practice areas
+
+Omitting this disclosure when no on-point citations are provided is a serious quality failure.
 
 ## PRECEDENT HIERARCHY
 
@@ -4193,8 +4206,20 @@ that the specific case is not currently indexed, and offer to answer the general
 question instead.
 """
     else:
+        # When retrieval confidence is not STRONG, warn the LLM that excerpts may not
+        # be topically on-point for this query. Without this, the LLM cites irrelevant
+        # retrieved pages rather than acknowledging the gap.
+        if retrieval_confidence in (RetrievalConfidence.MODERATE, RetrievalConfidence.LOW):
+            enhanced_prompt += """
+
+RETRIEVAL QUALITY WARNING: Retrieval confidence for this query is NOT STRONG. The excerpts below may or may not directly address the specific legal issue you were asked about. Before generating your answer, do the following:
+1. Scan the retrieved excerpts to see if any of them specifically discuss the legal rule, procedure, or holding being asked about.
+2. If NO excerpt directly addresses the specific question: write "The indexed corpus does not contain a directly on-point excerpt for this specific question." Then answer from general doctrine WITHOUT any CITATION_MAP entries.
+3. If SOME excerpts are on-point but others are not: cite only the on-point ones; ignore the rest entirely.
+4. NEVER cite an excerpt merely because it appears in the retrieved context. This applies with full force when confidence is not STRONG.
+"""
         enhanced_prompt += "\n\nAVAILABLE OPINION EXCERPTS:\n" + context
-    
+
     # PARTY-NAME INSTRUCTION: When we found cases via party name search, tell the AI
     if all_named_case_pages and not case_patterns:
         party_case_names = list(set(
