@@ -542,28 +542,35 @@ If the query is (4) or (5):
 ────────────────────────────────────────────────────
 LEGAL-REASONING PRIORITY RULE
 ────────────────────────────────────────────────────
-Legal reasoning always supersedes document matching.
+When retrieved excerpts are available, they are your PRIMARY source — build your analysis on them.
 
 Apply this hierarchy:
-1. Statutory text and black-letter doctrine
-2. Binding Supreme Court and Federal Circuit precedent
-3. Representative cases (illustrative, non-exclusive)
-4. Retrieved excerpts (if available)
+1. Retrieved excerpts (MANDATORY starting point when present — quote and cite these first)
+2. Statutory text and black-letter doctrine (to frame the legal standard)
+3. Binding Supreme Court and Federal Circuit precedent (to situate the holding)
+4. Your legal training (only to fill gaps not covered by retrieved excerpts)
+
+When excerpts are provided, you MUST build your analysis on them. Do not substitute
+your parametric knowledge for an excerpt that addresses the question.
 
 Do NOT treat case selection or retrieval confidence as a gating requirement unless the user explicitly requests case-specific analysis.
 
 ────────────────────────────────────────────────────
-RETRIEVAL-FAILURE OVERRIDE (CRITICAL)
+RETRIEVAL-FAILURE OVERRIDE (doctrine mode only)
 ────────────────────────────────────────────────────
-You must NEVER refuse to answer a legal question solely because:
+When NO excerpts are provided in this session (doctrine mode), you must NEVER refuse
+to answer a legal question solely because:
 • Multiple cases are relevant
 • No single excerpt is found
 • Retrieval confidence is low or zero
 
-If retrieval fails or is incomplete:
+If no excerpts were retrieved:
 • Answer from settled doctrine
 • Identify supporting cases as illustrative where appropriate
 • Never output system errors, UX messages, or "NOT FOUND" in response to doctrinal or procedural questions
+
+IMPORTANT: This override does NOT apply when excerpts ARE provided. When excerpts
+are present, always prioritize them over your training knowledge.
 
 ────────────────────────────────────────────────────
 AMBIGUITY HANDLING (STRICT LIMITS)
@@ -4113,7 +4120,7 @@ async def generate_chat_response(
     
     # Expand pages with adaptive adjacent context to reduce latency on routine queries
     adjacent_window = 1 if len(pages) <= 8 else 2
-    expanded_pages = db.fetch_adjacent_pages(pages, window_size=adjacent_window, max_text_chars=1800)
+    expanded_pages = db.fetch_adjacent_pages(pages, window_size=adjacent_window, max_text_chars=4000)
     
     # Build context and conversation summary in parallel for speed
     loop = asyncio.get_event_loop()
@@ -4513,6 +4520,19 @@ If the user asked for the "latest" or "most recent" case, focus primarily on the
             })
         
         markers = extract_cite_markers(raw_answer)
+
+        # P2-1 Telemetry: track CITATION_MAP success rate across requests
+        logging.info(
+            f"CITATION_TELEMETRY_V2: "
+            f"citation_map_present={len(markers) > 0}, "
+            f"markers_count={len(markers)}, "
+            f"doctrine_mode={doctrine_mode}, "
+            f"pages_count={len(pages)}, "
+            f"max_tokens_used={max_tokens}, "
+            f"response_length={len(raw_answer)}, "
+            f"retrieval_confidence={retrieval_confidence}"
+        )
+
         sources, position_to_sid = build_sources_from_markers(markers, pages, search_terms)
         sources = curate_sources_for_mode(sources, attorney_mode)
         
@@ -4686,6 +4706,9 @@ If the user asked for the "latest" or "most recent" case, focus primarily on the
                 "raw_response": raw_answer,
                 "return_branch": "ok",
                 "doctrine_tag": doctrine_tag,
+                "doctrine_mode": doctrine_mode,
+                "retrieval_confidence": retrieval_confidence,
+                "citation_map_found": len(markers) > 0,
                 "controlling_authorities_count": len(controlling_authorities),
                 "run_id": _run_id,
                 "phase1_telemetry": _phase1_telemetry
