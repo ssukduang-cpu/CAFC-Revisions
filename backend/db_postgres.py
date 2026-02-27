@@ -1255,7 +1255,10 @@ def search_pages(query: str, opinion_ids: Optional[List[str]] = None, limit: int
         # Only applied when _apply_noise_filter is set (OR-query path), never on
         # party-name or opinion-id scoped queries.
         if _apply_noise_filter and len(rows) > 5:
-            high_quality = [r for r in rows if (r.get('rank') or 0) >= 0.05]
+            # Threshold 0.10: empirically filters off-topic OR-matches (e.g. MSPB employment
+            # cases retrieved via common legal terms like "filed"/"case") while preserving
+            # patent-relevant pages. Only applied when ≥5 high-quality results remain.
+            high_quality = [r for r in rows if (r.get('rank') or 0) >= 0.10]
             if len(high_quality) >= 5:
                 return high_quality
         return rows
